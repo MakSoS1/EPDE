@@ -60,6 +60,35 @@ _DEFAULT_BOOTSTRAP_DRAWS = 32     # B: block-bootstrap refits per equation
 _DEFAULT_N_BLOCKS = 16            # survival: contiguous time-slab count
 _DEFAULT_N_TILES = 8              # tile: disjoint domain tiles
 _DEFAULT_N_BLOCKS_HET = 16        # het: refit blocks (clamped by sample count)
+
+
+def _reference_width(p: int) -> int:
+    """The candidate width the block-count clamp is allowed to depend on.
+
+    ``tile`` and ``het`` size their partition as ``n_samples // (4*(w+1))`` so
+    every block keeps >= 4 samples per unknown. Using the CANDIDATE's own ``p``
+    for ``w`` made the partition candidate-dependent, and in the one direction
+    that flatters complexity: a wider equation got fewer, larger blocks, hence
+    lower between-block dispersion, hence a BETTER instability score. That is a
+    combinatorial reward for adding terms, paid on the Pareto axis.
+
+    ``survival_scores`` already refuses to let ``p`` reach its randomness for
+    the same reason -- see the common-random-numbers note there. This is the
+    same principle applied to the partition: resolve the width from the search
+    configuration's ``equation_terms_max_number`` (the widest equation the
+    search can build), so within one search every candidate is scored on the
+    SAME partition and score differences are differences in the equations.
+
+    ``max`` with the candidate's own ``p`` keeps the >= 4-samples-per-unknown
+    guarantee intact when a caller hands over a matrix wider than the
+    configured cap -- offline analysis tools do.
+    """
+    try:
+        from epde.interface.search_config import active_config
+        configured = int(active_config().search_space.equation_terms_max_number)
+    except Exception:
+        configured = 0
+    return max(int(p), configured)
 # chi2 needs no size knob: one score path per grid axis, each accumulated
 # at that axis's own level resolution, so there is nothing to tune.
 
@@ -223,13 +252,15 @@ def tile_scores(features, target, sample_weights, grid_shape,
     different regions -> large.
 
     ``n_tiles`` is clamped so each tile keeps >= 4 samples per unknown
-    (else the per-tile solves are meaninglessly under-determined).
+    (else the per-tile solves are meaninglessly under-determined). The width
+    that clamp reads is the SEARCH's widest allowed equation, not this
+    candidate's -- see :func:`_reference_width`.
     """
     X = np.asarray(features, dtype=float)
     if X.ndim == 1:
         X = X[:, None]
     n_samples, p = X.shape
-    max_tiles = max(2, n_samples // (4 * (p + 1)))
+    max_tiles = max(2, n_samples // (4 * (_reference_width(p) + 1)))
     n_tiles = max(2, min(int(n_tiles), max_tiles))
 
     G_blocks, Gy_blocks = block_gram_partition(
@@ -299,11 +330,12 @@ def _het_components(features, target, sample_weights, grid_shape,
         X = X[:, None]
     n_samples, p = X.shape
     k = p + 1 if fit_intercept else p
-    max_blocks = n_samples // (4 * (p + 1))
+    max_blocks = n_samples // (4 * (_reference_width(p) + 1))
     if max_blocks < 3:
         raise ValueError(
-            'heterogeneity_scores needs >= 3 blocks of >= 4*(p+1) samples '
-            f'to calibrate; got n_samples={n_samples} with p={p}')
+            'heterogeneity_scores needs >= 3 blocks of >= 4*(w+1) samples '
+            f'to calibrate; got n_samples={n_samples} with p={p} and reference '
+            f'width w={_reference_width(p)} (equation_terms_max_number)')
     n_blocks = max(3, min(int(n_blocks), max_blocks))
 
     G_blocks, Gy_blocks, yy_blocks = block_gram_partition(

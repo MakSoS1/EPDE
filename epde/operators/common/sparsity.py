@@ -129,6 +129,8 @@ class PhysicsInformedLasso(BaseEstimator, RegressorMixin):
         # compatibility; callers that store weights on an Equation want
         # ``full_coef_``.
         self.full_coef_ = None  # Includes the intercept
+        # Filled on each ``fit``; see the keep-rule binding diagnostic there.
+        self.keep_rule_binding_ = None
 
     def _soft_threshold(self, x, lambda_):
         return np.sign(x) * np.maximum(np.abs(x) - lambda_, 0.0)
@@ -167,6 +169,7 @@ class PhysicsInformedLasso(BaseEstimator, RegressorMixin):
         # Master state trackers
         active_mask = np.ones(total_features, dtype=bool)
         self.full_coef_ = np.zeros(total_features)
+        self.keep_rule_binding_ = None
 
         # Precompute the augmented Gram blocks ONCE. The RFE outer loop and the
         # coordinate descent below run entirely in Gram space (slicing these by
@@ -291,6 +294,27 @@ class PhysicsInformedLasso(BaseEstimator, RegressorMixin):
             # Tackle the most physically unstable feature first.
             active_thresholds = active_cv * max_corr
             cv_order = np.argsort(active_cv)[::-1]
+
+            # KEEP-RULE BINDING DIAGNOSTIC, recorded on the FIRST outer pass
+            # (full support) and never afterwards, so this costs one vector per
+            # fit and nothing in the inner loop.
+            #
+            # ``active_thresholds`` is the only thing standing between a
+            # spurious column and the support, and it is a PRODUCT of a
+            # residual-driven, non-pivotal statistic (``active_cv``) with a
+            # signal-scale anchor (``max_corr``). Improve a candidate's
+            # residual and its own thresholds shrink with it -- so the rule can
+            # be vacuous (everything clears its bar by orders of magnitude) or
+            # binding, and which one it is has never been measured on a large
+            # PDE grid. ``keep_rule_binding_`` is that number: entries far above
+            # 1 are columns the rule cannot touch, entries below 1 are columns
+            # it kills. Read it, do not branch on it -- nothing here consumes it.
+            if self.keep_rule_binding_ is None:
+                self.keep_rule_binding_ = np.full(total_features, np.nan)
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    self.keep_rule_binding_[active_idx] = np.abs(
+                        Gy_w[active_idx] - G_w[active_idx, :] @ self.full_coef_
+                    ) / np.where(active_thresholds > 0, active_thresholds, np.nan)
 
             # Initialize coefficients from a single global WEIGHTED-OLS, in Gram
             # space: solve(G_w[active, active], Gy_w[active]). The axis path falls
