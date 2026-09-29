@@ -66,6 +66,7 @@ PROVENANCE_FILES = (
     "epde/integrate/residual_terms.py",
     "epde/integrate/basis_integration.py",
     "epde/integrate/lr_free.py",
+    "epde/interface/equation_translator.py",
     "projects/pinn/gate.py",
 )
 
@@ -194,6 +195,35 @@ def arm_config(arm):
 
 
 # ============================================================ systems
+#: variables per system, in pool order = vars_to_describe = the net's output
+#: columns = the order the translate dict must follow
+SYSTEM_VARS = {"ac": ["u"], "duffing": ["u"], "burgers": ["u"],
+               "lv": ["u", "v"], "ns": ["u", "v", "p"], "lorenz": ["u", "v", "w"]}
+#: the variables the gate RMSE averages (the host's force_out_of_place rule is
+#: the mean over ALL equations). NS leaves p out: only grad p enters the
+#: physics, so p's tail carries a free gauge drift c(t) -- noise, not verdict.
+GATE_VARS = {"ns": ["u", "v"]}
+SYSTEMS = tuple(SYSTEM_VARS)
+# Lorenz-63 window: t in [20.0, 25.2] of the stored run (dt 1e-3), every 5th
+# sample, re-zeroed (the system is autonomous, so the shift is exact).
+# Inner [0.05, 5.15]; train_frac 0.8 -> tail 1.02 time units = 0.92 T_lambda
+# (lambda_1 = 0.900 measured). The repo's t[:1000] is an off-attractor
+# transient with a 0.14 T_lambda tail.
+LORENZ_WINDOW = {"i0": 20000, "n": 1041, "step": 5, "boundary_width": 10}
+
+
+def gate_vars(system):
+    return GATE_VARS.get(system, SYSTEM_VARS[system])
+
+
+def _lorenz_window():
+    t = np.load(os.path.join(DATA, "lorenz", "t.npy"))
+    X = np.load(os.path.join(DATA, "lorenz", "lorenz.npy"))
+    w = LORENZ_WINDOW
+    idx = w["i0"] + w["step"] * np.arange(w["n"])
+    return t[idx] - t[idx[0]], X[idx]
+
+
 def _duffing_params():
     d = np.load(os.path.join(DATA, "duffing", "duffing.npz"))
     return {k: float(d[k]) for k in ("delta", "alpha", "beta", "gamma", "omega")}
@@ -226,6 +256,58 @@ def system_forms(system):
                      "du/dx0{power: 1.0}"),
             "wrong": ("-1.0 * u{power: 1.0} * du/dx1{power: 1.0} + 0.0 = "
                       "du/dx0{power: 1.0}"),
+        }
+    if system == "lv":
+        # Synthetic Lotka-Volterra, alpha=beta=gamma=delta=20, IC (4, 2), h=1/301
+        # (projects/hunter-prey/data_preparation.py; its hand-written RK4 has two
+        # stage-3 bugs, so the record is LV only to ~0.4% -- the refit absorbs it).
+        # The wrong form drops the prey growth: the refit intercept becomes
+        # constant recruitment, a bounded damped spiral (the LOWEST of the four
+        # single-term drops; dropping predator mortality blows up in the tail).
+        v_eq = ("-20.0 * v{power: 1.0} + 20.0 * u{power: 1.0} * v{power: 1.0} + 0.0 = "
+                "dv/dx0{power: 1.0}")
+        return {
+            "true": {"u": ("20.0 * u{power: 1.0} + -20.0 * u{power: 1.0} * v{power: 1.0} + "
+                           "0.0 = du/dx0{power: 1.0}"),
+                     "v": v_eq},
+            "wrong": {"u": "-20.0 * u{power: 1.0} * v{power: 1.0} + 0.0 = du/dx0{power: 1.0}",
+                      "v": v_eq},
+        }
+    if system == "ns":
+        # x-momentum (u: target u_t), continuity (v: target v_y), y-momentum
+        # solved for p_y (p) -- the mapping of main:ns/cv_metric.py. dx0=t,
+        # dx1=y, dx2=x. The wrong form drops the pressure gradient from
+        # x-momentum (u becomes 2-D viscous Burgers); static FD residual 10x true.
+        adv_u = ("-1.0 * u{power: 1.0} * du/dx2{power: 1.0} + "
+                 "-1.0 * v{power: 1.0} * du/dx1{power: 1.0} + ")
+        visc_u = ("0.01 * d^2u/dx2^2{power: 1.0} + 0.01 * d^2u/dx1^2{power: 1.0} + "
+                  "0.0 = du/dx0{power: 1.0}")
+        cont = "-1.0 * du/dx2{power: 1.0} + 0.0 = dv/dx1{power: 1.0}"
+        mom_v = ("-1.0 * dv/dx0{power: 1.0} + -1.0 * u{power: 1.0} * dv/dx2{power: 1.0} + "
+                 "-1.0 * v{power: 1.0} * dv/dx1{power: 1.0} + "
+                 "0.01 * d^2v/dx2^2{power: 1.0} + 0.01 * d^2v/dx1^2{power: 1.0} + "
+                 "0.0 = dp/dx1{power: 1.0}")
+        return {
+            "true": {"u": adv_u + "-1.0 * dp/dx2{power: 1.0} + " + visc_u,
+                     "v": cont, "p": mom_v},
+            "wrong": {"u": adv_u + visc_u, "v": cont, "p": mom_v},
+        }
+    if system == "lorenz":
+        # Lorenz-63, sigma=10, rho=28, beta=8/3 (x, y, z -> u, v, w). The wrong
+        # form drops -x*z, the y-equation's only nonlinearity: (u, v) becomes a
+        # damped linear oscillator of about the right period that never switches
+        # lobes. Oracle gate +3.8..+5.1 over 8 window starts.
+        eq_u = "10.0 * v{power: 1.0} + -10.0 * u{power: 1.0} + 0.0 = du/dx0{power: 1.0}"
+        eq_w = ("1.0 * u{power: 1.0} * v{power: 1.0} + -2.6666666666666665 * w{power: 1.0} "
+                "+ 0.0 = dw/dx0{power: 1.0}")
+        return {
+            "true": {"u": eq_u,
+                     "v": ("28.0 * u{power: 1.0} + -1.0 * u{power: 1.0} * w{power: 1.0} + "
+                           "-1.0 * v{power: 1.0} + 0.0 = dv/dx0{power: 1.0}"),
+                     "w": eq_w},
+            "wrong": {"u": eq_u,
+                      "v": "28.0 * u{power: 1.0} + -1.0 * v{power: 1.0} + 0.0 = dv/dx0{power: 1.0}",
+                      "w": eq_w},
         }
     raise ValueError(f"unknown system {system!r}")
 
@@ -267,22 +349,96 @@ def build_search(system):
         _, trajectory = search.createTrajectory({"u": data}, domain, cache_id=0)
         search.create_pool(data=[trajectory], max_deriv_order=(2, 3), data_fun_pow=3,
                            additional_tokens=[])
+    elif system == "lv":
+        # all 301 levels (lv.py's t[:150] would leave a ~0.07 tail); t in [0, 1)
+        t = np.load(os.path.join(DATA, "lv", "t_20.npy")).astype(np.float64)
+        data = np.load(os.path.join(DATA, "lv", "data_20.npy")).astype(np.float64)
+        _, domain = search.createDomain(t, boundary_width=10, ID=0)
+        search.set_preprocessor(default_preprocessor_type="FD", preprocessor_kwargs={})
+        _, trajectory = search.createTrajectory({"u": data[:, 0], "v": data[:, 1]},
+                                                domain, cache_id=0)
+        search.create_pool(data=[trajectory], max_deriv_order=(1,), data_fun_pow=1,
+                           additional_tokens=[])
+    elif system == "ns":
+        # Raissi et al. cylinder wake (Nektar DNS, Re=100; D=1, U_inf=1,
+        # nu=0.01), float64 .mat (the npz's float32 grids trip EPDE's
+        # non-uniform-axis warning). X_star is x-fastest, so a snapshot reshapes
+        # to (y, x); EPDE axes x0=t, x1=y, x2=x. GATE SUBSET (the full window
+        # puts ~359k points in every DeepXDE step): the first 50 levels (dt 0.1;
+        # the p_y-target refit degrades at dt 0.2), every 2nd y on [-1.59, 1.51],
+        # every 2nd x on [1, 5.95]. Boundary (2, 2, 7): the x-width keeps the
+        # scored region ~1 time unit of advection downstream of the open inflow.
+        from scipy.io import loadmat
+        m = loadmat(os.path.join(DATA, "ns", "cylinder_nektar_wake.mat"))
+        t_all = np.ravel(m["t"])
+        x_all, y_all = np.unique(m["X_star"][:, 0]), np.unique(m["X_star"][:, 1])
+
+        def field(a):                                   # (N, T) -> (t, y, x)
+            return a.T.reshape(len(t_all), len(y_all), len(x_all))
+
+        ts, ys, xs = slice(0, 50), slice(5, 45, 2), slice(0, 72, 2)
+        full = {"u": field(m["U_star"][:, 0, :]), "v": field(m["U_star"][:, 1, :]),
+                "p": field(m["p_star"])}
+        data = {k: np.ascontiguousarray(f[ts][:, ys][:, :, xs]) for k, f in full.items()}
+        grids = np.meshgrid(t_all[ts], y_all[ys], x_all[xs], indexing="ij")
+        _, domain = search.createDomain((grids[0], grids[1], grids[2]),
+                                        boundary_width=(2, 2, 7), ID=0)
+        search.set_preprocessor(default_preprocessor_type="FD", preprocessor_kwargs={})
+        _, trajectory = search.createTrajectory(data, domain, cache_id=0)
+        search.create_pool(data=[trajectory], max_deriv_order=(1, 2, 2), data_fun_pow=1,
+                           additional_tokens=[])
+    elif system == "lorenz":
+        t, X = _lorenz_window()
+        _, domain = search.createDomain(t, boundary_width=LORENZ_WINDOW["boundary_width"],
+                                        ID=0)
+        search.set_preprocessor(default_preprocessor_type="FD", preprocessor_kwargs={})
+        _, trajectory = search.createTrajectory({"u": X[:, 0], "v": X[:, 1], "w": X[:, 2]},
+                                                domain, cache_id=0)
+        search.create_pool(data=[trajectory], max_deriv_order=(1,), data_fun_pow=1,
+                           additional_tokens=[])
     else:
         raise ValueError(f"unknown system {system!r}")
     return search
 
 
-def fitted_system(search, text):
+def fitted_system(search, text, system="ac"):
+    """Translate + refit EVERY equation. Returns (SoEq, [equations in
+    vars_to_describe order]). A single-variable text stays a str (the str
+    overload, as the historical harnesses); a coupled one is a dict."""
     from epde.interface.equation_translator import translate_equation
     from epde.operators.common.coeff_calculation import LinRegBasedCoeffsEquation
-    system = translate_equation(text, search.pool, all_vars=["u"])
-    eq = system.vals["u"]
-    eq.main_var_to_explain = "u"
-    system.use_default_singleobjective_function()
-    eq.weights_internal = np.ones(len(eq.structure))
-    eq.weights_internal_evald = True
-    LinRegBasedCoeffsEquation().apply(eq, {})
-    return system, eq
+    all_vars = SYSTEM_VARS[system]
+    eq_system = translate_equation(text, search.pool, all_vars=list(all_vars))
+    if list(eq_system.vars_to_describe) != list(all_vars):
+        raise RuntimeError(f"vars_to_describe {eq_system.vars_to_describe} != {all_vars}")
+    eqs = [eq_system.vals[var] for var in all_vars]
+    for var, eq in zip(all_vars, eqs):
+        eq.main_var_to_explain = var
+    eq_system.use_default_singleobjective_function()
+    # translate raises both *_evald flags on every equation, so an unrefit one
+    # would pass the host's guard and be solved with the TEXT coefficients
+    for eq in eqs:
+        eq.weights_internal = np.ones(len(eq.structure))
+        eq.weights_internal_evald = True
+        LinRegBasedCoeffsEquation().apply(eq, {})
+    return eq_system, eqs
+
+
+def _score_fields(system, eqs):
+    """The row's RMSE fields. 'rmse' is the gate RMSE: the mean over the gate
+    variables (one variable: that variable's RMSE, exactly)."""
+    per = {var: float(eq.fitness_value) for var, eq in zip(SYSTEM_VARS[system], eqs)}
+    out = {"rmse": float(np.mean([per[v] for v in gate_vars(system)]))}
+    if len(eqs) > 1:
+        out["rmse_per_var"] = per
+        out["coeffs"] = {var: [float(w) for w in np.asarray(eq.weights_final).reshape(-1)]
+                         for var, eq in zip(SYSTEM_VARS[system], eqs)}
+        out["equation"] = {var: getattr(eq, "text_form", None)
+                           for var, eq in zip(SYSTEM_VARS[system], eqs)}
+    else:
+        out["coeffs"] = [float(w) for w in np.asarray(eqs[0].weights_final).reshape(-1)]
+        out["equation"] = getattr(eqs[0], "text_form", None)
+    return out
 
 
 # ============================================================ provenance
@@ -338,9 +494,10 @@ def trace_path(tag, system, arm, form, seed):
     return os.path.join(RESULTS, "traces", tag, f"{system}__{arm}__{form}__{seed}.json")
 
 
-def _held_out_replica(dxi, train_frac, val_frac):
+def _held_out_replica(dxi, train_frac, val_frac, system="ac"):
     """Held-out RMSE of a net, computed exactly as the host scores it:
-    prediction on the FULL grid, inner mask, test block of ``time_split``."""
+    prediction on the FULL grid, inner mask, test block of ``time_split``;
+    per variable, then the mean over the gate variables (as ``_score_fields``)."""
     import torch
     samples = dxi.global_var.samples_manager
     key = samples.trajecatoryIDs[0]
@@ -348,7 +505,9 @@ def _held_out_replica(dxi, train_frac, val_frac):
     flat_mask = np.asarray(samples.gFunc("m")[key]).reshape(-1)
     t_inner = g_full[0].reshape(-1)[flat_mask]
     held = dxi.time_split(t_inner, train_frac, val_frac).test
-    obs = np.asarray(samples.get(("u", (1.0,)))[key]).reshape(-1)[held]
+    cols = [SYSTEM_VARS[system].index(v) for v in gate_vars(system)]
+    obs = [np.asarray(samples.get((v, (1.0,)))[key]).reshape(-1)[held]
+           for v in gate_vars(system)]
     X_np = np.asarray(dxi._input_columns(g_full))
     cache = {}
 
@@ -358,9 +517,12 @@ def _held_out_replica(dxi, train_frac, val_frac):
         if k not in cache:
             cache[k] = torch.as_tensor(X_np, dtype=p0.dtype, device=p0.device)
         with torch.no_grad():
-            p = net(cache[k]).detach().cpu().numpy()[:, 0]
-        s = p.reshape(-1)[flat_mask][held]
-        return float(np.sqrt(np.mean((s - obs) ** 2)))
+            p = net(cache[k]).detach().cpu().numpy()
+        errs = []
+        for c, o in zip(cols, obs):
+            s = p[:, c].reshape(-1)[flat_mask][held]
+            errs.append(float(np.sqrt(np.mean((s - o) ** 2))))
+        return float(np.mean(errs))
 
     return rmse
 
@@ -377,12 +539,13 @@ def run_basis_solve(system, arm, form, seed, mode, tag):
     from epde.operators.common.objectives import Discrepancy
     cfg = arm_config(arm)
     search = build_search(system)
-    eq_system, eq = fitted_system(search, system_forms(system)[form])
+    eq_system, eqs = fitted_system(search, system_forms(system)[form], system)
     prelude = time.perf_counter() - t_start
     host = SolverBasedFitness(["penalty_coeff", "error_metric", "basis_config"],
                               primary=Discrepancy("deepxde"), backend="basis")
     host.params = {"penalty_coeff": 0.2, "error_metric": "rmse", "basis_config": cfg}
-    eq.fitness_calculated = False
+    for eq in eqs:
+        eq.fitness_calculated = False
     t0 = time.perf_counter()
     host.apply(eq_system, {})
     seconds = time.perf_counter() - t0
@@ -391,11 +554,9 @@ def run_basis_solve(system, arm, form, seed, mode, tag):
     return {
         "tag": tag, "system": system, "arm": arm, "form": form, "seed": seed,
         "mode": mode, "backend": "basis", "config": cfg,
-        "rmse": float(eq.fitness_value), "seconds": seconds, "prelude_seconds": prelude,
+        **_score_fields(system, eqs), "seconds": seconds, "prelude_seconds": prelude,
         "lbfgs_exit": adapter.last_lbfgs_exit,
         "basis_stats": stats,
-        "coeffs": [float(w) for w in np.asarray(eq.weights_final).reshape(-1)],
-        "equation": eq.text_form if hasattr(eq, "text_form") else None,
         "deepxde_imported": "deepxde" in sys.modules,
         "env": environment(), "provenance": provenance(), "pid": os.getpid(),
     }
@@ -425,7 +586,7 @@ def run_solve(system, arm, form, seed, mode="solve", tag="adhoc", write_trace=Tr
 
     cfg = arm_config(arm)
     search = build_search(system)
-    eq_system, eq = fitted_system(search, system_forms(system)[form])
+    eq_system, eqs = fitted_system(search, system_forms(system)[form], system)
     prelude = time.perf_counter() - t_start
 
     rec = {"phases": [], "rows": [], "chunks": [], "loss_weights_lbfgs": None,
@@ -450,7 +611,7 @@ def run_solve(system, arm, form, seed, mode="solve", tag="adhoc", write_trace=Tr
     rmse_now = None
     if mode == "trace":
         rmse_now = _held_out_replica(dxi, float(cfg.get("train_frac", 0.8)),
-                                     float(cfg.get("val_frac", 0.0)))
+                                     float(cfg.get("val_frac", 0.0)), system)
 
     orig_install = dxi._install_lbfgs_stall_guard
 
@@ -517,7 +678,8 @@ def run_solve(system, arm, form, seed, mode="solve", tag="adhoc", write_trace=Tr
     host = SolverBasedFitness(["penalty_coeff", "error_metric", "deepxde_config"],
                               primary=Discrepancy("deepxde"), backend="deepxde")
     host.params = {"penalty_coeff": 0.2, "error_metric": "rmse", "deepxde_config": cfg}
-    eq.fitness_calculated = False
+    for eq in eqs:
+        eq.fitness_calculated = False
     t0 = time.perf_counter()
     host.apply(eq_system, {})
     seconds = time.perf_counter() - t0
@@ -532,7 +694,7 @@ def run_solve(system, arm, form, seed, mode="solve", tag="adhoc", write_trace=Tr
     row = {
         "tag": tag, "system": system, "arm": arm, "form": form, "seed": seed,
         "mode": mode, "backend": "deepxde", "config": cfg,
-        "rmse": float(eq.fitness_value), "seconds": seconds, "prelude_seconds": prelude,
+        **_score_fields(system, eqs), "seconds": seconds, "prelude_seconds": prelude,
         "phases": rec["phases"],
         "lbfgs_exit": getattr(adapter, "last_lbfgs_exit", None),
         "init_stats": getattr(adapter, "last_init_stats", None),
@@ -542,8 +704,6 @@ def run_solve(system, arm, form, seed, mode="solve", tag="adhoc", write_trace=Tr
         "pairing": getattr(adapter, "last_pairing", None),
         "final_n_iter": final_n,
         "loss_weights_lbfgs": rec["loss_weights_lbfgs"],
-        "coeffs": [float(w) for w in np.asarray(eq.weights_final).reshape(-1)],
-        "equation": eq.text_form if hasattr(eq, "text_form") else None,
         "solve_device": str(dxi.DDE_SOLVE_DEVICE),
         "net_device": (str(next(m.net.parameters()).device) if m is not None else None),
         "net_dtype": (str(next(m.net.parameters()).dtype) if m is not None else None),
@@ -580,15 +740,18 @@ def run_prefit(system, arm, seed):
     if cfg.get("init") != "shared_data_fit":
         raise SystemExit(f"arm {arm} has no shared data fit")
     search = build_search(system)
-    eq_system, eq = fitted_system(search, system_forms(system)["true"])
+    eq_system, _ = fitted_system(search, system_forms(system)["true"], system)
     samples = dxi.global_var.samples_manager
     key = samples.trajecatoryIDs[0]
-    observed = np.asarray(samples.get(("u", (1.0,)))[key]).reshape(-1)
+    # one observed array per variable, in the host's order: the cache key
+    # hashes them, so anything else would never match the solve's Y
+    observed = [np.asarray(samples.get((v, (1.0,)))[key]).reshape(-1)
+                for v in SYSTEM_VARS[system]]
     dde.config.set_random_seed(seed)
     adapter = dxi.DeepXDEAdapter(**cfg)
     t0 = time.perf_counter()
     stats = adapter.prepare_shared_fit(eq_system, grids=samples.grids()[key],
-                                       data=[observed], domain_key=key)
+                                       data=observed, domain_key=key)
     return {"system": system, "arm": arm, "seed": seed, "seconds": time.perf_counter() - t0,
             "stats": stats, "pairing": adapter.last_pairing, "pid": os.getpid()}
 
@@ -719,7 +882,7 @@ def main(argv=None):
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("command", choices=["solve", "drive", "probe", "list", "prefit",
                                         "prefit-one"])
-    ap.add_argument("--system", choices=["ac", "duffing", "burgers"])
+    ap.add_argument("--system", choices=SYSTEMS)
     ap.add_argument("--arm")
     ap.add_argument("--arms")
     ap.add_argument("--form", choices=FORMS)
