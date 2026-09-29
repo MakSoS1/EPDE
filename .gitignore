@@ -134,6 +134,7 @@ dmypy.json
 /ARCHITECTURE.md
 /RIDGE_ALPHA_PLAN.md
 /SEARCH_CONFIG_PLAN.md
+/projects/pinn/SOLVER_STUDY.md
 
 # --- IDE ---
 .idea/
@@ -148,6 +149,8 @@ dmypy.json
 # is generated, so track the .py and nothing else.
 projects/thesis/*
 !projects/thesis/*.py
+# Gate harness: its code is tracked; rows, traces and shared-fit caches stay local
+projects/pinn/results/
 projects/**/plots/
 projects/pic/data/**/*_pinn_*.npz
 projects/pic/data/**/_nnm_*.npz
