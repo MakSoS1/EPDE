@@ -176,8 +176,17 @@ class EqRightPartSelector(CompoundOperator):
 
     @_loop_stats.timed('EqRPS.apply')
     @HistoryExtender('\n -> The equation structure was detected: ', 'a')
-    def apply(self, objective : Equation, arguments : dict):
+    def apply(self, objective : Equation, arguments : dict,
+              banned_sigs=frozenset()):
         """Select a right-part term for ``objective`` in-place.
+
+        ``banned_sigs``: standalone-term signatures the terms this operator
+        regenerates may not take -- inside a system, what the other equations'
+        targets reserve (passed by ``SoEqRightPartSelector``; empty for a
+        single equation). It reaches the regenerations inside
+        ``simplify_equation`` and, via ``_redraw_banned_terms``, the
+        ``Equation`` generators driven below (``randomize``,
+        ``restore_property``), which are otherwise blind to the system.
 
         Handles two recoverable failure modes inside the outer loop via
         ``objective.randomize()`` (cheap, single-equation reroll) rather
@@ -236,8 +245,23 @@ class EqRightPartSelector(CompoundOperator):
                         f'after {inner_max_iter} attempts; randomizing equation.'
                     )
                     objective.randomize()
+                    _redraw_banned_terms(objective, list(objective.structure),
+                                         banned_sigs)
                     break
+                _before = list(objective.structure)
                 objective.restore_property(mandatory_family=False, deriv=True)
+                # The injected term carries a derivative of THIS equation's
+                # variable, so it can only collide with another equation's
+                # target when that target is a composite carrying one of each
+                # (the shared-target case) -- rare, but the same ban applies.
+                # Scrubbing it here, before the ``while`` re-tests, keeps the
+                # loop's own invariant: if the redraw took the derivative away,
+                # the next attempt restores it.
+                _redraw_banned_terms(
+                    objective,
+                    [t for t in objective.structure
+                     if not any(t is b for b in _before)],
+                    banned_sigs)
             _loop_stats.record('EqRPS.inner_derivative', inner_attempts, inner_max_iter)
 
             # Tier 3: precompute the super-Gram over all terms ONCE per
@@ -269,6 +293,11 @@ class EqRightPartSelector(CompoundOperator):
                 # locally (cheap) and continue the outer loop.
                 _loop_stats.record('EqRPS.inf_fitness_regen', 1, 1)
                 objective.randomize()
+                # A whole-equation reroll draws blind to the system; redraw
+                # whatever landed on another equation's reserved signature
+                # before the outer loop refits it.
+                _redraw_banned_terms(objective, list(objective.structure),
+                                     banned_sigs)
                 continue
 
             objective.weights_internal = weights_internal
@@ -279,7 +308,7 @@ class EqRightPartSelector(CompoundOperator):
             objective.weights_final_evald = True
             objective.target_idx = min_idx
 
-            if not self.simplify_equation(objective):
+            if not self.simplify_equation(objective, banned_sigs):
                 simplified = True
             if objective.target is not None and objective.target.contains_deriv(objective.main_var_to_explain):
                 correct_right_part = True
@@ -308,6 +337,18 @@ class EqRightPartSelector(CompoundOperator):
         if objective.target is None and objective.structure:
             deriv_idxs = [i for i, term in enumerate(objective.structure)
                           if term.contains_deriv(objective.main_var_to_explain)]
+            # This is the one place the operator can install a leak without
+            # drawing anything: the term it promotes may be what another
+            # equation's target reserves. Order the candidates so unreserved
+            # ones are tried first -- a stable sort, so structure order still
+            # decides within each group, and the fit probe below still outranks
+            # the ban (a reserved-but-fitting target beats an unreserved one
+            # the host declines; the SoEq loop repairs the former, nothing
+            # repairs a degenerate fit). If EVERY candidate is reserved, one is
+            # installed anyway: a target must leave RPS.
+            if banned_sigs:
+                deriv_idxs.sort(key=lambda i: objective.structure[i]
+                                .factors_labels in banned_sigs)
             chosen = None
             # Resolved once per apply, not once per candidate in the sweep.
             amplification_cap = active_config().search_space.rps_amplification_cap
@@ -352,7 +393,7 @@ class EqRightPartSelector(CompoundOperator):
         assert len(_final_sigs) == len(objective.structure), \
             'EqRightPartSelector.apply: duplicate terms survived RPS.'
 
-    def simplify_equation(self, objective: Equation):
+    def simplify_equation(self, objective: Equation, banned_sigs=frozenset()):
         # Get nonzero terms
         tgt = objective.target_idx
         # ``[:-1]`` drops the trailing intercept slot explicitly. Without it the
@@ -367,6 +408,44 @@ class EqRightPartSelector(CompoundOperator):
 
         if len(equation_terms) <= 1:
             return False
+
+        # Ratio-fit scrub: a nonzero feature term related to the target by
+        # DIVISION in either direction (see ``_term_divides``) makes the
+        # ``Lambda * g * (true identity)`` FD-error soak representable:
+        #
+        # * a COMPONENT (term divides target) -- the wave composite trap
+        #   ``u*u_tt = 3.75*u_tt - 0.15*u_xx + 0.04*u*u_xx`` (g = 1), whose
+        #   padded pair cancels exactly under the true relation;
+        # * a MULTIPLE (target divides term) -- the hitchhiker shape
+        #   ``0.687*u_t*u_tt - 0.0275*u_t*u_xx`` riding on the canonical
+        #   target ``u_tt`` (g = u_t; the coefficient ratio is again
+        #   exactly the true 0.04).
+        #
+        # Scrubbing the target-side member breaks every such family (the
+        # partner alone cannot cancel and dies at the refit -- measured
+        # under both the chi2 and vcoef keep-rules). Component padding
+        # also BLOCKS the common-factor cancellation below; scrubbing it
+        # first lets the surviving reduced identity (which DOES share the
+        # factor) collapse to its canonical form on a later pass.
+        divisors = [term for term in nonzero_terms[:-1]
+                    if _related_to_target(term, objective.target)]
+        if divisors:
+            def _not_soak_related(term_):
+                return not _related_to_target(term_, objective.target)
+            for term in divisors:
+                status = _regen_or_drop_term(
+                    objective, term, max_iter=100,
+                    stats_name='simplify_equation.divisor_scrub',
+                    extra_ok=_not_soak_related, banned_sigs=banned_sigs)
+                if status in ('target', 'floor'):
+                    # Could not scrub without degenerating the equation, but
+                    # ``_regen_or_drop_term`` may already have randomized the
+                    # term, so this is still a structural change: report it
+                    # and let the outer RPS loop reset and re-select (the same
+                    # rule as the common-factor branch below).
+                    break
+            objective.reset_for_structure_change()
+            return True
 
         # Degree reduction: when a SINGLE non-target term remains, the
         # equation is ``coef * f = g`` with f, g products of powered
@@ -429,7 +508,8 @@ class EqRightPartSelector(CompoundOperator):
             # never touched: a target in the SPAN of independent features is
             # a perfect fit (a valid identity), not a degeneracy.
             return self._regenerate_dependent_terms(objective,
-                                                    nonzero_terms[:-1])
+                                                    nonzero_terms[:-1],
+                                                    banned_sigs)
 
         for common_factor in common_factors:
             # Min power across the matching factor in every nonzero term.
@@ -441,7 +521,6 @@ class EqRightPartSelector(CompoundOperator):
                             min_order = factor.cache_label[1][0]
 
             # Reduce order of common factor in every term; drop zero-power factors.
-            max_iter = 100
             for term in nonzero_terms:
                 factors_simplified = []
                 for factor in term.structure:
@@ -456,14 +535,34 @@ class EqRightPartSelector(CompoundOperator):
                 term.structure = [factor for factor in term.structure if factor not in factors_simplified]
                 term.resetSavedState()
 
-                # If the term's order became zero (or it now duplicates
-                # another term), regenerate it; if the pool can't yield a
-                # unique, meaningful replacement within the cap, DROP it.
-                # A duplicate must never ride out of RPS -- see the exit
-                # assert in ``apply``.
+            # Reduction collisions are ALWAYS against zero-weight
+            # non-survivors: two NONZERO terms cannot collide by shedding a
+            # factor they both carried (they would have been duplicates
+            # before), so a colliding copy is dead structure -- drop the
+            # copy, keep the reduced carrier (the degree-reduction policy
+            # above). Regenerating the CARRIER instead -- the old policy --
+            # scattered exact identities into random terms and broke the
+            # canonical collapse (the wave ratio-fit chain).
+            keep_ids = {id(t) for t in nonzero_terms}
+            kept_labels = {t.factors_labels for t in nonzero_terms}
+            redundant = [t for t in objective.structure
+                         if id(t) not in keep_ids
+                         and t.factors_labels in kept_labels]
+            for t in redundant:
+                _regen_or_drop_term(
+                    objective, t, max_iter=0,
+                    stats_name='simplify_equation.cancel_collision')
+
+            # A term that consisted of nothing but the common factor is now
+            # empty / non-meaningful: regenerate it; if the pool can't
+            # yield a unique, meaningful replacement within the cap, DROP
+            # it. A duplicate must never ride out of RPS -- see the exit
+            # assert in ``apply``.
+            for term in nonzero_terms:
                 status = _regen_or_drop_term(
-                    objective, term, max_iter=max_iter,
-                    stats_name='simplify_equation.replace_term')
+                    objective, term, max_iter=100,
+                    stats_name='simplify_equation.replace_term',
+                    banned_sigs=banned_sigs)
                 if status in ('target', 'floor'):
                     # The offending term is the RPS target, or dropping it
                     # would degenerate the equation. There is nothing to
@@ -490,7 +589,7 @@ class EqRightPartSelector(CompoundOperator):
         raise AssertionError('simplify_equation: common-factor loop fell through')
 
     def _regenerate_dependent_terms(self, objective: Equation,
-                                    feature_terms) -> bool:
+                                    feature_terms, banned_sigs=frozenset()) -> bool:
         """Regenerate nonzero non-target terms whose evaluated columns are
         EXACTLY linearly dependent (incl. against the intercept).
 
@@ -568,7 +667,7 @@ class EqRightPartSelector(CompoundOperator):
             status = _regen_or_drop_term(
                 objective, term, max_iter=100,
                 stats_name='simplify_equation.lin_dep',
-                extra_ok=_independent)
+                extra_ok=_independent, banned_sigs=banned_sigs)
             if status == 'floor':
                 # ``_regen_or_drop_term`` randomized this term up to max_iter
                 # times looking for an independent replacement and left the last
@@ -790,10 +889,157 @@ def amplification_ratio(objective: Equation) -> float:
     return np.mean(list(num.values()))
 
 
+def _term_divides(term, target_term) -> bool:
+    """True iff ``term`` DIVIDES ``target_term``: every factor of ``term``
+    appears in ``target_term`` (same ``structural_label_without_power``)
+    with at least the same power (``cache_label[1][0]``, the
+    ``simplify_equation`` power convention).
+
+    Used by the ratio-fit scrub in ``simplify_equation``: a divisor
+    feature spans an exact algebraic component of the target (``u_tt``
+    inside the composite target ``u * u_tt``), which is what makes the
+    ``Lambda * (true identity)`` FD-error soak representable. Measured on
+    the wave pool: with the divisor excluded, the leftover padding dies
+    under both the chi2 and vcoef keep-rules, leaving the reduced
+    identity that common-factor cancellation collapses to the canonical
+    form."""
+    for f in term.structure:
+        matched = False
+        for g in target_term.structure:
+            if (g.structural_label_without_power
+                    == f.structural_label_without_power
+                    and g.cache_label[1][0] >= f.cache_label[1][0]):
+                matched = True
+                break
+        if not matched:
+            return False
+    return True
+
+
+def _related_to_target(term, target_term) -> bool:
+    """True iff ``term`` is a COMPONENT of ``target_term`` (divides it) or a
+    MULTIPLE of it (is divided by it) -- exactly the terms the ratio-fit scrub
+    in ``simplify_equation`` regenerates."""
+    return _term_divides(term, target_term) or _term_divides(target_term, term)
+
+
+def _related_to_a_possible_target(term, equation) -> bool:
+    """True iff ``term`` is related (``_related_to_target``) to the equation's
+    target or to any other term the next right-part selection could make the
+    target: those carrying a derivative of the explained variable, the sweep's
+    own eligibility test in ``EqRightPartSelector.apply``.
+
+    A repair is always followed by a fresh selection, so testing the current
+    target alone lets through a term the scrub removes under the target chosen
+    next (measured on lv_o2: ``dv/dx0 * d2u/dx0^2`` passes against a
+    ``du/dx0`` target, and the sweep then picks ``d2u/dx0^2``). The point is
+    the repaired term itself: scrubbing it throws away the coupling the repair
+    preserved, and the redraw is a random term rather than the leaked quantity
+    demoted to a factor. What this cannot foresee is ``simplify_equation``'s
+    own algebra (common-factor cancellation, degree reduction) reshaping an
+    accepted term.
+    """
+    return any(_related_to_target(term, other)
+               for other in _possible_targets(equation, term))
+
+
+def _possible_targets(equation, term):
+    """The equation's target and every other term the next right-part
+    selection could make the target -- those carrying a derivative of the
+    explained variable (the sweep's eligibility test) -- excluding ``term``."""
+    main_var = getattr(equation, 'main_var_to_explain', None)
+    target = equation.target
+    return [other for other in equation.structure
+            if other is not term
+            and (other is target or other.contains_deriv(main_var))]
+
+
+def _power_index(factor) -> int:
+    return next(idx for idx, info in factor.params_description.items()
+                if info['name'] == 'power')
+
+
+def _symbolic_reductions(term, other, max_steps: int = 16):
+    """The factor signatures of ``term`` and ``other`` after
+    ``simplify_equation``'s symbolic reductions of the two-term equation
+    ``term = other``, run to a fixed point on clones: degree reduction (every
+    power shares a divisor >= 2) and common-factor cancellation (a factor base
+    in both terms loses the smaller of its two powers). A side reduced to
+    nothing is ``None`` -- it would be regenerated, not kept. The scrub and the
+    linear-dependence check are not modelled."""
+    sides = [[f.copy_for_power_update() for f in term.structure],
+             [f.copy_for_power_update() for f in other.structure]]
+    for _ in range(max_steps):
+        powers = [f.params[_power_index(f)] for side in sides for f in side]
+        if powers and all(float(p) == int(p) and int(p) >= 1 for p in powers):
+            root = int(np.gcd.reduce(np.array([int(p) for p in powers], dtype=int)))
+            if root >= 2:
+                for side in sides:
+                    for f in side:
+                        idx = _power_index(f)
+                        f.set_param(int(f.params[idx]) // root, idx=idx)
+                continue
+        common = ({f.structural_label_without_power for f in sides[0]}
+                  & {f.structural_label_without_power for f in sides[1]})
+        if not common:
+            break
+        base = min(common, key=repr)
+        order = min(f.params[_power_index(f)] for side in sides for f in side
+                    if f.structural_label_without_power == base)
+        for k, side in enumerate(sides):
+            kept = []
+            for f in side:
+                if f.structural_label_without_power == base:
+                    idx = _power_index(f)
+                    f.set_param(f.params[idx] - order, idx=idx)
+                    if f.params[idx] == 0:
+                        continue
+                kept.append(f)
+            sides[k] = kept
+        if not sides[0] or not sides[1]:
+            break
+    return tuple(frozenset(f.structural_label for f in side) if side else None
+                 for side in sides)
+
+
+def _undone_by_simplify(term, equation, banned_sigs) -> bool:
+    """True iff ``simplify_equation``'s own reductions of ``term`` against the
+    equation's CURRENT target turn either side into one of ``banned_sigs``.
+
+    The pair is the case the refit really does leave: ``term`` alone with the
+    target. E.g. the leak ``dv/dx0`` wrapped as ``u*dv/dx0`` under the target
+    ``u*du/dx0`` cancels ``u`` back off, and ``(dv/dx0)^2`` under
+    ``(du/dx0)^2`` loses the square to degree reduction -- both restore the
+    very leak the repair removed. The other side counts too: ``v*du/dx0``
+    under ``du/dx0*dv/dx0`` cancels the TARGET down to the leak. Those
+    reductions are correct (the wrapped law IS the leaked law times the
+    shared factor), so it is the repair that has to avoid them.
+
+    Only a side the reductions CHANGED counts. An equation may legitimately
+    carry a banned signature already -- its own target, when two equations
+    share one -- and reading that back unchanged would veto every draw.
+
+    Deliberately the current target only, unlike the scrub rule
+    (``_related_to_a_possible_target``): the scrub acts on whatever target is
+    chosen next, but a cancellation under another candidate needs the refit
+    to zero every term that lacks the factor. Checking every candidate as if
+    it would (measured on the double pendulum) vetoed the true coupling
+    ``cos(D)*th2''`` whenever a ``cos(D)*th1'`` term was present, although the
+    real refit never cancelled it; the rarer switched-target cancellations
+    measured on LV are left to the SoEq convergence loop.
+    """
+    target = equation.target
+    if target is None or target is term:
+        return False
+    before = (term.factors_labels, target.factors_labels)
+    return any(sig in banned_sigs and sig != was
+               for sig, was in zip(_symbolic_reductions(term, target), before))
+
+
 def _regen_or_drop_term(equation: Equation, term, *, max_iter: int = 100,
                         min_terms: int = 2,
                         stats_name: str = 'simplify_equation.regen_or_drop',
-                        extra_ok=None) -> str:
+                        extra_ok=None, banned_sigs=frozenset()) -> str:
     """Make ``equation.structure`` unique w.r.t. ``term`` by regenerating
     ``term`` up to ``max_iter`` times; if it is still empty / non-meaningful
     / a duplicate, DROP it from the structure.
@@ -802,6 +1048,13 @@ def _regen_or_drop_term(equation: Equation, term, *, max_iter: int = 100,
     predicate beyond label uniqueness -- used by the linear-dependence
     scrub, whose redundant columns are label-unique yet must still be
     regenerated (and dropped on cap-hit, like a persistent duplicate).
+
+    ``banned_sigs`` are signatures a fresh draw may not take, nor be reduced
+    onto by ``simplify_equation`` (``_undone_by_simplify``): inside a system,
+    the standalone terms other equations' targets reserve
+    (``SoEqRightPartSelector``). It constrains draws only -- a term that
+    already carries one is not regenerated for it here; that leak is the SoEq
+    repair's, which first tries to keep the quantity as a factor.
 
     This is the simplify/scrub cap-hit policy -- *regenerate-n-then-drop* --
     deliberately distinct from the *keep-or-revert* ``retry_until_unique``
@@ -826,11 +1079,15 @@ def _regen_or_drop_term(equation: Equation, term, *, max_iter: int = 100,
     if idx is None:
         return 'ok'  # already dropped earlier in this pass
 
-    def _acceptable():
+    def _acceptable(fresh: bool = False):
         if len(term.structure) == 0 or not term.contains_meaningful():
             return False
         signatures = {t.factors_labels for t in equation.structure}
         if len(signatures) != len(equation.structure):
+            return False
+        if fresh and banned_sigs and (
+                term.factors_labels in banned_sigs
+                or _undone_by_simplify(term, equation, banned_sigs)):
             return False
         return extra_ok is None or bool(extra_ok(term))
 
@@ -844,7 +1101,7 @@ def _regen_or_drop_term(equation: Equation, term, *, max_iter: int = 100,
         attempts += 1
         term.randomize()
         term.resetSavedState()
-        if _acceptable():
+        if _acceptable(fresh=True):
             _loop_stats.record(stats_name, attempts, cap)
             equation._invalidate_label_cache()
             return 'regenerated'
@@ -890,6 +1147,54 @@ def _regen_or_drop_term(equation: Equation, term, *, max_iter: int = 100,
     return 'dropped'
 
 
+def _redraw_banned_terms(equation: Equation, terms, banned_sigs,
+                         stats_name: str = 'EqRPS.generator_ban_scrub') -> bool:
+    """Redraw each of ``terms`` whose signature is reserved by another
+    equation of the system, the way the regenerations inside
+    ``simplify_equation`` already avoid ``banned_sigs``.
+
+    ``terms`` are the ones a generator on ``Equation`` JUST created. Those
+    generators -- ``randomize`` (a whole-equation reroll) and
+    ``restore_property`` (a derivative injection) -- belong to the equation,
+    not to the system, so they draw from the pool with no idea what the other
+    equations explain and land on a reserved signature freely. Measured on
+    Lotka-Volterra: 94 of 478 rerolls inside ``EqRightPartSelector.apply``
+    built another equation's target as a standalone term, and 61 of those
+    rode out of the operator for the SoEq convergence loop to repair a pass
+    later -- 55 of them drawn INSIDE that loop, i.e. the re-selection after a
+    repair putting the leak straight back.
+
+    Freshly drawn terms only, never inherited structure. A leak an equation
+    arrived with may be real coupling, which the SoEq repair demotes to a
+    FACTOR (``_wrap_term_with_factor``) rather than destroying; scrubbing it
+    here would throw that away. A term drawn at random a moment ago carries
+    no such information, so redrawing it costs nothing -- which is also why
+    this does not wrap.
+
+    Returns True if any term was redrawn or dropped.
+    """
+    if not banned_sigs:
+        return False
+
+    def _not_banned(term_):
+        return term_.factors_labels not in banned_sigs
+
+    changed = False
+    for term in terms:
+        if term.factors_labels not in banned_sigs:
+            continue
+        # ``_regen_or_drop_term`` reads the ban on fresh DRAWS only, so the
+        # already-banned term in hand needs ``extra_ok`` to fail the entry
+        # test and start the redraw; the cap-hit drop policy then applies.
+        status = _regen_or_drop_term(equation, term, max_iter=100,
+                                     stats_name=stats_name,
+                                     extra_ok=_not_banned,
+                                     banned_sigs=banned_sigs)
+        if status != 'ok':
+            changed = True
+    return changed
+
+
 def _target_term_in_other_equation(eq_with_target: Equation,
                                    eq_other: Equation):
     """Return ``eq_with_target``'s TARGET-term factor signature iff that
@@ -909,11 +1214,13 @@ def _target_term_in_other_equation(eq_with_target: Equation,
     physics and is left untouched.
 
     Two signatures can match, and the one RETURNED is the signature of the
-    offending term in ``eq_other`` -- which the caller feeds straight to
-    ``_break_equation_duplication``. For a bare target that is the target's
-    own signature; for a decorated target caught by the deriv-core rule
-    below it is the CORE's, since that is the term ``eq_other`` actually
-    carries.
+    offending term in ``eq_other`` -- the term the caller has
+    ``_break_equation_duplication`` repair. For a bare target that is the
+    target's own signature; for a decorated target caught by the deriv-core
+    rule below it is the CORE's, since that is the term ``eq_other`` actually
+    carries. Either way the caller bans everything ``eq_with_target``
+    reserves (``_reserved_signatures``), so a repair never turns the core into
+    the whole target or back.
 
     Directional by construction (``eq_with_target``'s target into
     ``eq_other``); the caller scans both orderings of every pair. The
@@ -942,13 +1249,32 @@ def _target_term_in_other_equation(eq_with_target: Equation,
     # Still WHOLE-TERM only, so the Navier-Stokes carve-out is untouched: a
     # core appearing as a FACTOR of a composite coupling term (``v*v_y``) is
     # legitimate physics and is not matched here.
-    if len(tgt.structure) > 1:
-        core = _deriv_core_factor(tgt)
-        if core is not None:
-            core_sig = frozenset((core.structural_label,))
-            if core_sig in eq_other.active_terms_labels:
-                return core_sig
+    core_sig = _target_core_signature(tgt)
+    if core_sig is not None and core_sig in eq_other.active_terms_labels:
+        return core_sig
     return None
+
+
+def _target_core_signature(target_term):
+    """The standalone-term signature of a DECORATED target's derivative core,
+    or ``None`` for a bare target or one without a unique genuine derivative
+    factor (``_deriv_core_factor``). A bare target's core is the target
+    itself, so it adds nothing."""
+    if len(target_term.structure) <= 1:
+        return None
+    core = _deriv_core_factor(target_term)
+    return frozenset((core.structural_label,)) if core is not None else None
+
+
+def _reserved_signatures(equation) -> set:
+    """Every standalone-term signature ``equation``'s target reserves across a
+    system: the target itself and, for a decorated target, its derivative core
+    (``_target_term_in_other_equation`` flags either in another equation)."""
+    tgt = equation.target
+    if tgt is None:
+        return set()
+    core_sig = _target_core_signature(tgt)
+    return {tgt.factors_labels} | ({core_sig} if core_sig is not None else set())
 
 
 def _deriv_core_factor(term: Term):
@@ -981,10 +1307,20 @@ def _wrap_term_with_factor(equation: Equation, term: Term, banned_sigs,
     wrapping preserves that information where a reroll erases it.
 
     Accepts the wrap iff the new signature (a) differs from the original,
-    (b) is outside ``banned_sigs`` and (c) duplicates no other term of the
-    equation. Restores the original structure and returns False when the
-    per-term factor cap is already reached or no acceptable wrap was drawn
-    -- the caller then falls back to the randomize repair.
+    (b) is outside ``banned_sigs``, (c) duplicates no other term of the
+    equation and (d) is not a component or multiple of the equation's target
+    or of any term that could become it (``_related_to_a_possible_target``).
+    The pool draw includes the equation's own derivative family, so without
+    (d) the wrap could build e.g. ``dv/dx0 * du/dx0`` for a ``du/dx0`` target
+    -- which the ratio-fit scrub regenerates on the very next RPS pass,
+    throwing away the coupling this wrap exists to keep -- and (e) does not
+    let ``simplify_equation``'s own algebra reduce it, or the target, back
+    onto the leak or another banned signature (``_undone_by_simplify``):
+    ``u*dv/dx0`` under a ``u*du/dx0`` target is just the leak with ``u``
+    multiplied through, and cancelling it is correct.
+    Restores the original structure and returns False when the per-term
+    factor cap is already reached or no acceptable wrap was drawn -- the
+    caller then falls back to the randomize repair.
     """
     # The authoritative factor cap is the equation-level metaparameter
     # (evolution-built terms mirror it, but e.g. translated equations
@@ -1012,7 +1348,10 @@ def _wrap_term_with_factor(equation: Equation, term: Term, banned_sigs,
         term.structure = filter_powers(list(original) + [factor])
         term.resetSavedState()
         sig = term.factors_labels
-        if sig != original_sig and sig not in banned_sigs and sig not in other_sigs:
+        if (sig != original_sig and sig not in banned_sigs and sig not in other_sigs
+                and not _related_to_a_possible_target(term, equation)
+                and not _undone_by_simplify(term, equation,
+                                            set(banned_sigs) | {original_sig})):
             _loop_stats.record('break_equation_duplication.wrap', attempts, max_tries)
             return True
     term.structure = original
@@ -1022,45 +1361,72 @@ def _wrap_term_with_factor(equation: Equation, term: Term, banned_sigs,
 
 
 def _break_equation_duplication(equation: Equation, shared_sigs, *,
-                                preferred_sigs=(), max_iter: int = 2000) -> bool:
-    """Break a system-level degeneracy by repairing ONE non-target term of
-    ``equation`` whose factor signature belongs to ``shared_sigs`` (the
-    active structure this equation shares with another equation of the
-    system). Repair prefers demoting the term to a factor of a composite
-    term (:func:`_wrap_term_with_factor`); only when that fails is the
-    term randomized away.
+                                preferred_sigs=(), forbidden_sigs=None,
+                                max_iter: int = 2000) -> bool:
+    """Break a system-level degeneracy by repairing ONE term of ``equation``
+    whose factor signature belongs to ``shared_sigs`` -- the signatures this
+    equation may not carry as standalone terms: everything another
+    equation's target reserves (the target and, when decorated, its
+    derivative core). The repaired term may not land on any of them either.
 
-    The term matching one of ``preferred_sigs`` (typically the other
-    equation's target signature) is chosen first, so the rerolled equation
-    moves away from "the other equation's explained quantity" before
-    touching genuinely shared coupling terms. The randomize loop demands
-    that the replacement (a) leaves ``shared_sigs`` and (b) does not
-    duplicate another term; on cap-hit a surviving duplicate is dropped via
-    the ``_regen_or_drop_term`` drop policy (a still-shared-but-unique term
-    is tolerated -- the caller's convergence loop re-checks).
+    A non-target term is repaired when there is one, the term matching one of
+    ``preferred_sigs`` (typically the other equation's target signature)
+    first, so the rerolled equation moves away from "the other equation's
+    explained quantity" before touching genuinely shared coupling terms.
+    Repair prefers demoting that term to a factor of a composite term
+    (:func:`_wrap_term_with_factor`); only when that fails is it randomized
+    away. When the equation's OWN target is the sole offender -- two
+    equations sharing one composite target -- the target is randomized
+    directly and the caller's re-selection picks a new one.
+
+    The randomize loop demands that the replacement (a) leaves
+    ``shared_sigs``, (b) does not duplicate another term, (c) is not a
+    component or multiple of any possible target of the equation (the wrap's
+    rule (d)) and (d) is not reduced back onto a banned signature by
+    ``simplify_equation`` (the wrap's rule (e)) -- (d) for a rerolled TARGET
+    only while the redraw still carries a derivative of the explained
+    variable, i.e. only while re-selection could pick it again; see the branch
+    below for why there is otherwise no pair to model. On cap-hit a surviving
+    duplicate is dropped via the ``_regen_or_drop_term`` drop policy (a
+    still-shared-but-unique term is tolerated -- the caller's convergence
+    loop re-checks -- and a related one is left to the scrub).
+
+    ``forbidden_sigs`` defaults to ``shared_sigs`` and is what the REPLACEMENT
+    is judged against. ``shared_sigs`` already carries the partner equation's
+    reservations, so what a caller adds here is every THIRD equation's: in a
+    system of three or more, a repair must not land on one of those either.
 
     Returns True if the structure changed; cached fitness/weight state is
     reset on the way out so the caller can re-run right-part selection.
     """
+    forbidden = frozenset(shared_sigs if forbidden_sigs is None else forbidden_sigs)
     candidates = [term for idx, term in enumerate(equation.structure)
                   if idx != getattr(equation, 'target_idx', None)
                   and term.factors_labels in shared_sigs]
-    if not candidates:
-        # The shared structure is carried entirely by the target term (a
-        # single-term law explained from both sides). Nothing safe to
-        # randomize here; the caller's pass cap tolerates the leftover.
+    target = equation.target
+    rerolling_target = False
+    if candidates:
+        preferred = [t for t in candidates if t.factors_labels in preferred_sigs]
+        term = preferred[0] if preferred else candidates[0]
+
+        # Demote-to-factor repair first: keep the leaked target alive as a
+        # factor of a composite coupling term (legal under the whole-term
+        # rule) instead of rerolling it into unrelated structure. Falls back
+        # to the randomize path when the wrap cannot produce a unique term.
+        if _wrap_term_with_factor(equation, term, set(forbidden)):
+            equation.reset_for_structure_change()
+            return True
+    elif target is not None and target.factors_labels in shared_sigs:
+        # The banned term is this equation's OWN target: two equations of the
+        # system explain one composite target (``du/dx0 * dv/dx0`` carries a
+        # derivative of each variable, so both may pick it). A target cannot
+        # be demoted to a factor, so it goes straight to the reroll below;
+        # the caller's re-selection then chooses a new target, and
+        # ``restore_property`` supplies a derivative term if none is left.
+        term = target
+        rerolling_target = True
+    else:
         return False
-
-    preferred = [t for t in candidates if t.factors_labels in preferred_sigs]
-    term = preferred[0] if preferred else candidates[0]
-
-    # Demote-to-factor repair first: keep the leaked target alive as a
-    # factor of a composite coupling term (legal under the whole-term
-    # rule) instead of rerolling it into unrelated structure. Falls back
-    # to the randomize path when the wrap cannot produce a unique term.
-    if _wrap_term_with_factor(equation, term, set(shared_sigs)):
-        equation.reset_for_structure_change()
-        return True
 
     attempts = 0
     for _ in range(max_iter):
@@ -1069,13 +1435,52 @@ def _break_equation_duplication(equation: Equation, shared_sigs, *,
         term.resetSavedState()
         signatures = {t.factors_labels for t in equation.structure}
         duplicate = len(signatures) != len(equation.structure)
-        if term.factors_labels not in shared_sigs and not duplicate:
+        related = _related_to_a_possible_target(term, equation)
+        if rerolling_target and term.contains_deriv(equation.main_var_to_explain):
+            # A rerolled target that re-selection can pick again is judged the
+            # way the scrub and simplify will judge it then: no other term may
+            # be its component or multiple (the scrub would delete it), and no
+            # pair with it may cancel onto a banned signature
+            # (``_undone_by_simplify`` skips the target itself).
+            others = [t for t in equation.structure if t is not term]
+            related = related or any(_related_to_target(t, term) for t in others)
+            undone = any(sig in forbidden and sig != was
+                         for t in others
+                         for sig, was in zip(_symbolic_reductions(t, term),
+                                             (t.factors_labels, term.factors_labels)))
+        else:
+            # On the target-reroll path this branch is VACUOUS, by
+            # construction rather than by oversight: ``_undone_by_simplify``
+            # pairs a term with the equation's CURRENT target, and here the
+            # term IS that target, so it returns False at once. A redraw that
+            # dropped the main-var derivative cannot be chosen as the next
+            # target, so there is no pair for it to model. What still guards
+            # such a redraw is ``_related_to_a_possible_target`` above (the
+            # scrub's rule, run unconditionally), and for the derivative
+            # ``restore_property`` then injects, ``_redraw_banned_terms`` in
+            # ``EqRightPartSelector.apply``. Measured on the LV pool: the
+            # derivative survives 82/300 (plain) and 22/300 (adversarial)
+            # target rerolls, and of the rerolls that skip the branch above,
+            # none would have been reduced onto a banned signature against any
+            # eligible next target -- a two-factor pool cannot cancel INTO a
+            # two-factor composite.
+            undone = _undone_by_simplify(term, equation, forbidden)
+        if (term.factors_labels not in forbidden and not duplicate and not related
+                and not undone):
             break
     _loop_stats.record('break_equation_duplication', attempts, max_iter)
     # Cap-hit may leave the rerolled term as a DUPLICATE -- a duplicate must
     # never ride out of RPS, so drop it (regenerate attempts already spent).
     _regen_or_drop_term(equation, term, max_iter=0,
                         stats_name='break_equation_duplication.drop')
+    signatures = {t.factors_labels for t in equation.structure}
+    if len(signatures) != len(equation.structure):
+        # The drop was refused by the two-term floor. Uniqueness is the hard
+        # invariant -- the next ``EqRightPartSelector.apply`` asserts on it --
+        # while the ban and the relation rules are preferences, so redraw on
+        # uniqueness alone rather than hand a duplicate to the caller.
+        _regen_or_drop_term(equation, term, max_iter=100,
+                            stats_name='break_equation_duplication.dedup')
 
     equation.reset_for_structure_change()
     return True
@@ -1101,16 +1506,27 @@ class SoEqRightPartSelector(CompoundOperator):
     structure" guard: two equations that collapse onto the same law (e.g.
     both Navier-Stokes velocity equations becoming continuity) necessarily
     have DIFFERENT targets, so each carries the other's target as a
-    standalone term and is broken here. (The only case it cannot catch --
-    two full duplicates sharing the identical target -- requires a composite
-    target carrying both equations' main-var derivatives, which is
-    unreachable for the studied systems.)
+    standalone term and is broken here. Two equations can also share the
+    IDENTICAL target -- a composite carrying a derivative of each main
+    variable (``du/dx0 * dv/dx0``), measured on Lotka-Volterra and Lorenz in
+    under 1% of calls -- and then the equation the ordered scan finds carrying
+    the other's target (normally the later one) has its target rerolled and
+    re-selected.
+
+    Every per-equation selection is told what the other equations' targets
+    reserve (``_reserved_signatures``), so the terms it regenerates while
+    simplifying never take those signatures: in the forward pass, the
+    equations already selected; in the convergence loop, all of them.
 
     Mechanics: a plain per-equation forward pass first, then a bounded
     convergence loop that, each pass, rerolls any equation carrying another
     equation's target term as a whole term (via
-    ``_break_equation_duplication`` + right-part re-selection). The loop
-    exits at the first pass with no changes (fixed point).
+    ``_break_equation_duplication`` + right-part re-selection), and checks
+    on the way out that none is left. The one
+    exception is a target RPS's exit fallback installed (it carries no
+    derivative of its own variable): there the equation carrying nothing is
+    the one repaired, since its target is what has no right to the quantity.
+    The loop exits at the first pass with no changes (fixed point).
     """
     key = 'SoEqRightPartSelector'
 
@@ -1128,18 +1544,32 @@ class SoEqRightPartSelector(CompoundOperator):
 
         equations = list(objective)
 
+        def reserved_by_others(equation, others):
+            banned = set()
+            for other in others:
+                if other is not equation:
+                    banned |= _reserved_signatures(other)
+            return frozenset(banned)
+
         # Forward pass: plain per-equation right-part selection. No
-        # cross-equation scrubbing -- shared terms are legitimate coupling.
-        for equation in equations:
-            eq_selector.apply(objective=equation, arguments=eq_args)
+        # cross-equation scrubbing -- shared terms are legitimate coupling --
+        # but regenerated terms avoid what the equations selected so far
+        # reserve.
+        for idx, equation in enumerate(equations):
+            eq_selector.apply(objective=equation, arguments=eq_args,
+                              banned_sigs=reserved_by_others(equation, equations[:idx]))
 
         # Degeneracy resolution: enforce target-term uniqueness until a full
         # pass makes no change or the pass budget is exhausted.
         max_passes = 50
         passes_used = 0
+        leaks_seen = False
         for _ in range(max_passes):
             passes_used += 1
             any_changes = False
+            # Whether THIS pass's scan still found a leak, repaired or not --
+            # the postcondition below reads the last pass's value.
+            leaks_seen = False
             # Target-term uniqueness: no equation's TARGET term may appear
             # as a whole (standalone) term in ANOTHER equation of the
             # system. Directional -- scan every ordered pair (i -> j) and,
@@ -1150,10 +1580,10 @@ class SoEqRightPartSelector(CompoundOperator):
             # coupling term of eq j (e.g. continuity's ``v_y`` in ``v*v_y``)
             # is left untouched -- this is whole-term equality, not
             # sub-product. A decorated target reserves its bare derivative
-            # core on the same whole-term terms. If the only match is eq j's own target,
-            # _break_equation_duplication finds no rerollable candidate and
-            # returns False, so the pass tolerates it (cannot reroll a
-            # target).
+            # core on the same whole-term terms. If the only match is eq j's
+            # own target (both equations explain one composite target),
+            # _break_equation_duplication rerolls that target and eq j's
+            # right part is re-selected below.
             for i in range(len(equations)):
                 for j in range(len(equations)):
                     if i == j:
@@ -1162,21 +1592,101 @@ class SoEqRightPartSelector(CompoundOperator):
                     leak_sig = _target_term_in_other_equation(eq_i, eq_j)
                     if leak_sig is None:
                         continue
+                    leaks_seen = True
+                    if (eq_j.target is not None
+                            and eq_j.target.factors_labels == leak_sig
+                            and eq_j.target.contains_deriv(eq_j.main_var_to_explain)
+                            and not eq_i.target.contains_deriv(eq_i.main_var_to_explain)):
+                        # Only eq j explains the shared quantity legitimately:
+                        # eq i's target carries no derivative of its own
+                        # variable, so RPS's exit fallback installed it. Reroll
+                        # THAT one instead -- the (j, i) scan cannot, because a
+                        # decorated fallback target leaks only its core, which
+                        # eq i does not carry as a standalone term.
+                        # eq i carries no non-target copy of its own target
+                        # signature (the entry assert forbids duplicates), so
+                        # this takes the target path and always reports a
+                        # change. ``reserved_by_others`` excludes eq i itself,
+                        # hence its own target is added by hand.
+                        _break_equation_duplication(
+                            eq_i, {eq_i.target.factors_labels},
+                            preferred_sigs={eq_i.target.factors_labels},
+                            forbidden_sigs=reserved_by_others(eq_i, equations)
+                            | {eq_i.target.factors_labels})
+                        eq_i.right_part_selected = False
+                        eq_selector.apply(objective=eq_i, arguments=eq_args,
+                                          banned_sigs=reserved_by_others(eq_i, equations))
+                        _loop_stats.record('SoEqRPS.fallback_target_repair', 1, 1)
+                        any_changes = True
+                        continue
+                    # Ban everything eq i reserves, whichever part of it
+                    # leaked: its whole target and, when decorated, its
+                    # derivative core. Otherwise the repair can turn one into
+                    # the other -- wrap ``dv/dx0`` into ``u*dv/dx0``, or
+                    # randomize ``u*dv/dx0`` into ``dv/dx0`` -- and the next
+                    # pass flags it again. The leaked term is still the one
+                    # repaired.
+                    banned = {leak_sig} | _reserved_signatures(eq_i)
+                    # ``reserved_by_others`` already covers eq i (it excludes
+                    # only eq j), so it is a superset of ``banned``; what it
+                    # adds is every THIRD equation's reservations, which the
+                    # replacement must avoid too.
                     changed = _break_equation_duplication(
-                        eq_j, {leak_sig}, preferred_sigs={leak_sig})
+                        eq_j, banned, preferred_sigs={leak_sig},
+                        forbidden_sigs=reserved_by_others(eq_j, equations))
                     if not changed:
                         continue
                     # ``simplified`` / ``is_correct_right_part`` are locals of
                     # ``EqRightPartSelector.apply`` now, so re-invoking it is
                     # the whole mechanism -- it re-enters its loop from scratch.
                     eq_j.right_part_selected = False
-                    eq_selector.apply(objective=eq_j, arguments=eq_args)
+                    eq_selector.apply(objective=eq_j, arguments=eq_args,
+                                      banned_sigs=reserved_by_others(eq_j, equations))
                     _loop_stats.record('SoEqRPS.target_leak_repair', 1, 1)
                     any_changes = True
 
             if not any_changes:
                 break
         _loop_stats.record('SoEqRPS.degeneracy_passes', passes_used, max_passes)
+
+        # POSTCONDITION. The loop exits either at a fixed point or with its
+        # pass budget spent, and neither state was checked. Both can in
+        # principle leave a leak standing: the budget can run out, and a pass
+        # that finds a leak but cannot repair it (``_break_equation_duplication``
+        # reporting no change) makes no change either, so the loop reads that
+        # as its fixed point and stops. An equation would then leave RPS
+        # carrying another equation's explained quantity, silently -- which is
+        # how this class of defect stayed invisible in the first place.
+        #
+        # Rescan only when the LAST pass still saw a leak: a pass that found
+        # none has already proved the invariant, so the normal exit adds no
+        # scans at all. Diagnostic, not fatal -- a leak is a quality defect
+        # (unlike a duplicate term, which crashes the next operator), and
+        # aborting a whole evolutionary run over one offspring would be worse
+        # than the leak. It reaches a user who asked for search warnings
+        # (``init_verbose(show_warnings=True)``) and is always measurable via
+        # ``EPDE_LOOP_STATS``.
+        if leaks_seen:
+            unrepaired = []
+            for eq_i in equations:
+                for eq_j in equations:
+                    if eq_i is eq_j:
+                        continue
+                    sig = _target_term_in_other_equation(eq_i, eq_j)
+                    if sig is None:
+                        continue
+                    carrier = next((t for t in eq_j.structure
+                                    if t.factors_labels == sig), None)
+                    what = carrier.name if carrier is not None else str(sorted(sig))
+                    unrepaired.append(f'{eq_j.main_var_to_explain} carries {what} '
+                                      f'(reserved by {eq_i.main_var_to_explain})')
+            if unrepaired:
+                _loop_stats.record('SoEqRPS.unrepaired_leaks_at_exit',
+                                   len(unrepaired), max_passes)
+                warnings.warn(
+                    'SoEqRightPartSelector.apply: target-term uniqueness not '
+                    f'reached after {passes_used} of {max_passes} passes; '
+                    f'{len(unrepaired)} leak(s) left: ' + '; '.join(unrepaired[:4]))
 
     def use_default_tags(self):
         self._tags = {'right part selection', 'chromosome level',

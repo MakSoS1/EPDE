@@ -8,7 +8,11 @@ features make the ``Lambda * (identity)`` FD-error soak representable
 
 from types import SimpleNamespace
 
-from epde.operators.common.right_part_selection import _term_divides
+import numpy as np
+import pytest
+
+from epde.operators.common.right_part_selection import (
+    _related_to_target, _term_divides)
 
 
 def _factor(label, power):
@@ -73,3 +77,345 @@ class TestTermDivides:
                         _factor('d^2u/dx1^2', 1.0))
         assert not _term_divides(partner, target)
         assert not _term_divides(target, partner)
+
+
+# ---------------------------------------------------------------------------
+# The scrub inside ``simplify_equation``, on a real pool.
+# ---------------------------------------------------------------------------
+
+# The translator gives every term one factor at most; regenerated terms need
+# the live two-factor budget the searches run with.
+_LIVE_FACTORS = {'factors_num': [1, 2], 'probas': [0.65, 0.35]}
+
+
+@pytest.fixture(scope='module')
+def wave_pool():
+    """A 2-D wave field (``u_tt = 0.04 u_xx``) with derivatives to second
+    order in both axes. Several modes: a single one makes every
+    finite-difference derivative column exactly proportional to ``u`` or its
+    quadrature, and the linear-dependence scrub would then regenerate the very
+    terms these tests watch -- passing them without the divisor scrub."""
+    import epde
+    search = epde.EpdeSearch(use_solver=False,
+                             verbose_params={'show_iter_idx': False})
+    t = np.linspace(0.0, 1.0, 41)
+    x = np.linspace(0.0, 1.0, 41)
+    grids = np.meshgrid(t, x, indexing='ij')
+    t_, x_ = grids
+    data = (np.sin(2 * np.pi * (x_ - 0.2 * t_))
+            + 0.5 * np.cos(6 * np.pi * (x_ + 0.2 * t_))
+            + 0.3 * np.sin(4 * np.pi * (x_ - 0.2 * t_) + 1.0))
+    _, domain = search.createDomain((grids[0], grids[1]), boundary_width=(4, 4), ID=0)
+    search.set_preprocessor(default_preprocessor_type='FD', preprocessor_kwargs={})
+    _, trajectory = search.createTrajectory({'u': data}, domain, cache_id=0)
+    search.create_pool(data=[trajectory], max_deriv_order=(2, 2), data_fun_pow=1)
+    return search.pool
+
+
+def _equation(pool, text, weights):
+    """``text`` translated on ``pool`` and pinned to ``weights`` -- the state
+    the term sweep hands ``simplify_equation``. The target is the last term."""
+    from epde.interface.equation_translator import translate_equation
+    eq = translate_equation(text, pool, all_vars=['u']).vals['u']
+    eq.main_var_to_explain = 'u'
+    for term in eq.structure:
+        term.max_factors_in_term = dict(_LIVE_FACTORS)
+    eq.metaparameters['max_factors_in_term']['value'] = dict(_LIVE_FACTORS)
+    w = np.array(weights, dtype=float)
+    eq.weights_internal = w
+    eq.weights_final = w.copy()
+    eq.weights_internal_evald = True
+    eq.weights_final_evald = True
+    eq.target_idx = len(eq.structure) - 1
+    return eq
+
+
+def _simplify(eq, banned_sigs=frozenset()):
+    from epde.operators.common.right_part_selection import EqRightPartSelector
+    return EqRightPartSelector().simplify_equation(eq, banned_sigs)
+
+
+def _related_features(eq):
+    return [term.name for term in eq.structure
+            if term is not eq.target and _related_to_target(term, eq.target)]
+
+
+U_XX = 'd^2u/dx1^2{power: 1.0}'
+U_TT = 'd^2u/dx0^2{power: 1.0}'
+U_T = 'du/dx0{power: 1.0}'
+U_X = 'du/dx1{power: 1.0}'
+U = 'u{power: 1.0}'
+
+
+class TestTheScrubInSimplify:
+
+    def test_the_true_law_is_left_alone(self, wave_pool):
+        eq = _equation(wave_pool, f'0.04 * {U_XX} + 0.0 = {U_TT}', [0.04, 0.0])
+        before = [term.name for term in eq.structure]
+        assert _simplify(eq) is False
+        assert [term.name for term in eq.structure] == before
+
+    @pytest.mark.parametrize('text, weights, related', [
+        # The hitchhiker: u_t * u_tt is a MULTIPLE of the target u_tt.
+        (f'0.04 * {U_XX} + -0.0275 * {U_T} * {U_XX} + 0.687 * {U_T} * {U_TT}'
+         f' + 0.0 = {U_TT}', [0.04, -0.0275, 0.687, 0.0], f'{U_T} * {U_TT}'),
+        # The padded composite: u_tt is a COMPONENT of the target u * u_tt.
+        (f'-0.15 * {U_XX} + 3.75 * {U_TT} + 0.04 * {U} * {U_XX}'
+         f' + 0.0 = {U_TT} * {U}', [-0.15, 3.75, 0.04, 0.0], U_TT),
+    ], ids=['multiple', 'component'])
+    def test_a_related_feature_is_regenerated_and_nothing_else(
+            self, wave_pool, text, weights, related):
+        np.random.seed(0)
+        eq = _equation(wave_pool, text, weights)
+        target = eq.target
+        untouched = {term.name: term for term in eq.structure
+                     if term is not target and term.name != related}
+        assert _related_features(eq) == [related]
+
+        assert _simplify(eq) is True
+        assert eq.target is target
+        assert _related_features(eq) == []
+        # Its unrelated partners are the same objects with the same structure.
+        for name, term in untouched.items():
+            assert any(t is term for t in eq.structure) and term.name == name
+        # The structure changed, so the fit is gone.
+        assert not eq.weights_internal_evald and not eq.weights_final_evald
+
+    def test_a_reduction_drops_the_dead_copy_and_keeps_the_carrier(self, wave_pool):
+        """``u * u_xx`` sheds the common ``u`` and collides with a zero-weight
+        ``u_xx`` already in the structure. The dead copy goes; the reduced
+        carrier -- the term that holds the identity -- stays."""
+        eq = _equation(wave_pool,
+                       f'-0.15 * {U} * {U_XX} + 0.0 * {U_XX} + 0.0 * {U_X}'
+                       f' + 0.0 = {U} * {U_TT}', [-0.15, 0.0, 0.0, 0.0])
+        carrier, dead_copy, bystander, target = eq.structure
+
+        assert _simplify(eq) is True
+        assert eq.target is target and target.name == U_TT
+        assert any(t is carrier for t in eq.structure) and carrier.name == U_XX
+        assert not any(t is dead_copy for t in eq.structure)
+        assert any(t is bystander for t in eq.structure)
+
+    def test_an_unscrubbable_term_is_dropped_with_its_weight_slot(
+            self, wave_pool, monkeypatch):
+        """Every regeneration draws another multiple of the target, so both
+        related terms are dropped -- and the weight vector loses the matching
+        slot each time instead of drifting out of step with the structure."""
+        from epde.structure.main_structures import Term
+        eq = _equation(wave_pool,
+                       f'0.04 * {U_XX} + 0.5 * {U_T} * {U_TT} + 0.7 * {U} * {U_TT}'
+                       f' + 0.0 * {U_X} + 0.0 = {U_TT}', [0.04, 0.5, 0.7, 0.0, 0.0])
+        target = eq.target
+        extra = wave_pool.create(label='u')[1]
+        layouts = []
+
+        def draw_a_multiple(self, *args, **kwargs):
+            self.structure = list(target.structure) + [extra]
+            layouts.append((len(eq.structure), len(eq._weights_internal)))
+
+        monkeypatch.setattr(Term, 'randomize', draw_a_multiple)
+        assert _simplify(eq) is True
+        assert layouts and all(n == w for n, w in layouts)
+        assert eq.target is target
+        assert sorted(t.name for t in eq.structure) == sorted([U_XX, U_X, U_TT])
+
+    def test_a_scrub_that_hits_the_floor_still_reports_a_change(
+            self, wave_pool, monkeypatch):
+        """Two terms cannot lose one, so the related term stays as whatever the
+        last regeneration left. That IS a structural change: reporting False
+        would end the RPS loop on a fit describing the old structure."""
+        from epde.structure.main_structures import Term
+        eq = _equation(wave_pool, f'0.5 * {U_T} * {U_TT} + 0.0 = {U_TT}', [0.5, 0.0])
+        target = eq.target
+        feature = eq.structure[0]
+        draws = []
+
+        def draw_the_target(self, *args, **kwargs):
+            draws.append(self is feature)
+            self.structure = list(target.structure)
+
+        monkeypatch.setattr(Term, 'randomize', draw_the_target)
+        assert _simplify(eq) is True
+        # The FEATURE was regenerated; the target kept its structure (the
+        # common-factor branch would have reduced the target instead).
+        assert draws == [True] * 100
+        assert eq.target is target and target.name == U_TT
+        assert len(eq.structure) == 2 and any(t is feature for t in eq.structure)
+        assert not eq.weights_internal_evald
+
+
+class TestTheLeakRepairAvoidsWhatTheScrubRemoves:
+    """``_break_equation_duplication`` repairs a leaked standalone copy of
+    another equation's target. Its draws include the equation's OWN
+    derivative family, so a repair could build a multiple of the equation's
+    target -- which ``simplify_equation`` regenerates on the next pass, with no
+    leak ban on that redraw. Both repair paths refuse such terms."""
+
+    def test_the_wrap_skips_a_factor_that_makes_a_multiple_of_the_target(
+            self, wave_pool, monkeypatch):
+        from epde.operators.common.right_part_selection import _wrap_term_with_factor
+        eq = _equation(wave_pool, f'0.04 * {U_XX} + 0.0 * {U_X} + 0.0 = {U_TT}',
+                       [0.04, 0.0, 0.0])
+        leak = eq.structure[1]
+        pool_cls = type(leak.pool)
+        stock_create = pool_cls.create
+        script = ['d^2u/dx0^2', 'u']                 # the target's factor first
+        drawn = []
+
+        def scripted(self, label=None, create_meaningful=False, **kwargs):
+            if label is None:
+                label = script[len(drawn)]
+                drawn.append(label)
+            return stock_create(self, label=label,
+                                create_meaningful=create_meaningful, **kwargs)
+
+        monkeypatch.setattr(pool_cls, 'create', scripted)
+        assert _wrap_term_with_factor(eq, leak, {leak.factors_labels}) is True
+        assert drawn == script
+        assert not _related_to_target(leak, eq.target)
+        assert U in leak.name and U_X in leak.name and U_TT not in leak.name
+
+    def test_the_wrap_also_avoids_a_term_the_next_sweep_could_make_the_target(
+            self, wave_pool, monkeypatch):
+        """``u_x * u_tt`` is unrelated to the current target ``u_t``, but the
+        sweep that follows the repair may pick ``u_tt`` (it carries a
+        derivative of ``u``), and under that target the wrap is a multiple the
+        scrub removes."""
+        from epde.operators.common.right_part_selection import _wrap_term_with_factor
+        eq = _equation(wave_pool, f'0.3 * {U_TT} + 0.0 * {U_X} + 0.0 = {U_T}',
+                       [0.3, 0.0, 0.0])
+        leak = eq.structure[1]
+        pool_cls = type(leak.pool)
+        stock_create = pool_cls.create
+        script = ['d^2u/dx0^2', 'u']
+        drawn = []
+
+        def scripted(self, label=None, create_meaningful=False, **kwargs):
+            if label is None:
+                label = script[len(drawn)]
+                drawn.append(label)
+            return stock_create(self, label=label,
+                                create_meaningful=create_meaningful, **kwargs)
+
+        monkeypatch.setattr(pool_cls, 'create', scripted)
+        assert _wrap_term_with_factor(eq, leak, {leak.factors_labels}) is True
+        assert drawn == script
+        assert U in leak.name and U_TT not in leak.name
+
+    def test_the_wrap_gives_up_when_every_draw_is_related(self, wave_pool,
+                                                         monkeypatch):
+        from epde.operators.common.right_part_selection import _wrap_term_with_factor
+        eq = _equation(wave_pool, f'0.04 * {U_XX} + 0.0 * {U_X} + 0.0 = {U_TT}',
+                       [0.04, 0.0, 0.0])
+        leak = eq.structure[1]
+        pool_cls = type(leak.pool)
+        stock_create = pool_cls.create
+        monkeypatch.setattr(
+            pool_cls, 'create',
+            lambda self, label=None, create_meaningful=False, **kwargs: stock_create(
+                self, label=label or 'd^2u/dx0^2',
+                create_meaningful=create_meaningful, **kwargs))
+        assert _wrap_term_with_factor(eq, leak, {leak.factors_labels}) is False
+        assert leak.name == U_X                      # the original, restored
+
+    def test_the_randomize_fallback_skips_a_multiple_of_the_target(
+            self, wave_pool, monkeypatch):
+        """A two-factor leak is at the factor cap, so the wrap cannot run and
+        the randomize fallback repairs it."""
+        from epde.operators.common.right_part_selection import (
+            _break_equation_duplication)
+        from epde.structure.main_structures import Term
+        eq = _equation(wave_pool,
+                       f'0.04 * {U_XX} + 0.0 * {U} * {U_X} + 0.0 = {U_TT}',
+                       [0.04, 0.0, 0.0])
+        leak = eq.structure[1]
+        leak_sig = leak.factors_labels
+        draws = [['d^2u/dx0^2', 'u'],               # u_tt * u: a multiple
+                 ['du/dx1']]                        # u_x: acceptable
+        made = []
+
+        def scripted_randomize(self, *args, **kwargs):
+            labels = draws[len(made)]
+            made.append(labels)
+            self.structure = [wave_pool.create(label=label)[1] for label in labels]
+
+        monkeypatch.setattr(Term, 'randomize', scripted_randomize)
+        assert _break_equation_duplication(eq, {leak_sig},
+                                           preferred_sigs={leak_sig}) is True
+        assert made == draws
+        assert any(t is leak for t in eq.structure) and leak.name == U_X
+        assert not _related_to_target(leak, eq.target)
+
+
+class TestTheScrubRespectsTheSystemBan:
+
+    def test_a_redraw_onto_a_reserved_signature_is_skipped(self, wave_pool,
+                                                          monkeypatch):
+        """Inside a system, the scrub's redraw may not produce what another
+        equation's target reserves -- it would be a fresh leak."""
+        from epde.structure.main_structures import Term
+        eq = _equation(wave_pool,
+                       f'0.04 * {U_XX} + -0.0275 * {U_T} * {U_XX} + 0.687 * {U_T} * {U_TT}'
+                       f' + 0.0 = {U_TT}', [0.04, -0.0275, 0.687, 0.0])
+        hitchhiker = eq.structure[2]
+        reserved = _equation(wave_pool, f'1.0 * {U_X} + 0.0 = {U_TT}',
+                             [1.0, 0.0]).structure[0].factors_labels
+        draws = [['du/dx1'], ['u']]
+        made = []
+
+        def scripted_randomize(self, *args, **kwargs):
+            labels = draws[min(len(made), len(draws) - 1)]
+            made.append(labels)
+            self.structure = [wave_pool.create(label=label)[1] for label in labels]
+
+        monkeypatch.setattr(Term, 'randomize', scripted_randomize)
+        assert _simplify(eq, banned_sigs=frozenset({reserved})) is True
+        assert made == draws
+        assert hitchhiker.factors_labels != reserved and 'u{power' in hitchhiker.name
+
+    def test_a_redraw_simplify_would_reduce_onto_one_is_skipped(self, wave_pool,
+                                                               monkeypatch):
+        """``u * u_xx`` is not itself reserved, but under the target ``u * u_tt``
+        the shared ``u`` cancels and leaves exactly ``u_xx``."""
+        from epde.structure.main_structures import Term
+        eq = _equation(wave_pool,
+                       f'3.75 * {U_TT} + 0.5 * {U_X} + 0.0 = {U} * {U_TT}',
+                       [3.75, 0.5, 0.0])
+        scrubbed = eq.structure[0]                      # u_tt: a component of the target
+        reserved = _equation(wave_pool, f'1.0 * {U_XX} + 0.0 = {U_TT}',
+                             [1.0, 0.0]).structure[0].factors_labels
+        draws = [['u', 'd^2u/dx1^2'], ['du/dx0']]
+        made = []
+
+        def scripted_randomize(self, *args, **kwargs):
+            labels = draws[min(len(made), len(draws) - 1)]
+            made.append(labels)
+            self.structure = [wave_pool.create(label=label)[1] for label in labels]
+
+        monkeypatch.setattr(Term, 'randomize', scripted_randomize)
+        assert _simplify(eq, banned_sigs=frozenset({reserved})) is True
+        assert made == draws
+        assert scrubbed.name == U_T
+
+    def test_a_ban_the_reductions_do_not_reach_leaves_draws_alone(self, wave_pool,
+                                                                  monkeypatch):
+        """Two equations sharing a target put that signature in the ban, so the
+        equation's OWN target is banned. The reductions leave it untouched
+        here, and a draw must not be vetoed for it -- vetoing every draw burns
+        the cap and drops an innocent term."""
+        from epde.structure.main_structures import Term
+        eq = _equation(wave_pool,
+                       f'0.04 * {U_XX} + -0.0275 * {U_T} * {U_XX} + 0.687 * {U_T} * {U_TT}'
+                       f' + 0.0 = {U_TT}', [0.04, -0.0275, 0.687, 0.0])
+        hitchhiker = eq.structure[2]
+        made = []
+
+        def scripted_randomize(self, *args, **kwargs):
+            made.append(None)
+            self.structure = [wave_pool.create(label='u')[1]]
+
+        monkeypatch.setattr(Term, 'randomize', scripted_randomize)
+        # The ban holds the equation's own target signature.
+        assert _simplify(eq, banned_sigs=frozenset({eq.target.factors_labels})) is True
+        assert len(made) == 1
+        assert any(t is hitchhiker for t in eq.structure) and hitchhiker.name == U
