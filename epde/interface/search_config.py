@@ -241,9 +241,79 @@ def default_device() -> str:
 
 
 def _default_deepxde_config() -> dict:
-    return {'net': [95, 100, 95], 'activation': 'tanh', 'optimizer': 'adam',
-            'lr': 1e-3, 'num_domain': 1000, 'num_boundary': 200,
-            'num_initial': 200, 'epochs': 2000}
+    # ``train_frac``: share of the time levels the observation term sees; the
+    # rest is where the candidate is scored. ``lbfgs_maxiter``: L-BFGS
+    # iterations after Adam (0 = off). No boundary/initial point counts: the
+    # solve has no IC/BC terms, the observation term covers them.
+    #
+    # EVERY VALUE HERE IS MEASURED, not inherited. Gate = min over 3 seeds of
+    # ln(RMSE_wrong / RMSE_true), scored on the held-out tail, one fresh process
+    # per solve (duplicate-config controls came back bit-identical, so the
+    # replication noise floor is zero). It must be > 0 on BOTH Allen-Cahn and
+    # forced Duffing: every single-system conclusion measured here was later
+    # overturned by the second system.
+    #
+    #   lbfgs_maxiter  THE critical one. With no second-order phase the fitness
+    #                  does not merely weaken, it INVERTS: Adam-only scores AC
+    #                  at -0.131/-0.011/-0.096, i.e. the WRONG equation wins on
+    #                  every seed. No Adam budget rescues it (tested to 20k with
+    #                  cosine decay). 2000 L-BFGS iterations give +0.474; 5000
+    #                  give +0.826, at 2.7x the cost (both at the old lr=1e-3).
+    #                  RE-MEASURED Sep 18 2026 at the shipped lr=1e-4, after the
+    #                  cap was made exact (it used to round up to the next
+    #                  1000-iteration chunk):
+    #                      cap   1000   2000   3000   4000+
+    #                      AC   -0.011 +0.650 +0.816 +0.829
+    #                      Duff -0.299 +4.277 +4.277 +4.277
+    #                  The shipped 2000 is UNCHANGED by that fix on both systems
+    #                  -- 2000 is an exact multiple of the chunk, so rounding up
+    #                  and stopping exactly land on the same iterate; the live
+    #                  12-solve re-run reproduced every stored RMSE. Raising it
+    #                  is the one lever left on AC: 3000 buys +0.166 for 1.50x
+    #                  the L-BFGS iterations and 4000 buys +0.179 for 1.77x,
+    #                  after which AC converges on its own (~3300-3600) and the
+    #                  gate saturates. Duffing pays NOTHING for a higher cap --
+    #                  it converges at ~1481 iterations, below the cap already.
+    #                  Left at 2000 pending a decision on that cost.
+    #   loss_weight_mode  'gradient' (1/||grad L_i|| at init, frozen) is the only
+    #                  mode whose usable lr window is two decades wide on both
+    #                  systems. 'variance' needs lr=1e-3 exactly and collapses at
+    #                  1e-4 (-0.810/-3.025); 'gradient_per_step' peaks higher on
+    #                  Duffing (+5.683) but fails at lr=1e-4 (-0.028), so its
+    #                  window is one rung. Basin width beats peak height for a
+    #                  default that must survive unseen systems.
+    #   lr             1e-4 beats the old 1e-3 on both systems (+0.650 vs +0.474
+    #                  on AC, +4.277 vs +3.485 on Duffing) at identical cost, and
+    #                  1e-5 is worse on both, so this is an interior optimum and
+    #                  not the edge of the sampled range.
+    #   net/num_domain [95,100,95] with 1000 points was never measured through
+    #                  the fitness host; [64]*4 with 4000 is what every reported
+    #                  number used.
+    #
+    # Cost: ~120 s/solve against the previous ~20 s. That is the price of a
+    # fitness that ranks the true equation first instead of last.
+    return {'net': [64, 64, 64, 64], 'activation': 'tanh', 'optimizer': 'adam',
+            'lr': 1e-4, 'num_domain': 4000, 'num_test': 500, 'epochs': 2000,
+            'train_frac': 0.8, 'lbfgs_maxiter': 2000,
+            'loss_weight_mode': 'gradient'}
+
+
+def _default_basis_config() -> dict:
+    """Fixed-basis backend (``solver_backend='basis'``, no network, no learning
+    rate; see ``epde.integrate.basis_integration``). Stage-1 values: every
+    entry is a cell of the solver-gate sweep, to be revisited on its results.
+    ``start='zero'`` and ``precondition='jacobi'`` are the two measured as
+    load-bearing (a min-norm data start extrapolates wildly into the tail,
+    start loss 4e42 on Duffing; without the column scaling Duffing's gate is
+    +0.19 against +5.87)."""
+    return {'train_frac': 0.8, 'energy': 0.99999, 'periodic': 'auto',
+            'periodic_modes': 'nyquist', 'nyquist_factor': 1.0, 'time_factor': 2.0,
+            'space_factor': 2.0, 'collocation_factor': 2, 'phys_weight_scale': 1.0,
+            'pde_loss': 'mse', 'sinv_floor_rel': 0.0, 'start': 'zero',
+            'precondition': 'jacobi', 'refine': 'spectral', 'refine_tol': 1e-10,
+            'refine_min_gain': 2.0,
+            'max_refinements': 3, 'lbfgs_maxiter': 4000, 'history_size': 100,
+            'gtol': 1e-8, 'ftol': 0.0, 'threads': None}
 
 
 @dataclass(frozen=True)
@@ -274,6 +344,7 @@ class SolverConfig:
     pinn_loss_mult: float = 0.0
     error_metric: str = 'rmse'
     deepxde_config: dict = field(default_factory=_default_deepxde_config)
+    basis_config: dict = field(default_factory=_default_basis_config)
     mode: str = 'NN'
     use_cache: bool = False
     use_fourier: bool = False
@@ -378,6 +449,7 @@ MULTI_OBJECTIVE_OPERATORS = {
         'pinn_loss_mult': FromConfig('solver', 'pinn_loss_mult'),
         'error_metric': FromConfig('solver', 'error_metric'),
         'deepxde_config': FromConfig('solver', 'deepxde_config'),
+        'basis_config': FromConfig('solver', 'basis_config'),
     },
     # Aliases kept ONLY so the functional harness (tests/functional) can fetch
     # params by the historical operator names; the production search builds
@@ -513,7 +585,7 @@ class SearchConfig:
 _MERGED_DICT_KEYS = frozenset((
     'preprocessor_kwargs', 'verbose_params', 'director_params', 'operators',
     'sparsity_kwargs',
-    'deepxde_config', 'solution_params', 'compiling_params',
+    'deepxde_config', 'basis_config', 'solution_params', 'compiling_params',
     'optimizer_params', 'cache_params', 'early_stopping_params',
     'plotting_params', 'training_params',
 ))
@@ -881,9 +953,9 @@ def _check_types(resolved: dict) -> None:
                     group, key, value))
 
     backend = resolved['solver']['solver_backend']
-    if backend not in ('autograd', 'deepxde'):
+    if backend not in ('autograd', 'deepxde', 'basis'):
         raise ValueError(
-            "solver.solver_backend must be 'autograd' or 'deepxde', instead "
+            "solver.solver_backend must be 'autograd', 'deepxde' or 'basis', instead "
             'got {0!r}.'.format(backend))
 
     if resolved['solver']['use_solver'] \

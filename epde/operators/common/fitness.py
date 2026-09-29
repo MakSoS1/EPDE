@@ -285,10 +285,34 @@ class SolverBasedFitness(CompoundOperator):
 
     def set_adapter(self, net=None, pretrained_net=None):
         if self.backend == 'deepxde':
-            if self.adapter is None:
-                from epde.integrate.deepxde_integration import DeepXDEAdapter
-                cfg = self.params.get('deepxde_config', {})
+            from epde.integrate.deepxde_integration import DeepXDEAdapter
+            cfg = self.params.get('deepxde_config', {})
+            # Rebuild when a net is supplied or the config moved, the way the
+            # solver branch below rebuilds for a net. Building once and never
+            # again froze the FIRST call's ``pretrained_net`` and
+            # ``deepxde_config`` for the rest of the run, while the sibling
+            # ``error_metric`` / ``penalty_coeff`` sync in ``_apply_deepxde``
+            # re-reads ``self.params`` on every call -- the two disagreed about
+            # whether host params are live.
+            #
+            # Inert as things stand: ``deepxde_config`` is a per-search operator
+            # parameter, and ``_pretrained_net`` reads ``solution_guess_nn``,
+            # whose only writer is commented out, so it is always None. Both
+            # become silently wrong the moment either starts moving, and the
+            # symptom would be "candidate 1's settings scored candidates 2..N".
+            if (self.adapter is None or pretrained_net is not None
+                    or getattr(self, '_adapter_cfg', None) != cfg):
                 self.adapter = DeepXDEAdapter(pretrained_net=pretrained_net, **cfg)
+                self._adapter_cfg = dict(cfg)
+            return
+        if self.backend == 'basis':
+            # Same contract as the DeepXDE adapter (solve() -> full-grid field,
+            # scored on the held-out tail by _apply_deepxde), no network.
+            from epde.integrate.basis_integration import BasisAdapter
+            cfg = self.params.get('basis_config', {})
+            if self.adapter is None or getattr(self, '_adapter_cfg', None) != cfg:
+                self.adapter = BasisAdapter(**cfg)
+                self._adapter_cfg = dict(cfg)
             return
         # Resolved unconditionally, not just when the adapter is (re)built:
         # ``_apply_autograd`` has to put its grid stack on the same device the
@@ -327,7 +351,7 @@ class SolverBasedFitness(CompoundOperator):
                 f'"sparsity" and "coeff_calc"). unfitted={unfitted}')
         for eq in objective.vals:
             eq.assert_state_invariants('SolverBasedFitness.apply entry')
-        if self.backend == 'deepxde':
+        if self.backend in ('deepxde', 'basis'):
             return self._apply_deepxde(objective, force_out_of_place)
         return self._apply_autograd(objective, force_out_of_place)
 
@@ -436,6 +460,10 @@ class SolverBasedFitness(CompoundOperator):
             self.primary.error_metric = self.params.get('error_metric', 'rmse')
             self.primary.penalty_coeff = self.params.get('penalty_coeff', 0.2)
 
+        # ``heldout``, not ``deepxde_integration``: the basis backend shares this
+        # path and must not import deepxde (which moves torch's default device).
+        from epde.integrate.heldout import DeepXDEConfigError, time_split
+
         samples = global_var.samples_manager
         grids = samples.grids()
         masks = samples.gFunc('m')
@@ -444,27 +472,44 @@ class SolverBasedFitness(CompoundOperator):
             eqs = [objective.vals[v] for v in objective.vars_to_describe]
         else:
             eqs = [objective]
-        # ``evaluate`` returns a per-trajectory dict; the old code called
-        # ``.reshape(-1)`` straight on it.
-        targets = [eq.evaluate(active_only=True)[0] for eq in eqs]
+        # The OBSERVED field of each equation's variable, on the inner domain.
+        # This used to be the equation's TARGET term (``evaluate()[0]``, e.g.
+        # du/dt), which the solver then treated as ``u`` and the error
+        # compared the solved ``u`` against.
+        observed = [samples.get((eq.main_var_to_explain, (1.0,))) for eq in eqs]
 
         # One solve per trajectory: DeepXDE builds a single geometry from a
         # single grid, and the fillers index sctx by trajectory key.
         solutions, per_sample_data, losses = {}, {}, []
         try:
             for domain_key in samples.trajecatoryIDs:
-                data_list = [np.asarray(target[domain_key]).reshape(-1)
-                             for target in targets]
+                data_list = [np.asarray(obs[domain_key]).reshape(-1)
+                             for obs in observed]
                 solution_list, loss = self.adapter.solve(
                     equation_or_system=objective, grids=grids[domain_key],
                     data=data_list, domain_key=domain_key)
                 if np.isnan(loss):
                     raise ValueError('NaN loss')
                 flat_mask = np.asarray(masks[domain_key]).reshape(-1)
-                solutions[domain_key] = [np.asarray(sol).reshape(-1)[flat_mask]
+                # Score on the TEST block only -- the same split the adapter
+                # built, so the solution there is driven by the candidate
+                # equation alone. Note this is ``.test``, not ``~.train``: with
+                # a validation block the two differ, and val is for choosing the
+                # iterate, never for scoring it. The test block itself does not
+                # move with ``val_frac``.
+                t_inner = np.asarray(grids[domain_key][0]).reshape(-1)[flat_mask]
+                held_out = time_split(t_inner, self.adapter.train_frac,
+                                      getattr(self.adapter, 'val_frac', 0.0)).test
+                solutions[domain_key] = [np.asarray(sol).reshape(-1)[flat_mask][held_out]
                                          for sol in solution_list]
-                per_sample_data[domain_key] = data_list
+                per_sample_data[domain_key] = [values[held_out] for values in data_list]
                 losses.append(float(loss))
+        except DeepXDEConfigError:
+            # A config that cannot describe a run fails EVERY candidate
+            # identically, so scoring it as a NaN would read as an empty search
+            # rather than as the setup error it is. The adapter already re-raises
+            # it past its own handler; this is the second one.
+            raise
         except Exception as exc:
             print(f'[SolverBasedFitness/deepxde] DeepXDE solve failed: {exc}')
             if force_out_of_place:
@@ -479,9 +524,9 @@ class SolverBasedFitness(CompoundOperator):
         fit_ctx = FitContext(g_fun_vals=sw_g, data_shape=data_shape,
                              penalty_coeff=self.params.get('penalty_coeff', 0.2),
                              for_rps=False)
-        # DeepXDEError reads sctx.solution[key][eq_idx] against
-        # sctx.g_fun_vals[key][eq_idx] -- masked solution against the
-        # inner-domain data, per trajectory.
+        # Discrepancy('deepxde') reads sctx.solution[key][eq_idx] against
+        # sctx.g_fun_vals[key][eq_idx] -- the solution against the observed
+        # field on the held-out time levels, per trajectory.
         sctx = SolverContext(solution=solutions, loss_add=loss,
                              g_fun_vals=per_sample_data,
                              penalty_coeff=self.params.get('penalty_coeff', 0.2),

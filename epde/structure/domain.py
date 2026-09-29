@@ -107,6 +107,10 @@ class InputEntry(object):
             raise TypeError(f'data_tensor arg. in InputEntry.__init__(...) must be a np.ndarray.')
         
         self.data_tensor = data_tensor
+        #: The field exactly as handed in. ``data_tensor`` is replaced by the
+        #: preprocessor's output (smoothed, when a smoother is set); a solver
+        #: that profiles the observations wants what was observed.
+        self.raw_tensor = data_tensor
 
     def setDerivatives(self, preprocesser: PreprocessingPipe, deriv_tensors: Union[list, np.ndarray] = None,
                         max_order: Union[list, tuple, int] = 1, grid: list = []):
@@ -716,6 +720,15 @@ class Trajectory(object): # Pass around in evo. operators or init in globals. Us
     def ID(self) -> int:
         return self._cache_id
 
+    def raw_field(self, var_name: str) -> np.ndarray:
+        """The observed field of ``var_name`` on the FULL grid, as handed to
+        ``createTrajectory`` (before any preprocessing)."""
+        for entry in self._entries:
+            if entry.var_name == var_name:
+                return entry.raw_tensor
+        raise KeyError(f'no variable {var_name!r} in trajectory {self.ID}; '
+                       f'has {self.variable_names}')
+
     def grids(self, mode: Literal['full', 'solver'] = 'full') -> np.ndarray:
         """``mode='solver'`` trims ``boundary_width`` off every axis -- the
         INNER domain the cached tensors and ``Equation.evaluate`` live on.
@@ -834,6 +847,11 @@ class TrajectoriesManager(object):
     def ndim(self) -> int:
         traj_ID = self.trajecatoryIDs[0]
         return self._traj[traj_ID]._domain._grid_cache.get(label = None).ndim
+
+    def raw_fields(self, key: int) -> Dict[str, np.ndarray]:
+        """Every observed field of trajectory ``key`` on its full grid, raw."""
+        trajectory = self._traj[key]
+        return {name: trajectory.raw_field(name) for name in trajectory.variable_names}
 
     def gFunc(self, mode_key: Literal['d', 'f', 'm', 'dmf', 'dm']) -> Dict[int, np.ndarray]:
         return {key: trajectory.gFuncs(mode_key) for key, trajectory in self._traj.items()}

@@ -49,6 +49,30 @@ from epde.operators.common.survival import _BASIS_FREE_METRICS
 LOSS_NAN_VAL = 1e7
 
 
+def cancellation_parts(equation, active_only: bool):
+    """``(residual, term_mass)`` per trajectory, or None when the equation has
+    no feature left: the numerator and denominator of the pointwise
+    cancellation ratio ``|sum_k c_k phi_k| / sum_k |c_k phi_k|`` over EVERY
+    term (target, fitted features, intercept).
+
+    ONE definition, read by ``Discrepancy._compute_scale_invariant`` and by the
+    scale-invariant physics losses of the solver backends (``pde_loss=
+    'sinv_*'``), so the objective and the losses cannot drift apart.
+    """
+    targets, features = equation.evaluate(active_only=active_only)
+    if features is None:
+        return None
+    coeffs, intercept = _extract_coefs_intercept(equation, features)
+    contribs = dictApplyUFunc(np.multiply, features, np.asarray(coeffs)[None, :])          # per-term weighted values
+    # ``contribs`` is a per-trajectory dict; the term sum has to be taken
+    # INSIDE each sample's array, not on the dict.
+    resid = dictSubtr(targets, dictAdd(dictApplyUFunc(lambda x: x.sum(axis=1), contribs),
+                                       intercept))                          # |sum_k c_k phi_k|
+    term_mass = dictAdd(dictApplyUFunc(np.abs, targets),
+                        dictAdd(dictApplyUFunc(lambda x: np.abs(x).sum(axis=1), contribs), abs(intercept)))
+    return resid, term_mass
+
+
 def _extract_coefs_intercept(equation, features=None):
     """Reconstruct ``(coefs, intercept)`` from ``weights_final``.
 
@@ -245,9 +269,13 @@ class Discrepancy(EquationObjective):
       plain ``'l2'`` is the solver-FREE legacy metric above).
     * ``'pic'`` -- PIC p-loss: mean squared (solved field - data) weighted
       by ``g_func`` plus the PINN residual loss, no penalty division.
-    * ``'deepxde'`` -- error of (DeepXDE solution - data) under a
-      configurable inner metric (``error_metric``: 'rmse' default / 'l2' /
-      'mae'); the host packs per-eq masked ``(solution, data)`` pairs and
+    * ``'deepxde'`` -- error of (DeepXDE solution - observed field) on the
+      HELD-OUT time levels, under a configurable inner metric
+      (``error_metric``: 'rmse' default / 'l2' / 'mae'). The solve fits the
+      observed field only on the first ``train_frac`` of time with the
+      candidate's fixed coefficients enforced everywhere, so this measures
+      how well the candidate equation carries the solution forward. The host
+      packs per-eq ``(solution, observed)`` pairs on the held-out points and
       re-syncs ``error_metric`` / ``penalty_coeff`` from its params before
       each solve (``SolverBasedFitness._apply_deepxde``).
 
@@ -416,18 +444,11 @@ class Discrepancy(EquationObjective):
         return float(np.mean([np.linalg.norm(discrepancy) for discrepancy in discr.values()]) / den)
 
     def _compute_scale_invariant(self, equation, ctx: FitContext) -> float:
-        targets, features = equation.evaluate(active_only=ctx.for_rps)
-        if features is None:
+        parts = cancellation_parts(equation, active_only=ctx.for_rps)
+        if parts is None:
             # only the target term survives -> a single term cannot cancel.
             return 1.0
-        coeffs, intercept = _extract_coefs_intercept(equation, features)
-        contribs = dictApplyUFunc(np.multiply, features, np.asarray(coeffs)[None, :])          # per-term weighted values
-        # ``contribs`` is a per-trajectory dict; the term sum has to be taken
-        # INSIDE each sample's array, not on the dict.
-        resid = dictSubtr(targets, dictAdd(dictApplyUFunc(lambda x: x.sum(axis=1), contribs),
-                                           intercept))                          # |sum_k c_k phi_k|
-        term_mass = dictAdd(dictApplyUFunc(np.abs, targets),
-                            dictAdd(dictApplyUFunc(lambda x: np.abs(x).sum(axis=1), contribs), abs(intercept)))
+        resid, term_mass = parts
         rho = dictApplyUFunc(np.divide, dictApplyUFunc(np.abs, resid), term_mass)
         return float(np.mean([value for value in dictApplyUFunc(np.mean, rho).values()]))
 
@@ -489,8 +510,9 @@ class Discrepancy(EquationObjective):
         return float(rl_error + sctx.pinn_loss_mult * float(sctx.loss_add))
 
     def _compute_deepxde(self, eq, eq_idx, sctx):
-        # sctx.solution[eq_idx] = masked solution, sctx.g_fun_vals[eq_idx] =
-        # masked data (packed by SolverBasedFitness's deepxde branch).
+        # sctx.solution[key][eq_idx] = solution, sctx.g_fun_vals[key][eq_idx] =
+        # observed field, both on the held-out time levels (packed by
+        # SolverBasedFitness's deepxde branch).
         masked_solution = {key: sol[eq_idx] for key, sol in sctx.solution.items()} # [eq_idx]
         masked_data = {key: gfunc_val[eq_idx] for key, gfunc_val in sctx.g_fun_vals.items()} 
         metric = self.error_metric

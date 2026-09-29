@@ -111,13 +111,15 @@ class MOEADDDirector(OptimizationPatternDirector):
             second = (Instability()
                       if _resolved_second() == 'instability'
                       else None)
-            if solver_backend == 'deepxde':
+            if solver_backend in ('deepxde', 'basis'):
+                # both solve with the candidate's coefficients fixed and are
+                # scored on the held-out tail by the same filler option
                 primary = Discrepancy('deepxde')
             elif solver_backend == 'autograd':
                 primary = Discrepancy('solver_l2')
             else:
                 raise ValueError(f'Unknown solver_backend {solver_backend!r}: '
-                                 "expected 'autograd' or 'deepxde'.")
+                                 "expected 'autograd', 'deepxde' or 'basis'.")
             objectives = [primary] if second is None else [primary, second]
             fitness = SolverBasedFitness(['penalty_coeff', 'pinn_loss_mult'],
                                          objectives=objectives, primary=primary,

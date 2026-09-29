@@ -21,8 +21,7 @@ import epde
 
 #: A deliberately tiny net: this is a wiring gate, not a convergence study.
 DEEPXDE_CONFIG = {'net': [16, 16], 'activation': 'tanh', 'optimizer': 'adam',
-                  'lr': 1e-3, 'num_domain': 200, 'num_boundary': 20,
-                  'num_initial': 20, 'epochs': 50}
+                  'lr': 1e-3, 'num_domain': 200, 'epochs': 50}
 
 
 def run(backend: str, epochs: int = 2, device: str = 'cpu') -> str:
