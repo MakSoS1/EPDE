@@ -145,10 +145,10 @@ dmypy.json
 *.pdf
 
 # --- Experiment output ---
-# Thesis workspace holds analysis SCRIPTS; every table, panel and figure in it
-# is generated, so track the .py and nothing else.
-projects/thesis/*
-!projects/thesis/*.py
+# Thesis workspace: retired Sep 2026. Nothing reads it and its files stay on
+# disk untracked (the thesis code itself is on main). The solver/PINN study
+# lives in projects/pinn.
+projects/thesis/
 # Gate harness: its code is tracked; rows, traces and shared-fit caches stay local
 projects/pinn/results/
 projects/**/plots/
