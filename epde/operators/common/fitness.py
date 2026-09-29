@@ -476,6 +476,17 @@ class SolverBasedFitness(CompoundOperator):
         # This used to be the equation's TARGET term (``evaluate()[0]``, e.g.
         # du/dt), which the solver then treated as ``u`` and the error
         # compared the solved ``u`` against.
+        if isinstance(objective, SoEq):
+            # The adapter names the net's output columns by vars_to_describe; the
+            # observed fields and the per-equation scores follow each equation's
+            # own variable. A mismatch would score every equation against the
+            # wrong column -- a setup error, identical for every candidate.
+            order = [eq.main_var_to_explain for eq in eqs]
+            if order != list(objective.vars_to_describe):
+                raise DeepXDEConfigError(
+                    f'equations explain {order}, but the system describes '
+                    f'{list(objective.vars_to_describe)}: set main_var_to_explain '
+                    f'per equation')
         observed = [samples.get((eq.main_var_to_explain, (1.0,))) for eq in eqs]
 
         # One solve per trajectory: DeepXDE builds a single geometry from a

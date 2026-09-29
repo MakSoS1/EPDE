@@ -680,6 +680,12 @@ class DeepXDEAdapter:
         seed = self.config.get('shared_fit_seed', None)
         self.shared_fit_seed = int(seed) if seed is not None else None
         self.shared_fit_dir = self.config.get('shared_fit_dir', None)
+        #: 'float64' runs the shared data fit on a double-precision copy and
+        #: loads the result back at the net's own precision. In float32 the
+        #: fit's strong-Wolfe line search stalls at a zero step once the
+        #: decrease it could confirm drops below the loss's rounding noise --
+        #: measured on Duffing (see the Sep 29 2026 note in the harness).
+        self.shared_fit_precision = self.config.get('shared_fit_precision', 'float32')
         #: 'float64': the solve in double precision. The net is still BUILT in
         #: float32 and upcast, so its initial weights equal the float32 arms'.
         self.precision = self.config.get('precision', 'float32')
@@ -719,6 +725,21 @@ class DeepXDEAdapter:
         self.lm_maxiter = int(self.config.get('lm_maxiter', 500))
         self.lm_tau = float(self.config.get('lm_tau', 1e-3))
         self.lm_chunk = int(self.config.get('lm_chunk', 256))
+        #: 'auto': every spatial axis the DATA show to be periodic
+        #: (``data_profile.build_profile``, train window) enters the net as
+        #: (cos, sin)(2 pi (x - lo) / L) instead of x, which makes the network
+        #: exactly periodic in it with the data's own period L; no other
+        #: constant. Time and non-periodic axes are unchanged (or affine-mapped
+        #: under ``input_transform='affine'``).
+        self.periodic_embedding = self.config.get('periodic_embedding', None)
+        #: where the physics is enforced. None: DeepXDE's Hammersley set.
+        #: 'data_gradient': the SAME points moved by the sequential (Rosenblatt)
+        #: inverse CDF of the train-window data-gradient density -- time first,
+        #: then each spatial axis conditional on the earlier ones -- so fronts
+        #: get the points; the held-out levels get the last train level's
+        #: pattern at the train-window mean density. 'flat': the same warp with
+        #: a flat density -- the placement control (the identity up to rounding).
+        self.collocation_density = self.config.get('collocation_density', None)
         choices = {'input_transform': (None, 'affine'),
                    'output_transform': (None, 'train_moments'),
                    'init': (None, 'data_prefit', 'lstsq_last_layer', 'shared_data_fit'),
@@ -726,7 +747,10 @@ class DeepXDEAdapter:
                    'pde_loss': ('mse', 'sinv_live', 'sinv_data'),
                    'first_order': ('adam', 'dog', 'prodigy'),
                    'lr_rule': (None, 'prefit_distance', 'data_selected'),
-                   'second_order': ('lbfgs', 'lm')}
+                   'second_order': ('lbfgs', 'lm'),
+                   'periodic_embedding': (None, 'auto'),
+                   'collocation_density': (None, 'data_gradient', 'flat'),
+                   'shared_fit_precision': ('float32', 'float64')}
         for key, allowed in choices.items():
             if getattr(self, key) not in allowed:
                 raise DeepXDEConfigError(f'deepxde_config {key} must be one of {allowed}, '
@@ -888,11 +912,15 @@ class DeepXDEAdapter:
                     residual += coeff * term_val
                     if sinv == 'sinv_live':
                         mass = mass + magnitude(coeff * term_val)
-                # The intercept is ALWAYS the trailing slot (it may be 0.0). The
-                # former ``len(weights_final) > len(all_terms)`` presence sniff
-                # was false under both the old and the unified layout, so the
-                # free coefficient never reached the residual at all.
-                if use_weights:
+                # The PDE carries a free coefficient (bias) only when the
+                # equation HAS one: its support slot ``weights_internal[-1]`` is
+                # non-zero (the intercept rule of the coefficient step, which
+                # leaves ``weights_final[-1]`` at 0.0 otherwise -- but a bias the
+                # equation does not have must not reach the residual whatever
+                # the trailing value says). The former presence sniff
+                # ``len(weights_final) > len(all_terms)`` was never true.
+                has_free = use_weights and float(eq.weights_internal[-1]) != 0.0
+                if has_free:
                     residual += float(eq.weights_final[-1]) * (y[:, 0:1] * 0.0 + 1.0)
                 target = eq.target
                 target_val = 1.0
@@ -902,7 +930,7 @@ class DeepXDEAdapter:
                 residual -= target_val
                 if sinv == 'sinv_live':
                     mass = (mass + magnitude(target_val)
-                            + (abs(float(eq.weights_final[-1])) if use_weights else 0.0))
+                            + (abs(float(eq.weights_final[-1])) if has_free else 0.0))
                     residual = cancellation_ratio(residual, mass + floors[eq_idx], _torch)
                 elif sinv == 'sinv_data':
                     residual = residual * data_weight(eq_idx, x)
@@ -1166,6 +1194,20 @@ class DeepXDEAdapter:
         loss_weights = self.loss_weights(eq_list, data_list, train)
 
         geom = _geometry(grids)
+        self._embedding = None
+        # A data profile that cannot be built fails every candidate alike: a
+        # setup error, not a NaN score that reads as "the search found nothing".
+        try:
+            if self.periodic_embedding is not None or self.collocation_density is not None:
+                self._raw = global_var.samples_manager.raw_fields(self.domain_key)
+            if self.periodic_embedding is not None:
+                from epde.integrate.data_profile import build_profile
+                profile = build_profile(grids, {v: self._raw[v] for v in var_names},
+                                        split.t_train)
+                self._embedding = [(a.axis, a.lo, a.period) for a in profile.axes if a.periodic]
+        except (KeyError, ValueError) as exc:
+            raise DeepXDEConfigError(f'periodic_embedding / collocation_density: the data '
+                                     f'profile of this trajectory failed: {exc}') from exc
         if self.pde_loss != 'mse':
             self._setup_sinv(eq_list, grids, mask, split)
         pde_func = self._equation_system_to_pde_func(dde, eq_list, var_names)
@@ -1177,7 +1219,16 @@ class DeepXDEAdapter:
                                         num_boundary=0, num_initial=0,
                                         num_test=self.num_test)
 
-        layer_size = [len(grids)] + list(self.net) + [len(var_names)]
+        if self.collocation_density is not None:
+            try:
+                warped = self._warped_collocation(np.asarray(data_obj.train_x_all), grids,
+                                                  var_names, split)
+            except (KeyError, ValueError) as exc:
+                raise DeepXDEConfigError(f'collocation_density: the warp of this trajectory '
+                                         f'failed: {exc}') from exc
+            data_obj.replace_with_anchors(warped)
+        n_embed = len(self._embedding) if self._embedding else 0
+        layer_size = [len(grids) + n_embed] + list(self.net) + [len(var_names)]
         net = self._build_net(layer_size)
         self._apply_transforms(net, grids, data_list, split)
         if self.pairing_digest:
@@ -1405,14 +1456,34 @@ class DeepXDEAdapter:
         before the gradient-weight probe). DeepXDE differentiates through them."""
         p0 = next(net.parameters())
         dev, dt = p0.device, p0.dtype
-        if self.input_transform == 'affine':
+        embedding = getattr(self, '_embedding', None)
+        if self.input_transform == 'affine' or embedding:
             # DeepXDE's column order [space..., t] (``_input_columns``)
             cols = [np.asarray(g) for g in grids[1:]] + [np.asarray(grids[0])]
             lo = np.array([float(c.min()) for c in cols])
             hi = np.array([float(c.max()) for c in cols])
-            scale = _torch.as_tensor(2.0 / (hi - lo), dtype=dt, device=dev)
-            shift = _torch.as_tensor(-1.0 - 2.0 * lo / (hi - lo), dtype=dt, device=dev)
-            net.apply_feature_transform(lambda x: x * scale + shift)
+            if self.input_transform == 'affine':
+                scale, shift = 2.0 / (hi - lo), -1.0 - 2.0 * lo / (hi - lo)
+            else:
+                scale, shift = np.ones_like(lo), np.zeros_like(lo)
+            scale = _torch.as_tensor(scale, dtype=dt, device=dev)
+            shift = _torch.as_tensor(shift, dtype=dt, device=dev)
+            # EPDE axis a -> DeepXDE column (time is last)
+            n_axes = len(grids)
+            periodic = {}
+            for axis, a_lo, period in (embedding or []):
+                col = axis - 1 if axis > 0 else n_axes - 1
+                periodic[col] = (2.0 * math.pi / period, a_lo)
+            keep = [c for c in range(n_axes) if c not in periodic]
+
+            def transform(x):
+                parts = [x[:, keep] * scale[keep] + shift[keep]] if keep else []
+                for col, (w, a_lo) in sorted(periodic.items()):
+                    phase = w * (x[:, col:col + 1] - a_lo)
+                    parts += [_torch.cos(phase), _torch.sin(phase)]
+                return _torch.cat(parts, dim=1)
+
+            net.apply_feature_transform(transform)
         if self.output_transform == 'train_moments':
             obs = [np.asarray(v, dtype=np.float64).reshape(-1)[split.train] for v in data_list]
             tiny = float(np.finfo(np.float64).tiny)
@@ -1420,12 +1491,89 @@ class DeepXDEAdapter:
             sd = _torch.as_tensor([max(float(o.std()), tiny) for o in obs], dtype=dt, device=dev)
             net.apply_output_transform(lambda x, y: mu + sd * y)
 
+    def _warped_collocation(self, points, grids, var_names, split):
+        """DeepXDE's own collocation points, moved by the sequential inverse CDF
+        (Rosenblatt map) of the train-window data-gradient density
+        ('data_gradient') or of a flat one ('flat'), on any number of axes.
+
+        Time goes first, through the density's time marginal (its mean over
+        every spatial axis). Each spatial EPDE axis a = 1, 2, ... follows in
+        order, through the density on the grid cell the earlier axes landed in
+        (the NEAREST node on each earlier axis), averaged over the later axes.
+        Every 1-D inverse CDF is the trapezoid rule on the axis's own coordinates.
+
+        The density is the mean over variables of ``gradient_density``, which is
+        scale-free per variable (1 + |grad u| / mean |grad u|), so no variable's
+        units weigh more. It reads the train levels only. The held-out levels get
+        the last train level's pattern scaled to the train-window mean density:
+        copying that level as it stands would let one level (in 1-D, one number)
+        set how many physics points the scored tail receives.
+
+        Deterministic and identical for every candidate: the density depends on
+        the data only. It is > 0 everywhere (>= 1 on the train levels; the tail
+        rescale can take it below 1), so every CDF is strictly increasing and a
+        point on a face of the box stays on that face. A flat density makes every
+        CDF the normalised coordinate itself: 'flat' is the identity up to
+        rounding on any grid -- the placement control."""
+        from epde.integrate.data_profile import (axis_coordinates, gradient_density,
+                                                 train_level_mask)
+        grids = [np.asarray(g, dtype=np.float64) for g in grids]
+        n = len(grids)
+        coords = [axis_coordinates(grids[a], a) for a in range(n)]
+        if self.collocation_density == 'flat':
+            dens = np.ones(grids[0].shape)
+        else:
+            dens = sum(gradient_density(grids, self._raw[v], split.t_train, kind='all')
+                       for v in var_names) / len(var_names)
+            train = train_level_mask(coords[0], split.t_train)
+            if (~train).any():
+                last = dens[train][-1]
+                dens[~train] = last * (float(dens[train].mean()) / float(np.mean(last)))
+        out = np.array(points, dtype=np.float64, copy=True)
+        column = [n - 1] + list(range(n - 1))      # EPDE axis -> DeepXDE column: time last
+
+        def inverse_cdf(weights, axis_coords, u):
+            cdf = np.concatenate([[0.0], np.cumsum(0.5 * (weights[1:] + weights[:-1])
+                                                     * np.diff(axis_coords))])
+            cdf /= cdf[-1]
+            return np.interp(u, cdf, axis_coords)
+
+        def unit(a):                               # DeepXDE's own coordinate, on [0, 1]
+            lo, hi = coords[a][0], coords[a][-1]
+            return (points[:, column[a]] - lo) / (hi - lo)
+
+        def nearest(axis_coords, values):
+            i = np.clip(np.searchsorted(axis_coords, values), 1, len(axis_coords) - 1)
+            left = np.abs(values - axis_coords[i - 1]) <= np.abs(axis_coords[i] - values)
+            return np.where(left, i - 1, i)
+
+        marginal_t = dens.reshape(len(coords[0]), -1).mean(axis=1)
+        out[:, column[0]] = inverse_cdf(marginal_t, coords[0], unit(0))
+        cell = None                                # C-order flat index of the cell on axes < a
+        for a in range(1, n):
+            node = nearest(coords[a - 1], out[:, column[a - 1]])
+            cell = node if cell is None else cell * len(coords[a - 1]) + node
+            u = unit(a)
+            earlier = tuple(len(c) for c in coords[:a])
+            for key in np.unique(cell):
+                sel = cell == key
+                block = dens[np.unravel_index(key, earlier)]
+                # the last axis takes its row as is; an intermediate one averages
+                # over the axes after it
+                weights = block if block.ndim == 1 else \
+                    block.reshape(len(coords[a]), -1).mean(axis=1)
+                out[sel, column[a]] = inverse_cdf(weights, coords[a], u[sel])
+        return out.astype(np.asarray(points).dtype)
+
     @staticmethod
     def _param_digest(net) -> str:
         import hashlib
         h = hashlib.sha256()
         for p in net.parameters():
-            h.update(p.detach().cpu().numpy().tobytes())
+            # float32 bytes: a float64 run upcasts the SAME float32 draw
+            # (``_build_net``), so it pairs with its float32 control; a float32
+            # net's digest is unchanged by the cast
+            h.update(p.detach().to(_torch.float32).cpu().numpy().tobytes())
         return h.hexdigest()[:24]
 
     def _apply_init(self, net, inner_coords, data_list, split):
@@ -1551,11 +1699,28 @@ class DeepXDEAdapter:
         opt.step(closure)
         with _torch.no_grad():
             after = float(data_loss())
-        n_iter = int(opt.state[opt._params[0]].get('n_iter', 0)) if opt.state else 0
+        state = opt.state[opt._params[0]] if opt.state else {}
+        n_iter = int(state.get('n_iter', 0))
+        # the gradient AT the final parameters: torch's prev_flat_grad is the
+        # one from the start of the last iteration, which mislabels a gtol stop
+        grads = _torch.autograd.grad(data_loss(), params, allow_unused=True)
+        gmax = max((float(g.abs().max()) for g in grads if g is not None),
+                   default=float('nan'))
+        if n_iter >= maxiter:
+            reason = 'maxiter'
+        elif int(state.get('func_evals', 0)) >= int(1.25 * maxiter):
+            reason = 'maxeval'
+        elif gmax <= 1e-8:
+            reason = 'gtol'
+        elif float(state.get('t', 1.0)) == 0.0:
+            reason = 'zero_step'           # the line search found no decrease it could confirm
+        else:
+            reason = 'no_change'
         for p in params:
             p.grad = None
         return {'prefit_iterations': n_iter, 'data_loss_before': before,
-                'data_loss_after': after, 'seconds': _time.perf_counter() - t0}
+                'data_loss_after': after, 'stop': reason, 'gmax': gmax,
+                'dtype': str(dt), 'seconds': _time.perf_counter() - t0}
 
     def _shared_data_fit(self, net, X, Y):
         """Load (or fit, then cache) the shared observation-only start.
@@ -1588,8 +1753,17 @@ class DeepXDEAdapter:
             h.update(p.detach().cpu().numpy().tobytes())
         h.update(np.ascontiguousarray(X.detach().cpu().numpy()).tobytes())
         h.update(np.ascontiguousarray(Y).tobytes())
-        h.update(repr((list(self.net), self.activation, self.input_transform,
-                       self.output_transform, str(dt), self.shared_fit_maxiter)).encode())
+        key_parts = (list(self.net), self.activation, self.input_transform,
+                     self.output_transform, str(dt), self.shared_fit_maxiter)
+        if self.shared_fit_precision != 'float32':
+            # only a non-default precision enters the key, so every fit cached
+            # before this option existed keeps its key
+            key_parts = key_parts + (self.shared_fit_precision,)
+        if getattr(self, 'periodic_embedding', None) is not None:
+            # the embedding is data-determined, but it changes the network the
+            # fit belongs to; name it rather than rely on the weight bytes
+            key_parts = key_parts + (('periodic', self.periodic_embedding),)
+        h.update(repr(key_parts).encode())
         key = h.hexdigest()[:32]
         path = (os.path.join(self.shared_fit_dir, key + '.pt')
                 if self.shared_fit_dir else None)
@@ -1601,8 +1775,14 @@ class DeepXDEAdapter:
             stats['fit'] = blob['stats']
             self._SHARED_FITS[key] = state
         if state is None:
-            fit = self._data_fit(start, X, Y, self.shared_fit_maxiter)
-            state = {k: v.detach().cpu().clone() for k, v in start.state_dict().items()}
+            if self.shared_fit_precision == 'float64' and dt != _torch.float64:
+                fitted = copy.deepcopy(start).double()
+                fit = self._data_fit(fitted, X.double(), Y, self.shared_fit_maxiter)
+                state = {k: v.detach().to(dt).cpu().clone()
+                         for k, v in fitted.state_dict().items()}
+            else:
+                fit = self._data_fit(start, X, Y, self.shared_fit_maxiter)
+                state = {k: v.detach().cpu().clone() for k, v in start.state_dict().items()}
             source = 'fitted'
             stats['fit'] = fit
             self._SHARED_FITS[key] = state

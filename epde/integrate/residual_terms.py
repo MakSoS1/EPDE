@@ -110,8 +110,10 @@ def equation_spec(eq, var_idx_map: Dict[str, int], ndim: int) -> EquationSpec:
                  if use_weights else 1.0)
         terms.append(TermSpec(coeff, tuple(factor_spec(f, var_idx_map, ndim)
                                            for f in term.structure)))
-    # the intercept is ALWAYS the trailing slot when the weights are evaluated
-    intercept = float(eq.weights_final[-1]) if use_weights else 0.0
+    # the free coefficient only when the equation HAS one (support slot
+    # ``weights_internal[-1]`` non-zero), as the DeepXDE residual
+    has_free = use_weights and float(eq.weights_internal[-1]) != 0.0
+    intercept = float(eq.weights_final[-1]) if has_free else 0.0
     target = tuple(factor_spec(f, var_idx_map, ndim) for f in eq.target.structure)
     return EquationSpec(var=var_idx_map[eq.main_var_to_explain], terms=tuple(terms),
                         intercept=intercept, target=target)

@@ -415,3 +415,236 @@ class TestTheS1PathIsPinned:
         print(f'S1PIN {digest}')
         assert S1_PIN is not None, f'capture: {digest}'
         assert digest == S1_PIN
+
+
+
+# ============================================================ Stage 2 mechanisms
+@pytest.mark.usefixtures('solve_on_cpu')
+class TestThePeriodicEmbedding:
+
+    def test_it_makes_the_network_exactly_periodic(self, solve_on_cpu):
+        import deepxde as dde
+        from epde.integrate.heldout import time_split
+        dxi = solve_on_cpu
+        adapter = dxi.DeepXDEAdapter(periodic_embedding='auto', input_transform='affine')
+        t = np.linspace(0.0, 1.0, 11)
+        x = np.linspace(-1.0, 1.0, 16, endpoint=False)              # period 2
+        grids = list(np.meshgrid(t, x, indexing='ij'))
+        adapter._embedding = [(1, -1.0, 2.0)]                        # EPDE axis 1 periodic
+        dde.config.set_random_seed(0)
+        net = adapter._build_net([3, 8, 1])                          # 2 inputs + 1 extra
+        adapter._apply_transforms(net, grids, [np.zeros(grids[0].size)],
+                                  time_split(grids[0].reshape(-1), 0.8))
+        pts = torch.tensor([[0.3, 0.2], [-0.7, 0.9]])                # columns [x, t]
+        shifted = pts.clone()
+        shifted[:, 0] += 2.0
+        with torch.no_grad():
+            torch.testing.assert_close(net(pts), net(shifted), rtol=0, atol=1e-6)
+
+    def test_it_is_inert_without_a_periodic_axis(self, fitted, solve_on_cpu):   # noqa: F811
+        """The 1-D fixture has no spatial axis, so the embedding must change
+        nothing: bitwise the affine-input (S1) pin."""
+        solution, loss, _ = _solve(solve_on_cpu, fitted,
+                                   dict(LBFGS_ONLY, input_transform='affine',
+                                        periodic_embedding='auto'))
+        assert _digest(solution, loss) == S1_PIN
+
+
+@pytest.mark.usefixtures('solve_on_cpu')
+class TestThePairingDigest:
+
+    def test_a_float64_net_pairs_with_its_float32_draw(self, solve_on_cpu):
+        """float64 builds the float32 Glorot draw and upcasts it, so the digest
+        (taken on float32 bytes) is the float32 net's."""
+        import copy
+        import deepxde as dde
+        dxi = solve_on_cpu
+        dde.config.set_random_seed(0)
+        net = dxi.DeepXDEAdapter()._build_net([2, 8, 1])
+        wide = copy.deepcopy(net).double()
+        assert dxi.DeepXDEAdapter._param_digest(net) == \
+            dxi.DeepXDEAdapter._param_digest(wide)
+
+
+@pytest.mark.usefixtures('solve_on_cpu')
+class TestTheCollocationWarp:
+
+    @staticmethod
+    def _setup(dxi, kind):
+        from epde.integrate.heldout import time_split
+        adapter = dxi.DeepXDEAdapter(collocation_density=kind)
+        t = np.linspace(0.0, 1.0, 21)
+        x = np.linspace(-1.0, 1.0, 64)
+        T, X = np.meshgrid(t, x, indexing='ij')
+        u = np.tanh(X / 0.05) + 0 * T                               # a sharp front at x=0
+        adapter._raw = {'u': u}
+        split = time_split(T.reshape(-1), 0.8)
+        rng = np.random.default_rng(0)
+        pts = np.stack([rng.uniform(-1, 1, 500), rng.uniform(0, 1, 500)], axis=1)
+        return adapter, [T, X], pts, split
+
+    def test_a_flat_density_is_the_identity(self, solve_on_cpu):
+        adapter, grids, pts, split = self._setup(solve_on_cpu, 'flat')
+        out = adapter._warped_collocation(pts, grids, ['u'], split)
+        np.testing.assert_allclose(out, pts, rtol=0, atol=1e-12)
+
+    def test_the_gradient_density_moves_points_to_the_front_deterministically(self,
+                                                                              solve_on_cpu):
+        adapter, grids, pts, split = self._setup(solve_on_cpu, 'data_gradient')
+        out = adapter._warped_collocation(pts, grids, ['u'], split)
+        again = adapter._warped_collocation(pts, grids, ['u'], split)
+        np.testing.assert_array_equal(out, again)
+        assert out.shape == pts.shape
+        assert out[:, 0].min() >= -1.0 and out[:, 0].max() <= 1.0
+        assert out[:, 1].min() >= 0.0 and out[:, 1].max() <= 1.0
+        near_front = lambda p: float(np.mean(np.abs(p[:, 0]) < 0.1))
+        assert near_front(out) > 2 * near_front(pts)
+
+    def test_the_scored_tail_keeps_its_share_whatever_the_last_train_level(self,
+                                                                          solve_on_cpu):
+        """1-D: copying the last train level into the tail let ONE number decide
+        how many physics points the scored tail gets (a front at t_train, last
+        level density 38 against a train mean of 2, would have sent ~0.8 of the
+        points into a tail that is 0.2 of the time). The tail now carries the
+        train-window mean density. What remains is the one trapezoid segment
+        straddling t_train, which rightly shares the front's density (0.287)."""
+        from epde.integrate.heldout import time_split
+        adapter = solve_on_cpu.DeepXDEAdapter(collocation_density='data_gradient')
+        t = np.linspace(0.0, 1.0, 101)
+        split = time_split(t, 0.8)
+        pts = np.random.default_rng(0).uniform(0, 1, (4000, 1))
+        tail = float(np.mean(pts[:, 0] > split.t_train))
+        shares = []
+        for u in (np.sin(4 * t), np.sin(4 * t) + 3.0 * np.tanh((t - split.t_train) / 0.004)):
+            adapter._raw = {'u': u}
+            out = adapter._warped_collocation(pts, [t], ['u'], split)
+            shares.append(float(np.mean(out[:, 0] > split.t_train)))
+        smooth, front = shares
+        assert abs(smooth - tail) < 0.02, (smooth, tail)
+        assert front < 1.5 * tail, (front, tail)
+
+
+@pytest.mark.usefixtures('solve_on_cpu')
+class TestTheCollocationWarpOnThreeAxes:
+    """NS-shaped grids: EPDE axes (t, y, x), DeepXDE columns [y, x, t]."""
+
+    @staticmethod
+    def _setup(dxi, kind, x=None):
+        from epde.integrate.heldout import time_split
+        adapter = dxi.DeepXDEAdapter(collocation_density=kind)
+        t = np.linspace(0.0, 1.0, 11)
+        y = np.linspace(-1.0, 1.0, 17)
+        x = np.linspace(-1.0, 1.0, 64) if x is None else x
+        T, Y, X = np.meshgrid(t, y, x, indexing='ij')
+        u = np.tanh((X - 0.4 * Y) / 0.05) + 0 * T               # a front slanted in y
+        adapter._raw = {'u': u}
+        split = time_split(T.reshape(-1), 0.8)
+        rng = np.random.default_rng(0)
+        pts = np.stack([rng.uniform(-1, 1, 800), rng.uniform(-1, 1, 800),
+                        rng.uniform(0, 1, 800)], axis=1)        # columns [y, x, t]
+        return adapter, [T, Y, X], pts, split
+
+    def test_it_stays_in_the_box_keeps_its_faces_and_never_reads_the_tail(self,
+                                                                          solve_on_cpu):
+        adapter, grids, pts, split = self._setup(solve_on_cpu, 'data_gradient')
+        pts = pts.astype(np.float32)                            # DeepXDE's default dtype
+        pts[:3] = [[-1.0, 1.0, 0.5], [0.3, -1.0, 0.0], [1.0, 0.2, 1.0]]   # on faces
+        out = adapter._warped_collocation(pts, grids, ['u'], split)
+        assert out.dtype == np.float32 and out.shape == pts.shape
+        for col, (lo, hi) in enumerate([(-1.0, 1.0), (-1.0, 1.0), (0.0, 1.0)]):
+            assert out[:, col].min() >= lo and out[:, col].max() <= hi
+        for row, col in [(0, 0), (0, 1), (1, 1), (1, 2), (2, 0), (2, 2)]:
+            assert out[row, col] == pts[row, col]
+        tail = grids[0] > split.t_train
+        adapter._raw = {'u': np.where(tail, np.nan, adapter._raw['u'])}
+        np.testing.assert_array_equal(adapter._warped_collocation(pts, grids, ['u'], split),
+                                      out)
+
+    def test_a_front_that_moves_with_y_draws_the_points_at_their_own_y(self, solve_on_cpu):
+        """x is warped conditional on the y cell: the front sits at x = 0.4 y."""
+        adapter, grids, pts, split = self._setup(solve_on_cpu, 'data_gradient')
+        out = adapter._warped_collocation(pts, grids, ['u'], split)
+        near_front = lambda p: float(np.mean(np.abs(p[:, 1] - 0.4 * p[:, 0]) < 0.1))
+        assert near_front(out) > 2 * near_front(pts)
+
+    def test_a_flat_density_is_the_identity_on_any_grid(self, solve_on_cpu):
+        """A flat density makes every trapezoid CDF the normalised coordinate
+        itself, on a non-uniform axis too; what is left is rounding."""
+        x = np.sin(np.linspace(-0.5 * np.pi, 0.5 * np.pi, 33))  # non-uniform, ends at +-1
+        adapter, grids, pts, split = self._setup(solve_on_cpu, 'flat', x=x)
+        out = adapter._warped_collocation(pts, grids, ['u'], split)
+        np.testing.assert_allclose(out, pts, rtol=0, atol=1e-12)
+
+    def test_a_flat_warp_of_float32_points_returns_them_bitwise(self, solve_on_cpu):
+        """Why a flat float32 cell is inert: the float64 rounding of the warp is
+        far below half a float32 ulp, so the cast back returns the points."""
+        adapter, grids, pts, split = self._setup(solve_on_cpu, 'flat')
+        pts = pts.astype(np.float32)
+        out = adapter._warped_collocation(pts, grids, ['u'], split)
+        assert out.tobytes() == pts.tobytes()
+
+
+class TestNoBiasUnlessTheEquationHasOne:
+    """The PDE carries a free coefficient only when the equation's support keeps
+    one (``weights_internal[-1] != 0``), whatever ``weights_final[-1]`` holds."""
+
+    @staticmethod
+    def _equation(support_free, free_value=5.0):
+        from types import SimpleNamespace
+        u = SimpleNamespace(is_deriv=True, deriv_code=[None], variable='u', name='u',
+                            params=np.array([1.0]), ftype='u', label='u',
+                            params_description={0: {'name': 'power', 'bounds': (1, 3)}},
+                            structure=[], cache_label=None)
+        term, target = SimpleNamespace(structure=[u]), SimpleNamespace(structure=[u])
+        return SimpleNamespace(
+            structure=[term, target], target_idx=1, target=target,
+            main_var_to_explain='u', weights_final_evald=True,
+            weights_final=np.array([2.0, free_value]),
+            weights_internal=np.array([1.0, 1.0 if support_free else 0.0]),
+            weight_index=lambda i, tgt: i if i < tgt else i - 1)
+
+    @pytest.mark.usefixtures('solve_on_cpu')
+    def test_the_pinn_residual(self, solve_on_cpu):
+        adapter = solve_on_cpu.DeepXDEAdapter()
+        adapter.coord_map = {}
+        y = torch.tensor([[1.0], [2.0]])
+        x = torch.zeros(2, 1)
+        for support, want in ((False, y), (True, y + 5.0)):     # 2u - u (+ 5)
+            pde = adapter._equation_system_to_pde_func(None, [self._equation(support)], ['u'])
+            torch.testing.assert_close(pde(x, y)[0], want, rtol=0, atol=0)
+
+    def test_the_basis_residual(self):
+        from epde.integrate.residual_terms import equation_spec
+        assert equation_spec(self._equation(False), {'u': 0}, 1).intercept == 0.0
+        assert equation_spec(self._equation(True), {'u': 0}, 1).intercept == 5.0
+
+
+@pytest.mark.usefixtures('solve_on_cpu')
+class TestTheSystemOrderGuard:
+
+    def test_an_equation_explaining_another_variable_is_a_setup_error(self, solve_on_cpu):
+        import epde
+        from epde.integrate.heldout import DeepXDEConfigError
+        from epde.interface.equation_translator import translate_equation
+        from epde.operators.common.fitness import SolverBasedFitness
+        from epde.operators.common.objectives import Discrepancy
+        search = epde.EpdeSearch(use_solver=False, verbose_params={'show_iter_idx': False},
+                                 device='cpu')
+        t = np.linspace(0.0, 4 * np.pi, 120)
+        _, domain = search.createDomain(t, boundary_width=10, ID=0)
+        search.set_preprocessor(default_preprocessor_type='FD', preprocessor_kwargs={})
+        _, trajectory = search.createTrajectory({'u': np.sin(t), 'v': np.cos(t)},
+                                                domain, cache_id=0)
+        search.create_pool(data=[trajectory], max_deriv_order=(1,), data_fun_pow=1)
+        system = translate_equation(
+            {'u': '1.0 * v{power: 1.0} + 0.0 = du/dx0{power: 1.0}',
+             'v': '-1.0 * u{power: 1.0} + 0.0 = dv/dx0{power: 1.0}'},
+            search.pool, all_vars=['u', 'v'])
+        system.use_default_singleobjective_function()
+        system.vals['v'].main_var_to_explain = 'u'                   # the mismatch
+        host = SolverBasedFitness(['penalty_coeff', 'error_metric', 'deepxde_config'],
+                                  primary=Discrepancy('deepxde'), backend='deepxde')
+        host.params = {'penalty_coeff': 0.2, 'error_metric': 'rmse',
+                       'deepxde_config': dict(LBFGS_ONLY)}
+        with pytest.raises(DeepXDEConfigError, match='main_var_to_explain'):
+            host.apply(system, {})
