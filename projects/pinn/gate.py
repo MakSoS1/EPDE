@@ -5,7 +5,9 @@ score better than a WRONG one on the held-out tail? Per seed,
 
     gate = ln(RMSE_wrong / RMSE_true)          (> 0: the true form wins)
 
-and an arm's headline is the MINIMUM over seeds. Each solve goes through the
+and an arm's headline is the MINIMUM over seeds. A coupled system gets one
+gate PER EQUATION -- each equation is its own objective in EPDE's search,
+scored on its own variable -- and nothing is averaged over variables. Each solve goes through the
 real fitness host (``SolverBasedFitness`` + ``Discrepancy('deepxde')``), with the
 candidate's coefficients refit by ``LinRegBasedCoeffsEquation`` -- exactly the
 call sequence of the scratchpad harnesses (``gtol_experiment.py``,
@@ -199,10 +201,6 @@ def arm_config(arm):
 #: columns = the order the translate dict must follow
 SYSTEM_VARS = {"ac": ["u"], "duffing": ["u"], "burgers": ["u"],
                "lv": ["u", "v"], "ns": ["u", "v", "p"], "lorenz": ["u", "v", "w"]}
-#: the variables the gate RMSE averages (the host's force_out_of_place rule is
-#: the mean over ALL equations). NS leaves p out: only grad p enters the
-#: physics, so p's tail carries a free gauge drift c(t) -- noise, not verdict.
-GATE_VARS = {"ns": ["u", "v"]}
 SYSTEMS = tuple(SYSTEM_VARS)
 # Lorenz-63 window: t in [20.0, 25.2] of the stored run (dt 1e-3), every 5th
 # sample, re-zeroed (the system is autonomous, so the shift is exact).
@@ -210,10 +208,6 @@ SYSTEMS = tuple(SYSTEM_VARS)
 # (lambda_1 = 0.900 measured). The repo's t[:1000] is an off-attractor
 # transient with a 0.14 T_lambda tail.
 LORENZ_WINDOW = {"i0": 20000, "n": 1041, "step": 5, "boundary_width": 10}
-
-
-def gate_vars(system):
-    return GATE_VARS.get(system, SYSTEM_VARS[system])
 
 
 def _lorenz_window():
@@ -425,17 +419,18 @@ def fitted_system(search, text, system="ac"):
 
 
 def _score_fields(system, eqs):
-    """The row's RMSE fields. 'rmse' is the gate RMSE: the mean over the gate
-    variables (one variable: that variable's RMSE, exactly)."""
+    """The row's RMSE fields: each equation's own fitness, the held-out RMSE
+    of its own variable. One variable: a float, as always. A coupled system:
+    {var: RMSE} -- one objective per equation, never averaged."""
     per = {var: float(eq.fitness_value) for var, eq in zip(SYSTEM_VARS[system], eqs)}
-    out = {"rmse": float(np.mean([per[v] for v in gate_vars(system)]))}
     if len(eqs) > 1:
-        out["rmse_per_var"] = per
+        out = {"rmse": per}
         out["coeffs"] = {var: [float(w) for w in np.asarray(eq.weights_final).reshape(-1)]
                          for var, eq in zip(SYSTEM_VARS[system], eqs)}
         out["equation"] = {var: getattr(eq, "text_form", None)
                            for var, eq in zip(SYSTEM_VARS[system], eqs)}
     else:
+        out = {"rmse": per[SYSTEM_VARS[system][0]]}
         out["coeffs"] = [float(w) for w in np.asarray(eqs[0].weights_final).reshape(-1)]
         out["equation"] = getattr(eqs[0], "text_form", None)
     return out
@@ -497,7 +492,8 @@ def trace_path(tag, system, arm, form, seed):
 def _held_out_replica(dxi, train_frac, val_frac, system="ac"):
     """Held-out RMSE of a net, computed exactly as the host scores it:
     prediction on the FULL grid, inner mask, test block of ``time_split``;
-    per variable, then the mean over the gate variables (as ``_score_fields``)."""
+    per variable, in the shape of the row's rmse (a float for one variable,
+    {var: RMSE} for a coupled system -- see ``_score_fields``)."""
     import torch
     samples = dxi.global_var.samples_manager
     key = samples.trajecatoryIDs[0]
@@ -505,9 +501,8 @@ def _held_out_replica(dxi, train_frac, val_frac, system="ac"):
     flat_mask = np.asarray(samples.gFunc("m")[key]).reshape(-1)
     t_inner = g_full[0].reshape(-1)[flat_mask]
     held = dxi.time_split(t_inner, train_frac, val_frac).test
-    cols = [SYSTEM_VARS[system].index(v) for v in gate_vars(system)]
-    obs = [np.asarray(samples.get((v, (1.0,)))[key]).reshape(-1)[held]
-           for v in gate_vars(system)]
+    names = SYSTEM_VARS[system]
+    obs = [np.asarray(samples.get((v, (1.0,)))[key]).reshape(-1)[held] for v in names]
     X_np = np.asarray(dxi._input_columns(g_full))
     cache = {}
 
@@ -518,11 +513,11 @@ def _held_out_replica(dxi, train_frac, val_frac, system="ac"):
             cache[k] = torch.as_tensor(X_np, dtype=p0.dtype, device=p0.device)
         with torch.no_grad():
             p = net(cache[k]).detach().cpu().numpy()
-        errs = []
-        for c, o in zip(cols, obs):
+        errs = {}
+        for c, (v, o) in enumerate(zip(names, obs)):   # output column = pool order
             s = p[:, c].reshape(-1)[flat_mask][held]
-            errs.append(float(np.sqrt(np.mean((s - o) ** 2))))
-        return float(np.mean(errs))
+            errs[v] = float(np.sqrt(np.mean((s - o) ** 2)))
+        return errs if len(names) > 1 else errs[names[0]]
 
     return rmse
 
@@ -795,15 +790,27 @@ def run_probe(system, arm, forms, seed):
     for r in out:
         if r["form"] in seen:
             first = seen[r["form"]]
+            a, b = _as_dict(first), _as_dict(r["rmse"])
+            rel = max(abs(b[v] - a[v]) / a[v] for v in a)
             print(f"PROBE repeat of {r['form']}: first={first!r} now={r['rmse']!r} "
-                  f"identical={first == r['rmse']} "
-                  f"rel={abs(r['rmse'] - first) / first:.3e}", flush=True)
+                  f"identical={first == r['rmse']} rel={rel:.3e}", flush=True)
         else:
             seen[r["form"]] = r["rmse"]
     return out
 
 
 # ============================================================ parent loop
+def _as_dict(rmse):
+    """A row's rmse as {var: value} (a single-variable row is {'u': value})."""
+    return dict(rmse) if isinstance(rmse, dict) else {"u": rmse}
+
+
+def _fmt_rmse(rmse):
+    if isinstance(rmse, dict):
+        return " ".join(f"{v}={x:.6e}" for v, x in rmse.items())
+    return f"{rmse:.12e}"
+
+
 def results_path(tag):
     return os.path.join(RESULTS, f"{tag}.jsonl")
 
@@ -860,7 +867,7 @@ def drive(system, arms, seeds, forms, mode, tag, cpu=False, force=False):
                 if mode == "trace":
                     extra = (f"  replica==host:{row['rmse'] == row['rmse_final_replica']}"
                              f"  instr {row['instr_seconds']:.1f}s")
-                print(f"  {arm:<8} {form:<5} seed {seed}: tail RMSE {row['rmse']:.12e}  "
+                print(f"  {arm:<8} {form:<5} seed {seed}: tail RMSE {_fmt_rmse(row['rmse'])}  "
                       f"{row['seconds']:.0f}s (+{row['prelude_seconds']:.1f}s)  "
                       f"exit={ex.get('reason')}@{ex.get('iterations')}{extra}", flush=True)
     print(f"total {(time.time() - started) / 60:.1f} min -> {results_path(tag)}", flush=True)

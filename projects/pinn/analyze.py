@@ -35,7 +35,7 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.abspath(os.path.join(HERE, "..", "pic", "data"))    # pinn_common
 sys.path.insert(0, HERE)
-from gate import ARMS, RESULTS, load_rows       # noqa: E402
+from gate import ARMS, RESULTS, SYSTEM_VARS, load_rows, system_forms    # noqa: E402
 
 DEFAULT_TAGS = ("baseline,stage1_start,stage1,stage1_end,stage1_basis,"
                 "stage1b_start,stage1b,stage1b_end,stage1b_basis")
@@ -122,17 +122,18 @@ class Trace:
     the final ones.
     """
 
-    def __init__(self, rec):
+    def __init__(self, rec, var=None):
         self.rec = rec
         rows = rec["rows"]
+        pick = (lambda x: x) if var is None else (lambda x: x[var])
         self.ns = [int(r[0]) for r in rows]
         if len(set(self.ns)) != len(self.ns):
             raise RuntimeError("duplicate line-search rows")
-        self.r_before = [float(r[1]) for r in rows]
+        self.r_before = [float(pick(r[1])) for r in rows]
         self.time = [float(r[7]) for r in rows]
         self.instr = [float(r[8]) for r in rows] if rows and len(rows[0]) > 8 else [0.0] * len(rows)
         self.final_n = rec["final_n_iter"] or 0
-        self.final_rmse = rec["rmse_final_replica"]
+        self.final_rmse = pick(rec["rmse_final_replica"])
         self.t0 = float(rec.get("T_solve_start", 0.0))
         self.exit = (rec.get("lbfgs_exit") or {}).get("reason")
         self.cap = int((rec.get("config") or {}).get("lbfgs_maxiter", 0))
@@ -167,11 +168,41 @@ _TRACES = {}
 
 
 def load_trace(row):
-    path = os.path.join(HERE, *row["trace"].replace("\\", "/").split("/"))
-    if path not in _TRACES:
+    rel = row["trace"].replace("\\", "/")
+    path = rel if os.path.isabs(rel) else os.path.join(HERE, *rel.split("/"))
+    key = (path, row.get("equation_of"))
+    if key not in _TRACES:
         with open(path) as fh:
-            _TRACES[path] = Trace(json.load(fh))
-    return _TRACES[path]
+            _TRACES[key] = Trace(json.load(fh), row.get("equation_of"))
+    return _TRACES[key]
+
+
+def differing_equations(system):
+    """The equations whose text differs between the true and the wrong form.
+    Only their objectives carry the bar; the others are the same equation in
+    both candidates and move only through the coupling."""
+    forms = system_forms(system)
+    if not isinstance(forms["true"], dict):
+        return set(SYSTEM_VARS[system])
+    return {v for v in SYSTEM_VARS[system] if forms["true"][v] != forms["wrong"][v]}
+
+
+def per_equation(rows):
+    """Each equation of a coupled system is its own objective: a coupled row
+    becomes one row per equation, as system '<system>:<var>' with that
+    equation's RMSE. Single-variable rows pass through unchanged."""
+    out = []
+    for r in rows:
+        if not isinstance(r["rmse"], dict):
+            out.append(r)
+            continue
+        for var, value in r["rmse"].items():
+            e = dict(r, system=f"{r['system']}:{var}", rmse=value, equation_of=var,
+                     base_system=r["system"])
+            if isinstance(r.get("rmse_final_replica"), dict):
+                e["rmse_final_replica"] = r["rmse_final_replica"][var]
+            out.append(e)
+    return out
 
 
 # ============================================================ tables
@@ -208,8 +239,9 @@ def contaminated(by_form):
     bad = set()
     for f, per in by_form.items():
         for seed, r in per.items():
-            keys = {(r.get("tag"), r["system"], r["arm"]),
-                    (r.get("tag"), r["system"], r["arm"], f, seed)}
+            system = r.get("base_system", r["system"])
+            keys = {(r.get("tag"), system, r["arm"]),
+                    (r.get("tag"), system, r["arm"], f, seed)}
             if keys & CONTAMINATED:
                 bad.add(seed)
     return sorted(bad)
@@ -457,26 +489,37 @@ def ranking(tables):
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--tags", default=DEFAULT_TAGS)
-    ap.add_argument("--systems", default="ac,duffing,burgers")
+    ap.add_argument("--systems", default="ac,duffing,burgers",
+                    help="a coupled system (lv, ns, lorenz) expands to one gate per equation")
     a = ap.parse_args(argv)
     rows = [r for tag in a.tags.split(",") for r in load_rows(tag)]
     if not rows:
         print(f"no rows for tags {a.tags} under {RESULTS}")
         return
-    idx = index(rows)
+    idx = index(per_equation(rows))
     tables = {}
-    for system in a.systems.split(","):
-        if not any(k[0] == system for k in idx):
-            continue
-        print(f"\n================ {system}")
+    objectives = []
+    for name in a.systems.split(","):
+        for var in SYSTEM_VARS.get(name, [None]):
+            label = name if len(SYSTEM_VARS.get(name, [])) <= 1 else f"{name}:{var}"
+            if any(k[0] == label for k in idx):
+                objectives.append((name, label, var))
+    bar = {}
+    for name, system, var in objectives:
+        bar[system] = var is None or len(SYSTEM_VARS[name]) == 1 \
+            or var in differing_equations(name)
+        print(f"\n================ {system}"
+              + ("" if bar[system] else
+                 "   (same equation in both forms: coupling only, not part of the bar)"))
         integrity(system, idx)
         base = idx.get((system, BASELINE, "solve"), {})
         secs = [r["seconds"] for f in base.values() for r in f.values()]
         T_B = float(np.median(secs)) if secs else None
         tables[system] = gate_table(system, idx, T_B)
         contrasts(system, tables[system])
-    if len(tables) > 1:
-        ranking(tables)
+    ranked = {s: t for s, t in tables.items() if bar[s]}
+    if len(ranked) > 1:
+        ranking(ranked)
 
 
 if __name__ == "__main__":
