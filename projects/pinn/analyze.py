@@ -35,12 +35,22 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.abspath(os.path.join(HERE, "..", "pic", "data"))    # pinn_common
 sys.path.insert(0, HERE)
-from gate import ARMS, RESULTS, SYSTEM_VARS, load_rows, system_forms    # noqa: E402
+from gate import (ARMS, RESULTS, SYSTEM_VARS, inert_reference, load_rows,  # noqa: E402
+                  system_forms)
 
 DEFAULT_TAGS = ("baseline,stage1_start,stage1,stage1_end,stage1_basis,"
                 "stage1b_start,stage1b,stage1b_end,stage1b_basis")
+#: Stage 2 refits candidates WITHOUT a free coefficient unless the form writes
+#: one (row 'intercept_rule' = 'from_form'); every earlier tag forced one. The
+#: two are never analysed together (main() refuses): read Stage 2 with
+#:   --tags stage2_start,stage2,stage2_end
+#: and its patch-neutrality control with  --tags baseline,stage2_legacy
+STAGE2_TAGS = "stage2_start,stage2,stage2_end"
+#: Stages 0 / 1 / 1b recalculated under the no-bias rule (run_recalc_gpu.sh)
+RECALC_TAGS = "r_baseline,r_start,r_stage1,r_stage1b,r_end"
 #: tags whose B-ctl rows are kept apart from the pre-patch baseline's
-CONTROL_TAGS = ("stage1_start", "stage1_end", "stage1b_start", "stage1b_end")
+CONTROL_TAGS = ("stage1_start", "stage1_end", "stage1b_start", "stage1b_end",
+                "stage2_start", "stage2_end", "stage2_legacy", "r_start", "r_end")
 
 # ------------------------------------------------------------ stored references
 # Per-seed held-out RMSE of the shipped recipe (cap 2000), gtol_{ac,duffing}.json
@@ -95,6 +105,20 @@ CONTRASTS = [
     ("D1 - B    Adam lr from prefit distance", "D1", "B", "own"),
     ("D2 - B    Adam lr selected on data", "D2", "B", "own"),
     ("S5-32 - S0-32  LM vs L-BFGS on [32]x4", "S5-32", "S0-32", "own"),
+    # Stage 2 (on S1): each factor alone against G-0000 (== S1)
+    ("G-m000 - G-0000  S1+S2 vs S1: moment outputs", "G-m000", "G-0000", "T_B"),
+    ("G-m000 - G-0000  S1+S2 vs S1, own cap 4000", "G-m000", "G-0000", "own"),
+    ("G-0p00 - G-0000  periodic embedding", "G-0p00", "G-0000", "T_B"),
+    ("G-00g0 - G-0000  data-gradient collocation", "G-00g0", "G-0000", "T_B"),
+    ("G-00f0 - G-0000  flat warp, f32 (placement null)", "G-00f0", "G-0000", "T_B"),
+    ("G-000d - G-0000  float64", "G-000d", "G-0000", "T_B"),
+    ("G-00fd - G-000d  flat warp, f64 (placement null)", "G-00fd", "G-000d", "T_B"),
+    ("G-0000 - B  S1 route vs shipped", "G-0000", "B", "T_B"),
+    # two-way interactions as a difference of paired differences, (A1-A2)-(B1-B2):
+    # moments and float64 may share one cause (the float32 line-search stall);
+    # the gradient warp widens the residual's dynamic range, where float32 stalls
+    ("moments x float64", ("G-m00d", "G-000d"), ("G-m000", "G-0000"), "T_B"),
+    ("gradient warp x float64", ("G-00gd", "G-000d"), ("G-00g0", "G-0000"), "T_B"),
 ]
 REPLAY_CAPS = [1000, 2000, 3000, 4000]
 TIE = 0.10
@@ -107,7 +131,17 @@ FAILED_RMSE = 1e6
 #: verification (L-BFGS speed 70-76 ms/iteration vs 50-57 on clean neighbours).
 #: Their GATES are valid; their WALL-CLOCK reads are not.
 CONTAMINATED = {("stage1_start", "ac", "B-ctl"), ("stage1", "ac", "B-4k"),
-                ("stage1", "ac", "S0", "true", 0), ("stage1", "ac", "S0", "true", 1)}
+                ("stage1", "ac", "S0", "true", 0), ("stage1", "ac", "S0", "true", 1),
+                # 2026-09-29: a 1-thread CPU diagnostic 09:28:30-10:18 (stage1b.jsonl
+                # lines 3-18) and the unit suite 10:27:41-10:29:35 (lines 21-22)
+                ("stage1b", "ac", "S1-cap", "true", 2), ("stage1b", "ac", "S1-cap", "wrong", 0),
+                ("stage1b", "ac", "S1-cap", "wrong", 1), ("stage1b", "ac", "S1-cap", "wrong", 2),
+                ("stage1b", "ac", "S10"), ("stage1b", "ac", "S7f"),
+                ("stage1b", "ac", "S8f", "true", 2), ("stage1b", "ac", "S8f", "wrong", 0),
+                # Stage-2 patch tests in a separate worktree, 13:03:52-13:04:09,
+                # 13:05:13-13:07:07 and 13:13:50-13:15:49 (lines 81-82 and 86)
+                ("stage1b", "duffing", "P1", "true", 2), ("stage1b", "duffing", "P1", "wrong", 0),
+                ("stage1b", "duffing", "P2", "true", 1)}
 
 
 # ============================================================ trace replay
@@ -185,6 +219,58 @@ def differing_equations(system):
     if not isinstance(forms["true"], dict):
         return set(SYSTEM_VARS[system])
     return {v for v in SYSTEM_VARS[system] if forms["true"][v] != forms["wrong"][v]}
+
+
+#: (system, arm) -> reference cell, for inert Stage-2 cells whose seed-0 solves
+#: matched their reference bitwise; BROKEN_ALIAS holds the ones that did not
+ALIASED, BROKEN_ALIAS = {}, {}
+
+
+def apply_aliases(rows):
+    """An inert Stage-2 cell (``gate.inert_reference``) ran on seed 0 only. When
+    those solves equal its reference's bitwise (every equation, both forms), the
+    reference's other seeds are copied in under the cell's name. A mismatch is
+    recorded instead and the cell is left UNREADABLE. Chains (a 1-D periodic
+    flat cell -> the flat cell -> G-0000) resolve in dependency order."""
+    out = list(rows)
+    changed = True
+    while changed:
+        changed = False
+        have = {}
+        for r in out:
+            have[(r["system"], r["arm"], r.get("mode"), r["form"], r["seed"])] = r
+        cells = sorted({k[:3] for k in have if "factors" in ARMS.get(k[1], {})})
+        for system, arm, mode in cells:
+            if (system, arm) in ALIASED or (system, arm) in BROKEN_ALIAS:
+                continue
+            ref = inert_reference(system, arm)
+            if ref is None:
+                continue
+            if inert_reference(system, ref) is not None and (system, ref) not in ALIASED:
+                continue                      # its reference is not final yet
+            mine = {k[3:]: r for k, r in have.items() if k[:3] == (system, arm, mode)}
+            theirs = {k[3:]: r for k, r in have.items() if k[:3] == (system, ref, mode)}
+            if set(theirs) <= set(mine):
+                continue          # run on every seed (--no-alias): read as its own cell
+            checked = [(fs, mine[fs]["rmse"], theirs[fs]["rmse"]) for fs in mine if fs in theirs]
+            if {fs[0] for fs, _, _ in checked} != {"true", "wrong"}:
+                continue          # a form is missing at the checked seed: never aliased
+            if all(a == b for _, a, b in checked):
+                ALIASED[(system, arm)] = ref
+                out += [dict(r, arm=arm, aliased_from=ref) for fs, r in theirs.items()
+                        if fs not in mine]
+                changed = True
+                break           # rebuild the index: a chained cell must see these rows
+            else:
+                BROKEN_ALIAS[(system, arm)] = (ref, checked)
+    return out
+
+
+def resolve(system, arm):
+    """The cell whose solves an (aliased) cell actually reuses."""
+    while (system, arm) in ALIASED:
+        arm = ALIASED[(system, arm)]
+    return arm
 
 
 def per_equation(rows):
@@ -274,7 +360,7 @@ def integrity(system, idx):
             continue
         name = arm.split("@")[0]
         spec = ARMS.get(name, {})
-        ref_arm = spec.get("control_of") or spec.get("null_of")
+        ref_arm = spec.get("control_of") or spec.get("null_of") or spec.get("equals")
         if ref_arm is None:
             continue
         ref_mode = "solve" if ref_arm == BASELINE else mode
@@ -284,6 +370,14 @@ def integrity(system, idx):
         pairs = [(ref[f][s]["rmse"], by_form[f][s]["rmse"])
                  for f in by_form for s in by_form[f] if s in ref.get(f, {})]
         same = _bitwise(pairs)
+        if "equals" in spec:
+            # a different code state than the reference's rows: a mismatch
+            # says the Stage-2 patch moved S1, not that the batch drifted
+            print(f"  {arm} == {ref_arm} (Stage-1 rows) bitwise on {len(pairs)} solves: {same}"
+                  + ("" if same or not pairs else
+                     "  -- the patch moved S1 on this device: compare grid cells "
+                     "with G-0000 only"))
+            continue
         ok &= same
         what = "null check" if "null_of" in spec else "control"
         if not same and "null_of" in spec:
@@ -303,7 +397,9 @@ def integrity(system, idx):
         for a, b in pairs:
             if a != b:
                 print(f"      {a!r} vs {b!r}  rel {abs(b - a) / abs(a):.2e}")
-    if system in REFERENCE_RMSE and base:
+    forced = base and all(r.get("intercept_rule", "forced") == "forced"
+                          for f in base.values() for r in f.values())
+    if system in REFERENCE_RMSE and base and forced:     # the Sep 18 refs forced one
         pairs = [(REFERENCE_RMSE[system][f][s], base[f][s]["rmse"])
                  for f in base for s in base[f] if s in REFERENCE_RMSE[system].get(f, {})]
         same = _bitwise(pairs)
@@ -312,17 +408,23 @@ def integrity(system, idx):
     # pairing: every arm starts from the initial weights of the S0-family arm
     # built on the SAME network (S0 for [64]x4, S0-32 for [32]x4); S6 upcasts
     # to float64, so its bytes differ by construction and it is not compared
+    # A Stage-2 cell with a periodic embedding widens the first layer, so its
+    # initial weights differ by construction (seed-matched, not weight-paired);
+    # where no S0 exists (the coupled systems) the grid pairs with G-0000.
     refs = {}
-    for ref_name in ("S0", "S0-32"):
-        if (system, ref_name, "trace") in idx:
-            refs[tuple(ARMS[ref_name]["config"].get("net", [64, 64, 64, 64]))] = ref_name
+    for ref_name in ("S0", "S0-32", "G-0000"):
+        net_key = tuple(ARMS[ref_name]["config"].get("net", [64, 64, 64, 64]))
+        if (system, ref_name, "trace") in idx and net_key not in refs:
+            refs[net_key] = ref_name
     for (sys_, arm, mode), by_form in sorted(idx.items()):
         name = arm.split("@")[0]
         if sys_ != system or name in ("S0", "S0-32", "S6") or name not in ARMS:
             continue
+        if ARMS[name]["config"].get("periodic_embedding") is not None:
+            continue
         net = tuple(ARMS[name]["config"].get("net", [64, 64, 64, 64]))
         ref_name = refs.get(net)
-        if ref_name is None:
+        if ref_name is None or ref_name == name:
             continue
         ref = idx[(system, ref_name, "trace")]
         digests = [(ref[f][s].get("pairing") or {}).get("theta0") for f in by_form
@@ -344,6 +446,19 @@ def integrity(system, idx):
         same = _bitwise(pairs)
         ok &= same
         print(f"  B-4k replayed at cap 2000 == plain {BASELINE} bitwise on {len(pairs)} solves: {same}")
+    base_system = system.split(":")[0]
+    for (sys_, arm), ref in sorted(ALIASED.items()):
+        if sys_ == base_system:
+            print(f"  inert {arm} == {ref} bitwise on seed 0: aliased (other seeds reuse {ref})")
+    for (sys_, arm), (ref, checked) in sorted(BROKEN_ALIAS.items()):
+        if sys_ == base_system:
+            ok = False
+            UNREADABLE[(system, arm)] = (f"expected inert, but seed 0 differs from {ref}: "
+                                         f"rerun with drive --no-alias")
+            print(f"  inert {arm} == {ref} on seed 0: FALSE")
+            for fs, a, b in checked:
+                if a != b:
+                    print(f"      {fs}: {a!r} vs {b!r}")
     print(f"  => {'OK' if ok else 'INTEGRITY FAILURE -- do not read the affected arms'}")
     return ok
 
@@ -362,7 +477,8 @@ def budget_gates(by_form, budget):
 
 
 def gate_table(system, idx, T_B):
-    print(f"--- gates ({system}); bar = gate > 0 on every seed; T_B = {T_B:.0f} s")
+    print(f"--- gates ({system}); bar = gate > 0 on every seed; T_B = "
+          + (f"{T_B:.0f} s" if T_B else "n/a (no plain B solves on this system)"))
     table = {}
     for (sys_, arm, mode), by_form in sorted(idx.items(), key=lambda kv: (kv[0][1], kv[0][2])):
         if sys_ != system or arm.startswith("_"):
@@ -377,6 +493,15 @@ def gate_table(system, idx, T_B):
         notes = []
         if (system, arm) in UNREADABLE:
             notes.append(f"INTEGRITY: {UNREADABLE[(system, arm)]}")
+        if (system.split(":")[0], arm) in ALIASED:
+            notes.append(f"alias of {ALIASED[(system.split(':')[0], arm)]}: identical by "
+                         f"construction here (seed 0 checked bitwise)")
+        if ARMS.get(arm.split("@")[0], {}).get("role") == "null":
+            notes.append("placement null: a control, not a candidate (not ranked)")
+        if (inert_reference(system.split(":")[0], arm) and len(seeds) == 1
+                and (system.split(":")[0], arm) not in ALIASED):
+            notes.append("inert cell NOT resolved: seed 0 only (reference missing, or a "
+                         "form failed) -- not eligible")
         n_failed = sum(1 for f in by_form.values() for r in f.values()
                        if r["rmse"] >= FAILED_RMSE)
         if n_failed:
@@ -441,19 +566,40 @@ def contrasts(system, table):
     except Exception as exc:                                   # noqa: BLE001
         print(f"  (contrasts unavailable: {exc})")
         return
-    rows = []
+    base_system = system.split(":")[0]
+
+    def side(x, key):
+        """Per-seed gates of an arm, or the paired difference of two."""
+        if isinstance(x, tuple):
+            first, second = side(x[0], key), side(x[1], key)
+            if first is None or second is None:
+                return None
+            shared = sorted(set(first[0]) & set(second[0]))
+            return shared, [first[1][first[0].index(s)] - second[1][second[0].index(s)]
+                            for s in shared]
+        return table.get((x, key))
+
+    rows, same = [], []
     for name, a, b, budget in CONTRASTS:
-        ka, kb = (a, "own" if budget == "own" else budget), (b, "own" if budget == "own" else budget)
-        if ka not in table or kb not in table:
+        key = "own" if budget == "own" else budget
+        if not isinstance(a, tuple) and not isinstance(b, tuple) \
+                and (a, key) in table and (b, key) in table \
+                and resolve(base_system, a) == resolve(base_system, b):
+            same.append(f"{name}: identical by construction ({a} and {b} are one set of solves)")
             continue
-        sa, ga = table[ka]
-        sb, gb = table[kb]
+        sa_ga, sb_gb = side(a, key), side(b, key)
+        if sa_ga is None or sb_gb is None:
+            continue
+        sa, ga = sa_ga
+        sb, gb = sb_gb
         shared = sorted(set(sa) & set(sb))
         if len(shared) < 2:
             continue
         va = [ga[sa.index(s)] for s in shared]
         vb = [gb[sb.index(s)] for s in shared]
         rows.append(contrast(name, va, vb, lower_is_better=False))
+    for line in same:
+        print(f"  {line}")
     if rows:
         print(f"--- paired contrasts on the per-seed gate ({system})")
         contrast_table(rows, label="gate", fmt="%+.3f")
@@ -467,13 +613,20 @@ def ranking(tables):
         arms |= {a for a, _ in t}
     rows = []
     for arm in sorted(arms):
+        if ARMS.get(arm.split("@")[0], {}).get("role") == "null":
+            continue                          # a control, not a candidate
         per = []
         eligible = True
         for system, t in tables.items():
+            full = set(t.get((BASELINE, "own"), ([], []))[0])
+            if (system, arm) in UNREADABLE:
+                eligible = False
             for key in ("T_B", "0.9T_B"):
                 seeds, g = t.get((arm, key), ([], []))
                 if not g or not all(math.isfinite(x) and x > 0 for x in g):
                     eligible = False
+                if full and not full <= set(seeds):
+                    eligible = False          # fewer seeds than the shipped recipe
             seeds, g = t.get((arm, "T_B"), ([], []))
             per.append(min(g) if g and all(math.isfinite(x) for x in g) else float("nan"))
         score = min(per) if all(math.isfinite(x) for x in per) else float("nan")
@@ -483,7 +636,7 @@ def ranking(tables):
     for arm, eligible, score, per in rows:
         tie = " (tie with top)" if top is not None and eligible and top - score <= TIE else ""
         print(f"  {arm:<16} {'ELIGIBLE' if eligible else 'not eligible':<13} score {score:+.3f}  "
-              f"per system {' '.join(f'{x:+.3f}' for x in per)}{tie}")
+              + " ".join(f"{s} {x:+.3f}" for s, x in zip(tables, per)) + tie)
 
 
 def main(argv=None):
@@ -496,7 +649,11 @@ def main(argv=None):
     if not rows:
         print(f"no rows for tags {a.tags} under {RESULTS}")
         return
-    idx = index(per_equation(rows))
+    rules = {r.get("intercept_rule", "forced") for r in rows}
+    if len(rules) > 1:
+        raise SystemExit(f"these tags mix candidate rules {sorted(rules)} (free coefficient "
+                         f"forced vs from the form): analyse them separately")
+    idx = index(per_equation(apply_aliases(rows)))
     tables = {}
     objectives = []
     for name in a.systems.split(","):

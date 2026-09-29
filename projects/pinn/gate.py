@@ -40,6 +40,7 @@ usage
 """
 import argparse
 import hashlib
+import itertools
 import json
 import math
 import os
@@ -176,6 +177,75 @@ ARMS = {
 
 SEEDLESS_BACKENDS = ("basis",)  # deterministic backends run one seed only
 
+# ---- Stage 2: the grid on route S1 (epochs 0, L-BFGS <= 4000, affine inputs,
+# pairing digest). Cell G-<o><p><c><x>, '0' = S1's default for that factor:
+#   o 'm'  output_transform='train_moments'  (S2's mechanism: S1+S2 = G-m000)
+#   p 'p'  periodic_embedding='auto'
+#   c 'g'  collocation_density='data_gradient';  'f' 'flat' (the placement null)
+#   x 'd'  precision='float64'
+STAGE2_LEVELS = (
+    ("o", {"0": {}, "m": {"output_transform": "train_moments"}}),
+    ("p", {"0": {}, "p": {"periodic_embedding": "auto"}}),
+    ("c", {"0": {}, "g": {"collocation_density": "data_gradient"},
+           "f": {"collocation_density": "flat"}}),
+    ("x", {"0": {}, "d": {"precision": "float64"}}),
+)
+for _levels in itertools.product(*(lv for _, lv in STAGE2_LEVELS)):
+    _cfg = dict(ARMS["S1"]["config"])
+    for (_, _options), _key in zip(STAGE2_LEVELS, _levels):
+        _cfg.update(_options[_key])
+    ARMS["G-" + "".join(_levels)] = {
+        "backend": "deepxde", "config": _cfg, "factors": dict(zip("opcx", _levels)),
+        # the flat warp is a control of point placement, never a candidate
+        **({"role": "null"} if _levels[2] == "f" else {})}
+# harness mechanics for the Stage-2 code paths -- never a result
+ARMS["_smoke-G"] = {"backend": "deepxde", "config": dict(
+    ARMS["_smoke"]["config"], epochs=0, input_transform="affine",
+    output_transform="train_moments", periodic_embedding="auto",
+    collocation_density="data_gradient", precision="float64")}
+ARMS["_smoke-m"] = {"backend": "deepxde", "config": dict(
+    ARMS["_smoke"]["config"], epochs=0, input_transform="affine",
+    output_transform="train_moments")}
+ARMS["_smoke-c"] = {"backend": "deepxde", "config": dict(
+    ARMS["_smoke"]["config"], epochs=0, input_transform="affine",
+    collocation_density="data_gradient")}
+
+#: PRE-REGISTERED periodic EPDE axes, checked by `gate.py profile` before any
+#: GPU work: ac / burgers from test_data_profile.py; the 1-D systems have no
+#: spatial axis (time is never tested). ns: None = not pre-registered (an open
+#: wake box whose flat free-stream edges can pass the seam test), so no periodic
+#: cell runs on it.
+PERIODIC_AXES = {"ac": (1,), "burgers": (1,), "duffing": (), "lv": (), "lorenz": (),
+                 "ns": None}
+
+
+def inert_reference(system, arm):
+    """The cell this one equals BY CONSTRUCTION on ``system``, or None.
+    drive() runs such a cell on seed 0 only and analyze.py fills its other
+    seeds from the reference once seed 0 matches bitwise (checked, not assumed).
+
+    * periodic 'auto' where the data have no periodic axis: the embedding is
+      empty, so the transform and the net are those of 'off' (only a discarded
+      numpy profile runs; no RNG, no GPU work);
+    * the 'flat' warp in float32: its float64 rounding (~1e-16) is far below half
+      a float32 ulp, so the cast back returns DeepXDE's own points (expected)."""
+    f = ARMS[arm].get("factors")
+    if f is None:
+        return None
+    if f["p"] == "p" and PERIODIC_AXES.get(system) == ():
+        return f"G-{f['o']}0{f['c']}{f['x']}"
+    if f["c"] == "f" and f["x"] == "0":
+        return f"G-{f['o']}{f['p']}0{f['x']}"
+    return None
+
+
+def unsupported(system, arm):
+    """Why this cell cannot run on ``system`` (None: it can)."""
+    cfg = ARMS[arm]["config"]
+    if cfg.get("periodic_embedding") is not None and PERIODIC_AXES.get(system) is None:
+        return "periodic axes of this system are not pre-registered"
+    return None
+
 
 def arm_backend(arm):
     return ARMS[arm]["backend"]
@@ -255,9 +325,13 @@ def system_forms(system):
         # Synthetic Lotka-Volterra, alpha=beta=gamma=delta=20, IC (4, 2), h=1/301
         # (projects/hunter-prey/data_preparation.py; its hand-written RK4 has two
         # stage-3 bugs, so the record is LV only to ~0.4% -- the refit absorbs it).
-        # The wrong form drops the prey growth: the refit intercept becomes
-        # constant recruitment, a bounded damped spiral (the LOWEST of the four
-        # single-term drops; dropping predator mortality blows up in the tail).
+        # The wrong form drops the prey growth. Chosen (pre-registered) under the
+        # old forced-intercept rule, where the refit intercept became constant
+        # recruitment and this was the lowest of the four single drops (dropping
+        # predator mortality blew up in the tail). Under the no-bias rule the
+        # refit is u' = c uv (the prey dies out); a crude oracle gives it
+        # 4.31 / 4.47 (u / v), and predator mortality becomes the lowest drop
+        # (4.04 / 4.64) now that it no longer blows up.
         v_eq = ("-20.0 * v{power: 1.0} + 20.0 * u{power: 1.0} * v{power: 1.0} + 0.0 = "
                 "dv/dx0{power: 1.0}")
         return {
@@ -395,10 +469,27 @@ def build_search(system):
     return search
 
 
+#: The historical candidate rule: every equation refit WITH a free coefficient,
+#: whatever its form says. Rows of Stage 0/1/1b were produced this way; it
+#: stays reachable (--legacy-intercept) only for the bitwise control against
+#: them. Default: a free coefficient only where the form writes one.
+LEGACY_INTERCEPT = False
+
+
+def intercept_rule():
+    return "forced" if LEGACY_INTERCEPT else "from_form"
+
+
 def fitted_system(search, text, system="ac"):
     """Translate + refit EVERY equation. Returns (SoEq, [equations in
     vars_to_describe order]). A single-variable text stays a str (the str
-    overload, as the historical harnesses); a coupled one is a dict."""
+    overload, as the historical harnesses); a coupled one is a dict.
+
+    The free coefficient (the bias of the PDE) belongs to a candidate only when
+    its form writes a non-zero one: translate puts the text's free coefficient
+    in the trailing slot of weights_internal, and EPDE's coefficient step refits
+    an intercept only when that support slot is non-zero (the intercept rule in
+    coeff_calculation). Write '+ 0.0' for no free term."""
     from epde.interface.equation_translator import translate_equation
     from epde.operators.common.coeff_calculation import LinRegBasedCoeffsEquation
     all_vars = SYSTEM_VARS[system]
@@ -412,7 +503,10 @@ def fitted_system(search, text, system="ac"):
     # translate raises both *_evald flags on every equation, so an unrefit one
     # would pass the host's guard and be solved with the TEXT coefficients
     for eq in eqs:
-        eq.weights_internal = np.ones(len(eq.structure))
+        support = np.ones(len(eq.structure))
+        if not LEGACY_INTERCEPT and float(eq.weights_internal[-1]) == 0.0:
+            support[-1] = 0.0            # no free term in the form: none in the PDE
+        eq.weights_internal = support
         eq.weights_internal_evald = True
         LinRegBasedCoeffsEquation().apply(eq, {})
     return eq_system, eqs
@@ -550,6 +644,9 @@ def run_basis_solve(system, arm, form, seed, mode, tag):
         "tag": tag, "system": system, "arm": arm, "form": form, "seed": seed,
         "mode": mode, "backend": "basis", "config": cfg,
         **_score_fields(system, eqs), "seconds": seconds, "prelude_seconds": prelude,
+        "intercept_rule": intercept_rule(),
+        "free_term": {v: bool(e.weights_internal[-1] != 0)
+                      for v, e in zip(SYSTEM_VARS[system], eqs)},
         "lbfgs_exit": adapter.last_lbfgs_exit,
         "basis_stats": stats,
         "deepxde_imported": "deepxde" in sys.modules,
@@ -668,6 +765,15 @@ def run_solve(system, arm, form, seed, mode="solve", tag="adhoc", write_trace=Tr
 
         tl._strong_wolfe = sw
 
+    # An option the adapter does not know is silently ignored (it reads its
+    # config with .get), so a cell run before its patch would look valid. No
+    # RNG is drawn by the constructor.
+    probe_adapter = dxi.DeepXDEAdapter(**cfg)
+    missing = [k for k in cfg if not hasattr(probe_adapter, k)]
+    if missing:
+        raise SystemExit(f"the adapter ignores {missing}: is the Stage-2 patch applied?")
+    del probe_adapter
+
     # ---- the solve, exactly as the historical harnesses
     dde.config.set_random_seed(seed)
     host = SolverBasedFitness(["penalty_coeff", "error_metric", "deepxde_config"],
@@ -690,6 +796,9 @@ def run_solve(system, arm, form, seed, mode="solve", tag="adhoc", write_trace=Tr
         "tag": tag, "system": system, "arm": arm, "form": form, "seed": seed,
         "mode": mode, "backend": "deepxde", "config": cfg,
         **_score_fields(system, eqs), "seconds": seconds, "prelude_seconds": prelude,
+        "intercept_rule": intercept_rule(),
+        "free_term": {v: bool(e.weights_internal[-1] != 0)
+                      for v, e in zip(SYSTEM_VARS[system], eqs)},
         "phases": rec["phases"],
         "lbfgs_exit": getattr(adapter, "last_lbfgs_exit", None),
         "init_stats": getattr(adapter, "last_init_stats", None),
@@ -697,6 +806,7 @@ def run_solve(system, arm, form, seed, mode="solve", tag="adhoc", write_trace=Tr
         "lr_stats": getattr(adapter, "last_lr_stats", None),
         "lm_stats": getattr(adapter, "last_lm_stats", None),
         "pairing": getattr(adapter, "last_pairing", None),
+        "embedding": getattr(adapter, "_embedding", None),
         "final_n_iter": final_n,
         "loss_weights_lbfgs": rec["loss_weights_lbfgs"],
         "solve_device": str(dxi.DDE_SOLVE_DEVICE),
@@ -830,7 +940,25 @@ def _child_env(cpu):
     return env
 
 
-def drive(system, arms, seeds, forms, mode, tag, cpu=False, force=False):
+def _code_state():
+    return {p: _sha(p) for p in PROVENANCE_FILES}
+
+
+def drive(system, arms, seeds, forms, mode, tag, cpu=False, force=False, no_alias=False):
+    """Returns the number of solves that wrote no row (the caller exits non-zero)."""
+    existing = load_rows(tag)
+    if any(r.get("intercept_rule", "forced") != intercept_rule() for r in existing):
+        raise SystemExit(f"tag {tag} already holds rows of another intercept rule: "
+                         + ("add --legacy-intercept to extend it" if intercept_rule() == "from_form"
+                            else "drop --legacy-intercept to extend it") + ", or use a separate tag")
+    here = _code_state()
+    moved = sorted({p for r in existing
+                    for p, h in ((r.get("provenance") or {}).get("files") or {}).items()
+                    if p in here and h != here[p]})
+    if moved and not force:
+        raise SystemExit(f"tag {tag} holds rows of another code state ({', '.join(moved)} "
+                         f"changed since); use a new tag, or --force to rerun its rows")
+    failed = 0
     # controls last: a duplicate entered after its original is the only
     # ordering under which "bitwise equal" rules out drift across the batch
     arms = sorted(arms, key=lambda a: "control_of" in ARMS[a])
@@ -840,8 +968,16 @@ def drive(system, arms, seeds, forms, mode, tag, cpu=False, force=False):
     started = time.time()
     for arm in arms:
         print(f"######## {system} {arm} ({mode})  {time.strftime('%H:%M:%S')}", flush=True)
+        why = unsupported(system, arm)
+        if why:
+            print(f"  {arm}: NOT RUN on {system} ({why})", flush=True)
+            continue
+        ref = None if no_alias else inert_reference(system, arm)
+        if ref:
+            print(f"  {arm}: inert on {system} -- seed-0 bitwise check against {ref}",
+                  flush=True)
         arm_seeds = (seeds[:1] if (arm_backend(arm) in SEEDLESS_BACKENDS
-                                   or "null_of" in ARMS[arm]) else seeds)
+                                   or "null_of" in ARMS[arm] or ref) else seeds)
         for form in forms:
             for seed in arm_seeds:
                 if (system, arm, form, seed, mode) in done and not force:
@@ -850,11 +986,14 @@ def drive(system, arms, seeds, forms, mode, tag, cpu=False, force=False):
                 cmd = [sys.executable, "-u", os.path.abspath(__file__), "solve",
                        "--system", system, "--arm", arm, "--form", form,
                        "--seed", str(seed), "--mode", mode, "--tag", tag]
+                if LEGACY_INTERCEPT:
+                    cmd.append("--legacy-intercept")
                 proc = subprocess.run(cmd, capture_output=True, text=True,
                                       env=_child_env(cpu))
                 line = next((ln for ln in proc.stdout.splitlines()
                              if ln.startswith("ROW ")), None)
                 if line is None:
+                    failed += 1
                     print(f"  {arm:<8} {form:<5} seed {seed}: FAILED rc={proc.returncode}\n"
                           f"{proc.stdout[-2000:]}\n{proc.stderr[-4000:]}", flush=True)
                     continue
@@ -870,7 +1009,125 @@ def drive(system, arms, seeds, forms, mode, tag, cpu=False, force=False):
                 print(f"  {arm:<8} {form:<5} seed {seed}: tail RMSE {_fmt_rmse(row['rmse'])}  "
                       f"{row['seconds']:.0f}s (+{row['prelude_seconds']:.1f}s)  "
                       f"exit={ex.get('reason')}@{ex.get('iterations')}{extra}", flush=True)
-    print(f"total {(time.time() - started) / 60:.1f} min -> {results_path(tag)}", flush=True)
+    print(f"total {(time.time() - started) / 60:.1f} min -> {results_path(tag)}"
+          + (f"  ({failed} solve(s) wrote no row)" if failed else ""), flush=True)
+    return failed
+
+
+def run_profile(system):
+    """The data profile's periodicity verdict for ``system`` (train window, as
+    the adapter computes it), against PERIODIC_AXES. CPU numpy, no deepxde.
+    Returns 0 when they agree (or nothing is pre-registered), 1 otherwise."""
+    sys.path.insert(0, REPO)
+    from epde.integrate.data_profile import build_profile
+    from epde.integrate.heldout import time_split
+    import epde.globals as gv
+    build_search(system)
+    samples = gv.samples_manager
+    key = samples.trajecatoryIDs[0]
+    grids = [np.asarray(g) for g in samples.grids()[key]]
+    mask = np.asarray(samples.gFunc("m")[key]).reshape(-1)
+    t_train = time_split(grids[0].reshape(-1)[mask], 0.8).t_train
+    prof = build_profile(grids, samples.raw_fields(key), t_train)
+    for ax in prof.axes:
+        print(f"  {system} axis {ax.axis}: periodic={ax.periodic} seam_ratio={ax.seam_ratio} "
+              f"endpoint={ax.endpoint} period={ax.period}", flush=True)
+    want = PERIODIC_AXES.get(system)
+    got = prof.periodic_axes
+    if want is None:
+        print(f"  {system}: not pre-registered; the profile finds {got} "
+              f"(no periodic cell runs here)", flush=True)
+        return 0
+    ok = tuple(want) == tuple(got)
+    print(f"  {system}: pre-registered {tuple(want)}, profile {got} -> "
+          f"{'OK' if ok else 'MISMATCH'}", flush=True)
+    return 0 if ok else 1
+
+
+def show_forms(system):
+    """The refit candidates of ``system`` under the current intercept rule:
+    coefficients per equation and whether it carries a free term."""
+    sys.path.insert(0, REPO)
+    for form in FORMS:
+        search = build_search(system)
+        _, eqs = fitted_system(search, system_forms(system)[form], system)
+        for var, eq in zip(SYSTEM_VARS[system], eqs):
+            print(f"  {system} {form:<5} {var}: free term {bool(eq.weights_internal[-1] != 0)}"
+                  f"  | {eq.text_form}", flush=True)
+    return 0
+
+
+#: every (system, arm) the Stage-2 smoke must have run, on seed 0 and both forms
+EXPECTED_SMOKE = ([(s, "_smoke") for s in ("lv", "lorenz", "ns")]
+                  + [(s, "_smoke-G") for s in ("ac", "duffing", "burgers", "lv", "lorenz")]
+                  + [("ns", "_smoke-m"), ("ns", "_smoke-c")])
+
+
+def check_rows(tag):
+    """Mechanics of a batch: every expected row present (the smoke tag), every
+    row finite and below the failure value, a coupled row scored per equation
+    (a dict over exactly its variables), every trace row's replica equal to the
+    host, and every decisive file the rows ran with the one on disk. Returns the
+    number of problems."""
+    rows = load_rows(tag)
+    here = _code_state()
+    bad = 0
+    if tag == "stage2_smoke":
+        have = {(r["system"], r["arm"], r["form"], r["seed"]) for r in rows}
+        for system, arm in EXPECTED_SMOKE:
+            for form in FORMS:
+                if (system, arm, form, 0) not in have:
+                    print(f"  {system} {arm} {form} s0: MISSING (the solve wrote no row)")
+                    bad += 1
+    for r in rows:
+        name = f"{r['system']} {r['arm']} {r['form']} s{r['seed']}"
+        vals = r["rmse"] if isinstance(r["rmse"], dict) else {"u": r["rmse"]}
+        if len(SYSTEM_VARS[r["system"]]) > 1 and (
+                not isinstance(r["rmse"], dict)
+                or list(r["rmse"]) != SYSTEM_VARS[r["system"]]):
+            print(f"  {name}: coupled row not scored per equation: {r['rmse']!r}")
+            bad += 1
+        for v, x in vals.items():
+            if not (isinstance(x, float) and math.isfinite(x) and x < 1e6):
+                print(f"  {name}: {v} RMSE {x!r} (failed solve)")
+                bad += 1
+        if r.get("mode") == "trace" and r.get("rmse") != r.get("rmse_final_replica"):
+            print(f"  {name}: replica {r.get('rmse_final_replica')!r} != host {r['rmse']!r}")
+            bad += 1
+        ran = (r.get("provenance") or {}).get("files") or {}
+        for path, h in here.items():
+            if ran.get(path) != h:
+                print(f"  {name}: {path} sha {ran.get(path)} != on disk {h}")
+                bad += 1
+    print(f"check {tag}: {len(rows)} rows, {bad} problem(s)")
+    return bad
+
+
+#: (arm in the legacy tag, reference tag, reference arm, mode, expected rows)
+NEUTRALITY = (("B-ctl", "baseline", "B", "solve", 18), ("S1", "stage1", "S1", "trace", 4))
+
+
+def check_neutrality(tag):
+    """Under the old candidate rule (--legacy-intercept) the patched code must
+    reproduce the Stage-0/1 rows bitwise: B-ctl against the baseline B rows and
+    S1 (the rewritten affine-transform path every Stage-2 cell takes) against
+    the Stage-1 S1 rows. Returns the number of problems."""
+    rows = load_rows(tag)
+    bad = 0
+    for arm, ref_tag, ref_arm, mode, expected in NEUTRALITY:
+        ref = {(r["system"], r["form"], r["seed"]): r["rmse"] for r in load_rows(ref_tag)
+               if r["arm"] == ref_arm and r.get("mode") == mode}
+        mine = [r for r in rows if r["arm"] == arm and r.get("mode") == mode]
+        same = sum(1 for r in mine if ref.get((r["system"], r["form"], r["seed"])) == r["rmse"])
+        ok = len(mine) == expected and same == expected
+        bad += 0 if ok else 1
+        print(f"  {arm} ({tag}) == {ref_arm} ({ref_tag}) bitwise: {same}/{len(mine)} "
+              f"(expected {expected}) -> {'OK' if ok else 'FAIL'}")
+        for r in mine:
+            want = ref.get((r["system"], r["form"], r["seed"]))
+            if want != r["rmse"]:
+                print(f"      {r['system']} {r['form']} s{r['seed']}: {r['rmse']!r} vs {want!r}")
+    return bad
 
 
 def _parse_seeds(text):
@@ -888,7 +1145,8 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("command", choices=["solve", "drive", "probe", "list", "prefit",
-                                        "prefit-one"])
+                                        "prefit-one", "profile", "check", "forms",
+                                        "neutrality"])
     ap.add_argument("--system", choices=SYSTEMS)
     ap.add_argument("--arm")
     ap.add_argument("--arms")
@@ -901,14 +1159,31 @@ def main(argv=None):
     ap.add_argument("--cpu", action="store_true",
                     help="hide the GPU from the solve processes (CUDA_VISIBLE_DEVICES='')")
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--legacy-intercept", action="store_true",
+                    help="refit every candidate WITH a free coefficient, as Stage 0/1/1b did "
+                         "(only for the bitwise control against their rows)")
+    ap.add_argument("--no-alias", action="store_true",
+                    help="run inert Stage-2 cells on every seed instead of seed 0")
     a = ap.parse_args(argv)
+    global LEGACY_INTERCEPT
+    LEGACY_INTERCEPT = bool(a.legacy_intercept)
 
     if a.command == "list":
         for name, spec in ARMS.items():
             print(f"{name:<8} {spec['backend']:<8} {json.dumps(spec['config'])}"
+                  + (f"  (equals {spec['equals']})" if "equals" in spec else "")
+                  + (f"  [{spec['role']}]" if "role" in spec else "")
                   + (f"  (control of {spec['control_of']})" if "control_of" in spec else "")
                   + (f"  (null check of {spec['null_of']})" if "null_of" in spec else ""))
         return
+    if a.command == "neutrality":
+        raise SystemExit(1 if check_neutrality(a.tag) else 0)
+    if a.command == "forms":
+        raise SystemExit(show_forms(a.system))
+    if a.command == "profile":
+        raise SystemExit(run_profile(a.system))
+    if a.command == "check":
+        raise SystemExit(1 if check_rows(a.tag) else 0)
     if a.command == "solve":
         row = run_solve(a.system, a.arm, a.form, a.seed, a.mode, a.tag)
         print("ROW " + json.dumps(row), flush=True)
@@ -932,8 +1207,9 @@ def main(argv=None):
     unknown = [x for x in arms if x not in ARMS]
     if unknown:
         raise SystemExit(f"unknown arm(s) {unknown}; see `gate.py list`")
-    drive(a.system, arms, _parse_seeds(a.seeds), a.forms.split(","), a.mode, a.tag,
-          cpu=a.cpu, force=a.force)
+    failed = drive(a.system, arms, _parse_seeds(a.seeds), a.forms.split(","), a.mode, a.tag,
+                   cpu=a.cpu, force=a.force, no_alias=a.no_alias)
+    raise SystemExit(1 if failed else 0)
 
 
 if __name__ == "__main__":
