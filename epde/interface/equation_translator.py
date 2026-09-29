@@ -140,8 +140,10 @@ def _(text_form : dict, pool, all_vars: List[str], second_objective: str = None)
     
         metaparameters={'terms_number': {'optimizable': False, 'value': len(term_list)},
                         'max_factors_in_term': {'optimizable': False, 'value': max_factors}}
-        for var_key in all_vars:
-            metaparameters[('sparsity', var_key)] = {'optimizable': True, 'value': 0.}
+        # NOT ``var_key``: rebinding the outer loop's name here handed every
+        # equation all_vars[-1] as its variable to explain
+        for sparsity_var in all_vars:
+            metaparameters[('sparsity', sparsity_var)] = {'optimizable': True, 'value': 0.}
 
         equation = Equation(pool = pool, basic_structure = term_list, var_to_explain = var_key,
                             metaparameters = metaparameters)
