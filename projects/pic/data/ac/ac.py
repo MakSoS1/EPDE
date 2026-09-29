@@ -131,7 +131,8 @@ def ac_discovery(foldername, noise_level):
 
     dimensionality = data.ndim - 1
 
-    epde_search_obj = EpdeSearch(use_solver=True, multiobjective_mode=True, device='cuda', sparsity_cls='vwsr')
+    epde_search_obj = EpdeSearch(use_solver=True, solver_backend='deepxde',
+                                 multiobjective_mode=True, device='cuda', sparsity_cls='vwsr')
     _, domain = epde_search_obj.createDomain(grid, boundary_width=(5, 10), ID=0)
 
     # epde_search_obj.set_preprocessor(default_preprocessor_type='ANN',
@@ -160,7 +161,7 @@ def ac_discovery(foldername, noise_level):
     _, trajectory = epde_search_obj.createTrajectory({'u': noised_data}, domain, cache_id=0)
     epde_search_obj.fit(data=[trajectory], max_deriv_order=(2, 3), data_fun_pow=3,
                         equation_terms_max_number=5,
-                        additional_tokens=[],
+                        additional_tokens=[trig_tokens],
                         equation_factors_max_number=factors_max_number) #, data_nn=data_nn
 
     epde_search_obj.equations(only_print=True, num=1)
