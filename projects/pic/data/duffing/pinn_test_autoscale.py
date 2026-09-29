@@ -98,6 +98,11 @@ from stat_common import (                    # shared, from dp/cv_metric.py
     het_per_window,
     max_corr,
     observation_loss,
+    anchor_penalty,
+    anchor_scales,
+    central_diff,
+    combine_loss,
+    fd_core,
 )
 
 torch.set_default_dtype(torch.float32)
@@ -142,13 +147,18 @@ PHYS_NORM     = "var"       # 'var' | 'max'
 COEF_SOURCE = "ols"   # 'ols' | 'fd' | 'true'
 IC_MODE = "none"   # 'scaled' | 'hard' | 'none' (l_data supervises)
 STAT          = "none"      # 'none' | 'het' | 'chi'
-STAT_BOUND    = True
+STAT_BOUND    = False       # False = raw chi / tau2/theta_bar^2; see dp
 STAT_FLOAT64  = True
 STAT_FLOOR    = False
 ANCHOR        = "none"        # 'none' | 'fd'
+ANCHOR_NORM   = "signal"    # 'signal' | 'relative'; see anchor_penalty
 FD_STRIDE     = 1
+FD_ORDER      = 4           # centred-FD accuracy; 2 = np.gradient; see dp
 ANCHOR_WEIGHT = "none"      # 'none' | 'stat'
 BEST_KEY      = "loss"      # truth-free
+LOSS_FORM     = "sum"       # 'sum' | 'log' (sum of log-terms); see combine_loss
+PHYS_TERM     = True        # False = data-only baseline: l_phys is still computed
+                            # and logged, but left out of the loss
 DATA_TERM = True   # pointwise supervision on the observed x
 TRAIN_FRAC    = 0.8         # temporal split, mirroring dp: the loss --
                             # physics, data, BC, the FD design and the
@@ -161,14 +171,21 @@ _SUFFIX = ({"ols": "", "fd": f"_cfd{FD_STRIDE}", "true": "_true"}[COEF_SOURCE]) 
     + ("_hardic" if IC_MODE == "hard" else "") \
     + ("_noicbc" if IC_MODE == "none" else "") \
     + ("" if STAT == "none" else f"_{STAT}") \
-    + ("_raw" if (STAT == "chi" and not STAT_BOUND) else "") \
+    + ("_raw" if (STAT != "none" and not STAT_BOUND) else "") \
     + ("" if ANCHOR == "none" else f"_afd{FD_STRIDE}") \
+    + ("_asig" if (ANCHOR != "none" and ANCHOR_NORM == "signal") else "") \
     + ("_wstat" if ANCHOR_WEIGHT != "none" else "") \
     + ("" if PHYS_NORM == "var" else "_pmax") \
     + ("_data" if DATA_TERM else "")
 
 _SUFFIX += "_pm" if PHYS_AGG == "mean" else ""
+_SUFFIX += "" if FD_ORDER == 2 else f"_fdo{FD_ORDER}"
+_SUFFIX += "_llog" if LOSS_FORM == "log" else ""
+_SUFFIX += "" if PHYS_TERM else "_nophys"
+_SUFFIX += f"_s{SEED}" if SEED != 0 else ""   # seed 0 keeps the original names
 
+if not PHYS_TERM and not DATA_TERM:
+    raise ValueError("PHYS_TERM=False and DATA_TERM=False leave nothing to train")
 if IC_MODE == "none" and not DATA_TERM:
     raise ValueError("IC_MODE='none' removes the only anchor on the solution "
                      "family unless DATA_TERM supervises the field")
@@ -229,7 +246,12 @@ def _fd_field(stride=1):
     tt = t_grid[sl].astype(np.float64)
     xx = x_data[sl].astype(np.float64)
     vv = v_data[sl].astype(np.float64)
-    aa = np.gradient(vv, tt)
+    if FD_ORDER == 2:
+        aa = np.gradient(vv, tt)
+    else:
+        aa = central_diff(vv, float(tt[1] - tt[0]), 1, FD_ORDER)
+        core = fd_core(FD_ORDER)
+        tt, xx, vv = tt[core], xx[core], vv[core]
     return (torch.tensor(tt), torch.tensor(xx), torch.tensor(vv),
             torch.tensor(aa))
 
@@ -268,6 +290,11 @@ def _fd_anchor(stride):
     return c.to(device=device, dtype=torch.float32)
 
 
+# The anchor's yardsticks, from the SAME design that built THETA_FD.
+ANCHOR_COL_MS, ANCHOR_Y_VAR = (
+    (lambda s: (s[0].to(device=device, dtype=torch.float32), s[1]))(
+        anchor_scales(*_fd_design(FD_STRIDE)[:2]))
+    if ANCHOR == "fd" else (None, None))
 THETA_FD = (_fd_anchor(FD_STRIDE)
             if (ANCHOR == "fd" or COEF_SOURCE == "fd") else None)
 
@@ -293,8 +320,8 @@ def physics_and_stat_loss(net, T_coll):
     # THETA_FD, and keying off it would silently apply the anchor in a
     # cell meant to isolate the residual.
     if ANCHOR == "fd":
-        a = THETA_FD.to(c_hat.dtype)
-        per = ((c_hat - a) / a) ** 2
+        per = anchor_penalty(c_hat, THETA_FD.to(c_hat.dtype), ANCHOR_NORM,
+                             ANCHOR_COL_MS, ANCHOR_Y_VAR)
         if ANCHOR_WEIGHT != "none":
             per = per * score.detach().to(per.dtype)
         l_anch = per.sum().to(y.dtype)
@@ -338,7 +365,9 @@ def data_loss(net):
 
 def total_loss(ml, l_ic, l_dat):
     """THE loss. No coefficients: their absence is the design."""
-    return ml["phys"] + l_ic + ml["stat"] + ml["anch"] + l_dat
+    return combine_loss([ml["phys"] if PHYS_TERM else 0.0, l_ic, ml["stat"],
+                         ml["anch"], l_dat],
+                        LOSS_FORM)
 
 
 # ============================================================ train
@@ -497,10 +526,10 @@ rel_l2_test_int_true = _rel(x_int_true, _x_te)
 
 print(f"\n========== DUFFING AUTOSCALE PINN (weight-free loss) ==========")
 print(f"mode: coefs={COEF_SOURCE}  ic={IC_MODE}  stat={STAT}"
-      f"{'' if STAT != 'chi' else ('/bounded' if STAT_BOUND else '/RAW')}  "
-      f"anchor={ANCHOR}/{ANCHOR_WEIGHT}  fd_stride={FD_STRIDE}  "
+      f"{'' if STAT == 'none' else ('/bounded' if STAT_BOUND else '/RAW')}  "
+      f"anchor={ANCHOR}/{ANCHOR_WEIGHT}  fd_stride={FD_STRIDE}  fd_order={FD_ORDER}  "
       f"data_term={DATA_TERM}  select={BEST_KEY}")
-print(f"loss = l_phys + l_ic + l_stat + l_anch + l_data   (no weights)")
+print(f"loss = {LOSS_FORM} of [l_phys, l_ic, l_stat, l_anch, l_data]   (no weights)")
 print(f"train/test split        = {TRAIN_FRAC:.2f}  "
       f"(t_split={t_split:.3f}, n_train={n_train}/{N_GRID})  "
       f"loss sees train only")
@@ -527,7 +556,8 @@ if ANCHOR_ERR is not None:
 else:
     print(f"  rel-L1 err (net vs truth) = {net_err:.4e}")
 print(f"  chi = {chi_out['score'].round(6).tolist()}   "
-      f"het = {het_out['score'].round(6).tolist()}")
+      f"het = {het_out['score'].round(6).tolist()}   "
+      f"het raw = {het_out['score_raw'].round(6).tolist()}")
 print(f"  max_corr = {anchor_scale:.4e}   (sparsity.py anchor)")
 
 cvf = cv_forms(np.tile(theta_hat, (N_WIN, 1)),
@@ -559,6 +589,7 @@ np.savez(out_path,
          ic_norm_x=np.float32(IC_NORM_X), ic_norm_v=np.float32(IC_NORM_V),
          max_corr=np.float32(anchor_scale),
          chi_score=chi_out["score"], het_score=het_out["score"],
+         het_score_raw=het_out["score_raw"],
          het_se_rel=het_out["se_rel"],
          anchored_mse_sum=np.float32(cvf["anchored_mse_sum"]),
          training_time=np.float32(elapsed),
@@ -574,6 +605,9 @@ np.savez(out_path,
          loss_history_anch=np.array(hist["anch"], dtype=np.float32),
          coef_source=np.str_(COEF_SOURCE), ic_mode=np.str_(IC_MODE),
          stat=np.str_(STAT), stat_bound=np.bool_(STAT_BOUND),
+         anchor_norm=np.str_(ANCHOR_NORM),
          anchor=np.str_(ANCHOR), fd_stride=np.int32(FD_STRIDE),
+         fd_order=np.int32(FD_ORDER), loss_form=np.str_(LOSS_FORM),
+         phys_term=np.bool_(PHYS_TERM),
          anchor_weight=np.str_(ANCHOR_WEIGHT), best_key=np.str_(BEST_KEY))
 print(f"saved -> {out_path}")

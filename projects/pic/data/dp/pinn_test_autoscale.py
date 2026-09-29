@@ -25,8 +25,8 @@ times a DATA-DRIVEN scale anchor (``max|X^T W y|``). Transplanted:
   * every coefficient the loss reads comes from ``global_ols`` on the
     net's own field (``COEF_SOURCE = 'ols'``) -- never truth, never a
     trainable parameter,
-  * the statistics are already scale-free; the unbounded one is mapped
-    through ``bounded`` into [0, 1) so its RANGE needs no weight either,
+  * the statistics are already scale-free, so they enter RAW (unbounded)
+    at weight 1; ``STAT_BOUND=True`` maps them into [0, 1) instead,
   * the loss line is therefore literally
 
         loss = l_phys + l_ic + l_stat + l_data
@@ -43,11 +43,14 @@ Terms and their yardsticks::
     l_ic    ((theta(t0) - theta_obs(t0))^2 / Var_train(theta)
              + (omega(t0) - omega_obs(t0))^2 / Var_train(omega))
             IC_MODE='hard' deletes this term outright (HardICWrapper).
-    l_stat  sum_eq sum_j  bounded(chi_j)  or  het_j     -- both in [0, 1)
-    l_anch  sum_eq sum_j ((theta_hat_j - theta_FD_j) / theta_FD_j)^2
+    l_stat  sum_eq sum_j  chi_j  or  tau2_j/theta_bar_j^2   -- [0, inf)
+            (STAT_BOUND=True: bounded(chi_j) or het_j, in [0, 1))
+    l_anch  sum_eq sum_j (theta_hat_j - theta_FD_j)^2 mean(A_j^2)/Var(y)
+            (signal units on the FD design; ANCHOR_NORM='relative' is the
+            old ((theta_hat_j - theta_FD_j) / theta_FD_j)^2)
             theta_FD = OLS on the FD design matrix built from the
-            OBSERVED field -- data-driven, no oracle. Relative, so
-            dimensionless. ANCHOR_WEIGHT='stat' scales each term's pull
+            OBSERVED field -- data-driven, no oracle. A share of Var(y),
+            so dimensionless. ANCHOR_WEIGHT='stat' scales each term's pull
             by that term's own instability score, which is literally
             sparsity.py's ``active_cv * max_corr``.
     l_data  mean_t (theta_model - theta_obs)^2 / Var_train(theta)
@@ -158,6 +161,11 @@ from cv_metric import (
     make_windows,
     max_corr,
     observation_loss,
+    anchor_penalty,
+    anchor_scales,
+    central_diff,
+    combine_loss,
+    fd_core,
     network_derivatives_dp,
     set_gravity,
 )
@@ -261,19 +269,24 @@ PHYS_AGG = "mean"      # 'mean' | 'window'
 PHYS_NORM = "var"
 
 # Truth-free constancy statistic in the loss, at weight 1.
-#   'none' | 'het' (already in [0,1)) | 'chi'
+#   'none' | 'het' | 'chi'
 STAT = "none"
 
-# Whether chi is squashed through ``bounded`` into [0, 1).
-# BOTH forms are dimensionless -- chi is scale-free outright (invariant
-# under y, A -> a*y, a*A; pinned by test_dp_autoscale_loss), so it never
-# needed a yardstick and neither form carries a tuned constant. The map
-# addresses only its RANGE: raw chi reached 259 and 45.8 in these cells,
-# so unbounded it can dominate a loss whose other terms are O(1), while
-# bounding compresses a wildly inconsistent state and a mildly
-# inconsistent one toward the same value. False = raw. het is bounded by
-# construction, so this flag does not apply to it.
-STAT_BOUND = True
+# Whether the statistic enters RAW (False, the default) or bounded into
+# [0, 1) (True): chi -> ``bounded(chi)``, het tau2/theta_bar^2 ->
+# tau2/(tau2 + theta_bar^2).
+# BOTH forms are dimensionless -- chi and het are scale-free outright
+# (invariant under y, A -> a*y, a*A; pinned by test_dp_autoscale_loss),
+# so neither needs a yardstick and neither form carries a tuned constant.
+# The choice is about RANGE vs GRADIENT. Raw chi reached 259 and 45.8 in
+# these cells, so it can dominate a loss whose other terms are O(1) --
+# measured under bounded-by-default: raw chi on the stride-1 anchor cell
+# went coef err 0.0114 -> 7.10, final loss 146.7. Bounding caps that, but
+# compresses a wildly and a mildly inconsistent state toward the same
+# value, and its gradient 1/(1+x)^2 vanishes on exactly those states.
+# Artifacts: raw stat cells carry ``_raw``; bounded ones keep the old
+# unsuffixed names, so earlier (bounded) results stay reproducible.
+STAT_BOUND = False
 
 # Data-driven coefficient anchor -- the identification route that uses
 # EQUATION-level information without ever fitting raw u pointwise.
@@ -293,11 +306,25 @@ STAT_BOUND = True
 # cannot do (identifiability probe: every member scores the same, and
 # the force-free collapse scores exactly zero).
 ANCHOR = "none"
+# How the anchor measures a miss. 'signal' (default): per term
+# (c_j - a_j)^2 * mean(A_j^2) / Var(y) on the FD design -- the share of
+# the target's variance the miss leaves unexplained, the same 1 - R^2
+# form as l_phys. 'relative' = ((c_j - a_j)/a_j)^2, the earlier form:
+# it divides by each term's own energy share, so a weak term is pulled
+# as hard as it is weak (Allen-Cahn: D share 7e-5, anchor opened at
+# 1.3e8, the net destroyed its field). Old _afd artifacts = relative.
+ANCHOR_NORM = "signal"
 # Grid stride used to build THETA_FD -- shared by COEF_SOURCE='fd' and
 # ANCHOR='fd'. A property of the data you have, not a knob to tune:
 # stride 1 = every observed sample. Stride 8 is the deliberately COARSE
 # anchor (~32% error) that leaves room to improve on it.
 FD_STRIDE = 1
+# Order of accuracy of the centred differences behind THETA_FD and the
+# FD yardsticks (central_diff). 2 = the original np.gradient path, which
+# every unsuffixed artifact used. Measured offline on the train windows:
+# DP THETA_FD coef err 1.8e-3 (2) -> 3.0e-5 (4) -> 1.6e-6 (6). Clean
+# simulated data only: the noise gain grows with the order.
+FD_ORDER = 4
 # Per-term anchor weighting -- the literal shape of sparsity.py's
 # ``active_thresholds = active_cv * max_corr``: each term's own
 # instability score scales its own pull. 'none' = uniform.
@@ -327,19 +354,33 @@ STAT_FLOOR   = False
 # is the degenerate state, truth-free selection returns it, and that is
 # the finding rather than a bug to paper over.
 BEST_KEY = "loss"
+# How the terms combine: 'sum' (the original line) or 'log' = sum of
+# log-terms, which balances RELATIVE progress; see combine_loss.
+LOSS_FORM = "sum"
+# False = data-only baseline: l_phys is still computed and logged (and the
+# coefficient readout / integration tests still run), but it is left out
+# of the loss -- measures what the physics term costs or buys the fit.
+PHYS_TERM = True
 
 _SUFFIX = ({"ols": "", "fd": f"_cfd{FD_STRIDE}", "true": "_true"}[COEF_SOURCE]) \
     + ("_hardic" if IC_MODE == "hard" else "") \
     + ("_noicbc" if IC_MODE == "none" else "") \
     + ("" if STAT == "none" else f"_{STAT}") \
-    + ("_raw" if (STAT == "chi" and not STAT_BOUND) else "") \
+    + ("_raw" if (STAT != "none" and not STAT_BOUND) else "") \
     + ("" if ANCHOR == "none" else f"_afd{FD_STRIDE}") \
+    + ("_asig" if (ANCHOR != "none" and ANCHOR_NORM == "signal") else "") \
     + ("_wstat" if ANCHOR_WEIGHT != "none" else "") \
     + ("_data" if DATA_TERM else "") \
     + ("" if PHYS_NORM == "var" else "_pmax")
 
 _SUFFIX += "_pm" if PHYS_AGG == "mean" else ""
+_SUFFIX += "" if FD_ORDER == 2 else f"_fdo{FD_ORDER}"
+_SUFFIX += "_llog" if LOSS_FORM == "log" else ""
+_SUFFIX += "" if PHYS_TERM else "_nophys"
+_SUFFIX += f"_s{SEED}" if SEED != 0 else ""   # seed 0 keeps the original names
 
+if not PHYS_TERM and not DATA_TERM:
+    raise ValueError("PHYS_TERM=False and DATA_TERM=False leave nothing to train")
 if IC_MODE == "none" and not DATA_TERM:
     raise ValueError("IC_MODE='none' removes the only anchor on the solution "
                      "family unless DATA_TERM supervises the field")
@@ -421,8 +462,17 @@ def _fd_field(stride=1):
         omega1=w1_data[sl].astype(np.float64),
         omega2=w2_data[sl].astype(np.float64),
     )
-    d_np["alpha1"] = np.gradient(d_np["omega1"], tt)
-    d_np["alpha2"] = np.gradient(d_np["omega2"], tt)
+    if FD_ORDER == 2:
+        d_np["alpha1"] = np.gradient(d_np["omega1"], tt)
+        d_np["alpha2"] = np.gradient(d_np["omega2"], tt)
+    else:
+        # Centred stencil of FD_ORDER accuracy; its order//2 edge samples
+        # have no centred stencil, so every channel is trimmed with it.
+        h = float(tt[1] - tt[0])
+        a1 = central_diff(d_np["omega1"], h, 1, FD_ORDER)
+        a2 = central_diff(d_np["omega2"], h, 1, FD_ORDER)
+        d_np = {k: v[fd_core(FD_ORDER)] for k, v in d_np.items()}
+        d_np["alpha1"], d_np["alpha2"] = a1, a2
     return {k: torch.tensor(v) for k, v in d_np.items()}
 
 
@@ -472,6 +522,19 @@ PHYS_VAR = _fd_target_vars()                   # {eq_name: Var(target)}
 # The divisor actually used (target units, squared by the residual).
 PHYS_DIV = ({nm: PHYS_SCALE[nm] for nm in EQ_NAMES} if PHYS_NORM == "max"
             else {nm: float(np.sqrt(PHYS_VAR[nm])) for nm in EQ_NAMES})
+def _fd_anchor_scales(stride):
+    """The anchor's yardsticks per equation, from the SAME FD field that
+    built THETA_FD: (mean(A_j^2), Var(y))."""
+    d = _fd_field(stride)
+    out = {}
+    for eq in EQUATIONS:
+        col_ms, y_var = anchor_scales(*eq["target_and_features"](d))
+        out[eq["name"]] = (col_ms.to(device=device, dtype=torch.float32),
+                           y_var)
+    return out
+
+
+ANCHOR_SCALES = _fd_anchor_scales(FD_STRIDE) if ANCHOR == "fd" else None
 THETA_FD = (_fd_anchor(FD_STRIDE)
             if (ANCHOR == "fd" or COEF_SOURCE == "fd") else None)
 
@@ -566,8 +629,8 @@ def physics_and_stat_loss(net, T_coll):
             # dimensionless, so weight 1. Weighted per term by that
             # term's own instability score under ANCHOR_WEIGHT='stat',
             # which is sparsity.py's score x scale shape.
-            a = THETA_FD[nm].to(c_hat.dtype)
-            per = ((c_hat - a) / a) ** 2
+            per = anchor_penalty(c_hat, THETA_FD[nm].to(c_hat.dtype),
+                                 ANCHOR_NORM, *ANCHOR_SCALES[nm])
             if ANCHOR_WEIGHT != "none":
                 per = per * score.detach().to(per.dtype)
             l_anch = l_anch + per.sum().to(th_model.dtype)
@@ -619,8 +682,8 @@ def data_loss(th_model):
 
 def total_loss(ml, l_ic):
     """THE loss. No coefficients: their absence is the design."""
-    return (ml["phys"] + l_ic + ml["stat"] + ml["anch"]
-            + data_loss(ml["th_model"]))
+    return combine_loss([ml["phys"] if PHYS_TERM else 0.0, l_ic, ml["stat"], ml["anch"],
+                         data_loss(ml["th_model"])], LOSS_FORM)
 
 
 # ============================================================ train
@@ -874,10 +937,11 @@ rel_l2_test_int_true = (_rel_int(th_int_true[0], _th1_te),
 
 
 print(f"\n========== DP AUTOSCALE PINN (weight-free loss) ==========")
-print(f"mode: coefs={COEF_SOURCE}  ic={IC_MODE}  stat={STAT}  "
-      f"anchor={ANCHOR}/{ANCHOR_WEIGHT}  fd_stride={FD_STRIDE}  "
+print(f"mode: coefs={COEF_SOURCE}  ic={IC_MODE}  stat={STAT}"
+      f"{'' if STAT == 'none' else ('/bounded' if STAT_BOUND else '/RAW')}  "
+      f"anchor={ANCHOR}/{ANCHOR_WEIGHT}  fd_stride={FD_STRIDE}  fd_order={FD_ORDER}  "
       f"data_term={DATA_TERM}  select={BEST_KEY}")
-print(f"loss = l_phys + l_ic + l_stat + l_anch + l_data   (no weights)")
+print(f"loss = {LOSS_FORM} of [l_phys, l_ic, l_stat, l_anch, l_data]   (no weights)")
 print(f"yardsticks: PHYS_NORM={PHYS_NORM} -> div="
       + ", ".join(f"{k}={v:.4g}" for k, v in PHYS_DIV.items())
       + "  (max=" + ", ".join(f"{v:.4g}" for v in PHYS_SCALE.values())
@@ -921,6 +985,7 @@ for eq in EQUATIONS:
           f"rss/yy = {float(c['rss'] / c['yy']):.3e}")
     h = het_by_eq[nm]
     print(f"        het score = {h['score'].round(6).tolist()}  "
+          f"raw = {h['score_raw'].round(6).tolist()}  "
           f"se_rel = {h['se_rel'].round(4).tolist()}")
     print(f"        max_corr  = {anchor_by_eq[nm]:.4e}   (sparsity.py anchor)")
 
@@ -970,6 +1035,7 @@ for nm in EQ_NAMES:
     save_kwargs[f"phys_div_{nm}"]         = np.float32(PHYS_DIV[nm])
     save_kwargs[f"max_corr_{nm}"]         = np.float32(anchor_by_eq[nm])
     save_kwargs[f"het_{nm}_score"]        = het_by_eq[nm]["score"]
+    save_kwargs[f"het_{nm}_score_raw"]    = het_by_eq[nm]["score_raw"]
     save_kwargs[f"het_{nm}_se_rel"]       = het_by_eq[nm]["se_rel"]
     save_kwargs[f"het_{nm}_n_valid"]      = het_by_eq[nm]["n_valid"]
     save_kwargs[f"chi_{nm}_score"]        = chi_by_eq[nm]["score"]
@@ -982,6 +1048,7 @@ if THETA_FD is not None:
         save_kwargs[f"anchor_err_{nm}"]   = np.float32(ANCHOR_ERR[nm])
 save_kwargs["anchor"]        = np.str_(ANCHOR)
 save_kwargs["fd_stride"]     = np.int32(FD_STRIDE)
+save_kwargs["fd_order"]      = np.int32(FD_ORDER)
 save_kwargs["anchor_weight"] = np.str_(ANCHOR_WEIGHT)
 save_kwargs["phys_norm"]   = np.str_(PHYS_NORM)
 save_kwargs["phys_agg"]    = np.str_(PHYS_AGG)
@@ -989,8 +1056,11 @@ save_kwargs["coef_source"] = np.str_(COEF_SOURCE)
 save_kwargs["ic_mode"]     = np.str_(IC_MODE)
 save_kwargs["stat"]        = np.str_(STAT)
 save_kwargs["stat_bound"]  = np.bool_(STAT_BOUND)
+save_kwargs["anchor_norm"] = np.str_(ANCHOR_NORM)
 save_kwargs["data_term"]   = np.bool_(DATA_TERM)
 save_kwargs["best_key"]    = np.str_(BEST_KEY)
+save_kwargs["loss_form"]   = np.str_(LOSS_FORM)
+save_kwargs["phys_term"]   = np.bool_(PHYS_TERM)
 out_path = f"dp_pinn_auto{_SUFFIX}.npz"
 np.savez(out_path, **save_kwargs)
 print(f"saved -> {out_path}")

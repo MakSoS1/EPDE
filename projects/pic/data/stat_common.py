@@ -20,6 +20,12 @@ Exported (all take (target, features, ...) and are truth-free):
     bounded         x/(1+x): [0, inf) -> [0, 1), order-preserving
     max_corr        max|A^T W y|, the sparsity.py scale anchor
     observation_loss  mean((pred-obs)^2)/Var(obs), the data term
+    anchor_penalty  per-term coefficient pull in signal units
+    anchor_scales   its yardsticks (mean(A_j^2), Var(y)) from a design
+    central_diff    centred FD of a chosen order of accuracy (edges dropped)
+    fd_core         slice aligning a channel with central_diff's output
+    spectral_diff   Fourier derivative on a periodic grid
+    combine_loss    the total loss from its terms: 'sum' | 'log'
     grad_norms      per-term ||grad||: who actually drives training
     HardICWrapper   exact initial condition, so the IC term disappears
 """
@@ -40,9 +46,17 @@ het_per_window = _dp_cv_metric.het_per_window
 bounded = _dp_cv_metric.bounded
 max_corr = _dp_cv_metric.max_corr
 observation_loss = _dp_cv_metric.observation_loss
+anchor_penalty = _dp_cv_metric.anchor_penalty
+anchor_scales = _dp_cv_metric.anchor_scales
+central_diff = _dp_cv_metric.central_diff
+fd_core = _dp_cv_metric.fd_core
+spectral_diff = _dp_cv_metric.spectral_diff
+combine_loss = _dp_cv_metric.combine_loss
 grad_norms = _dp_cv_metric.grad_norms
 HardICWrapper = _dp_cv_metric.HardICWrapper
 
 __all__ = ["EPS", "global_ols", "chi2_per_term", "het_per_window",
            "bounded", "max_corr", "observation_loss", "grad_norms",
+           "anchor_penalty", "anchor_scales", "central_diff", "fd_core",
+           "spectral_diff", "combine_loss",
            "HardICWrapper"]

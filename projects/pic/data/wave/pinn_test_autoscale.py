@@ -21,10 +21,12 @@ becomes 1::
             PHYS_SCALE = max|u_tt| from FD on the observed grid
     l_ic    mean((u - U_IC)^2)/Var(U) + mean((u_t - UT_IC)^2)/Var(u_t_fd)
     l_bc    mean(u(boundary)^2) / Var(U)
-    l_anch  ((c_hat - c_FD)/c_FD)^2, c_FD = OLS of u_tt on u_xx over the
+    l_anch  (c_hat - c_FD)^2 mean(u_xx_FD^2)/Var(u_tt_FD) -- signal units;
+            c_FD = OLS of u_tt on u_xx over the
             FD design matrix built from the OBSERVED field -- data-driven,
             no truth, no pointwise supervision on u
-    l_stat  het (per-window) or chi (per-axis score paths), weight 1
+    l_stat  het (per-window) or chi (per-axis score paths), weight 1,
+            RAW by default (STAT_BOUND=True bounds both into [0, 1))
 
 Nothing is re-tuned for this system. What differs is only what the
 system supplies: its own library (u_xx), its own PHYS_SCALE, its own
@@ -95,6 +97,11 @@ from stat_common import (                    # shared, from dp/cv_metric.py
     het_per_window,
     max_corr,
     observation_loss,
+    anchor_penalty,
+    anchor_scales,
+    central_diff,
+    combine_loss,
+    fd_core,
 )
 
 torch.set_default_dtype(torch.float32)
@@ -136,13 +143,18 @@ IC_MODE = "none"   # 'scaled' | 'none': 'none' drops l_ic AND l_bc,
                         # train block -- the boundary columns and the t=0
                         # row ARE part of that block.
 STAT          = "none"      # 'none' | 'het' | 'chi'
-STAT_BOUND    = True
+STAT_BOUND    = False       # False = raw chi / tau2/theta_bar^2; see dp
 STAT_FLOAT64  = True
 STAT_FLOOR    = False
 ANCHOR        = "none"        # 'none' | 'fd'
+ANCHOR_NORM   = "signal"    # 'signal' | 'relative'; see anchor_penalty
 FD_STRIDE     = 1
+FD_ORDER      = 4           # centred-FD accuracy; 2 = np.gradient; see dp
 ANCHOR_WEIGHT = "none"      # 'none' | 'stat'
 BEST_KEY      = "loss"      # truth-free
+LOSS_FORM     = "sum"       # 'sum' | 'log' (sum of log-terms); see combine_loss
+PHYS_TERM     = True        # False = data-only baseline: l_phys is still computed
+                            # and logged, but left out of the loss
 DATA_TERM = True   # pointwise supervision on the observed u
 TRAIN_FRAC    = 0.8         # temporal split, mirroring dp: the loss --
                             # physics, data, BC, the FD design and the
@@ -153,13 +165,20 @@ TRAIN_FRAC    = 0.8         # temporal split, mirroring dp: the loss --
 
 _SUFFIX = ({"ols": "", "fd": f"_cfd{FD_STRIDE}", "true": "_true"}[COEF_SOURCE]) \
     + ("" if STAT == "none" else f"_{STAT}") \
-    + ("_raw" if (STAT == "chi" and not STAT_BOUND) else "") \
+    + ("_raw" if (STAT != "none" and not STAT_BOUND) else "") \
     + ("" if ANCHOR == "none" else f"_afd{FD_STRIDE}") \
+    + ("_asig" if (ANCHOR != "none" and ANCHOR_NORM == "signal") else "") \
     + ("_wstat" if ANCHOR_WEIGHT != "none" else "") \
     + ("" if PHYS_NORM == "var" else "_pmax") \
     + ("_data" if DATA_TERM else "") \
-    + ("_noicbc" if IC_MODE == "none" else "")
+    + ("_noicbc" if IC_MODE == "none" else "") \
+    + ("" if FD_ORDER == 2 else f"_fdo{FD_ORDER}") \
+    + ("_llog" if LOSS_FORM == "log" else "") \
+    + ("" if PHYS_TERM else "_nophys")
+_SUFFIX += f"_s{SEED}" if SEED != 0 else ""   # seed 0 keeps the original names
 
+if not PHYS_TERM and not DATA_TERM:
+    raise ValueError("PHYS_TERM=False and DATA_TERM=False leave nothing to train")
 if IC_MODE == "none" and not DATA_TERM:
     raise ValueError("IC_MODE='none' removes the only anchor on the solution "
                      "family unless DATA_TERM supervises the field")
@@ -222,16 +241,26 @@ def _fd_design(stride=1):
     Us = U[::stride, :n_train:stride].astype(np.float64)
     xs = x_grid[::stride].astype(np.float64)
     ts = t_grid[:n_train:stride].astype(np.float64)
-    u_x = np.gradient(Us, xs, axis=0)
-    u_xx = np.gradient(u_x, xs, axis=0)
-    u_t = np.gradient(Us, ts, axis=1)
-    u_tt = np.gradient(u_t, ts, axis=1)
-    # Drop the one-sided edges: second differences there are much worse
-    # and would bias the anchor. Data property, not a tuned window.
-    core = (slice(1, -1), slice(1, -1))
-    y = torch.tensor(u_tt[core].ravel())
-    A = torch.tensor(u_xx[core].ravel()).unsqueeze(1)
-    return y, A, torch.tensor(u_t[core].ravel())
+    if FD_ORDER == 2:
+        u_x = np.gradient(Us, xs, axis=0)
+        u_xx = np.gradient(u_x, xs, axis=0)
+        u_t = np.gradient(Us, ts, axis=1)
+        u_tt = np.gradient(u_t, ts, axis=1)
+        # Drop the one-sided edges: second differences there are much worse
+        # and would bias the anchor. Data property, not a tuned window.
+        core = (slice(1, -1), slice(1, -1))
+        u_tt, u_xx, u_t = u_tt[core], u_xx[core], u_t[core]
+    else:
+        # Centred stencils of FD_ORDER accuracy; each drops order//2 rows
+        # along its own axis, and the other axis is trimmed to match.
+        hx, ht = float(xs[1] - xs[0]), float(ts[1] - ts[0])
+        c = fd_core(FD_ORDER)
+        u_xx = central_diff(Us, hx, 2, FD_ORDER, axis=0)[:, c]
+        u_tt = central_diff(Us, ht, 2, FD_ORDER, axis=1)[c, :]
+        u_t = central_diff(Us, ht, 1, FD_ORDER, axis=1)[c, :]
+    y = torch.tensor(u_tt.ravel())
+    A = torch.tensor(u_xx.ravel()).unsqueeze(1)
+    return y, A, torch.tensor(u_t.ravel())
 
 
 _y_fd, _A_fd, _ut_fd = _fd_design()
@@ -259,6 +288,11 @@ def _fd_anchor(stride):
     return c.to(device=device, dtype=torch.float32)
 
 
+# The anchor's yardsticks, from the SAME design that built THETA_FD.
+ANCHOR_COL_MS, ANCHOR_Y_VAR = (
+    (lambda s: (s[0].to(device=device, dtype=torch.float32), s[1]))(
+        anchor_scales(*_fd_design(FD_STRIDE)[:2]))
+    if ANCHOR == "fd" else (None, None))
 THETA_FD = (_fd_anchor(FD_STRIDE)
             if (ANCHOR == "fd" or COEF_SOURCE == "fd") else None)
 C2_T = torch.tensor([C2_TRUE], device=device)
@@ -309,7 +343,8 @@ def physics_and_stat_loss(net, X_coll):
     if STAT == "chi":
         score, c_hat = _chi_per_axis(y, A, x_c, t_c)
     elif STAT == "het":
-        score = het_per_window(y, A, mask, ridge=EPS)["score"]
+        h = het_per_window(y, A, mask, ridge=EPS)
+        score = h["score"] if STAT_BOUND else h["score_raw"]
         c_hat, _ = global_ols(y, A, ridge=EPS)
     else:
         score = None
@@ -323,8 +358,8 @@ def physics_and_stat_loss(net, X_coll):
     # THETA_FD, and keying off it would silently apply the anchor in a
     # cell meant to isolate the residual.
     if ANCHOR == "fd":
-        a = THETA_FD.to(c_hat.dtype)
-        per = ((c_hat - a) / a) ** 2
+        per = anchor_penalty(c_hat, THETA_FD.to(c_hat.dtype), ANCHOR_NORM,
+                             ANCHOR_COL_MS, ANCHOR_Y_VAR)
         if ANCHOR_WEIGHT != "none":
             per = per * score.detach().to(per.dtype)
         l_anch = per.sum().to(y.dtype)
@@ -377,7 +412,9 @@ def data_loss(net):
 
 def total_loss(ml, l_ic, l_bc, l_dat):
     """THE loss. No coefficients: their absence is the design."""
-    return ml["phys"] + l_ic + l_bc + ml["stat"] + ml["anch"] + l_dat
+    return combine_loss([ml["phys"] if PHYS_TERM else 0.0, l_ic, l_bc, ml["stat"],
+                         ml["anch"],
+                         l_dat], LOSS_FORM)
 
 
 # ============================================================ train
@@ -566,10 +603,12 @@ rel_l2_test_int_true = _rel_int(U_int_true)
 
 
 print(f"\n========== WAVE AUTOSCALE PINN (weight-free loss) ==========")
-print(f"mode: coefs={COEF_SOURCE}  stat={STAT}  anchor={ANCHOR}/"
-      f"{ANCHOR_WEIGHT}  fd_stride={FD_STRIDE}  data_term={DATA_TERM}  "
+print(f"mode: coefs={COEF_SOURCE}  stat={STAT}"
+      f"{'' if STAT == 'none' else ('/bounded' if STAT_BOUND else '/RAW')}  "
+      f"anchor={ANCHOR}/"
+      f"{ANCHOR_WEIGHT}  fd_stride={FD_STRIDE}  fd_order={FD_ORDER}  data_term={DATA_TERM}  "
       f"select={BEST_KEY}")
-print(f"loss = l_phys + l_ic + l_bc + l_stat + l_anch + l_data   "
+print(f"loss = {LOSS_FORM} of [l_phys, l_ic, l_bc, l_stat, l_anch, l_data]   "
       f"(no weights; pinn_test_cv.py uses 1/1/100/100)")
 print(f"train/test split        = {TRAIN_FRAC:.2f} of t  "
       f"(t_split={t_split:.3f}, n_train={n_train}/{Nt})  "
@@ -632,6 +671,8 @@ np.savez(out_path,
          grad_data=np.array(hist["gdat"], dtype=np.float32),
          coef_source=np.str_(COEF_SOURCE), stat=np.str_(STAT),
          stat_bound=np.bool_(STAT_BOUND), anchor=np.str_(ANCHOR),
-         fd_stride=np.int32(FD_STRIDE),
+         anchor_norm=np.str_(ANCHOR_NORM),
+         fd_stride=np.int32(FD_STRIDE), fd_order=np.int32(FD_ORDER),
+         loss_form=np.str_(LOSS_FORM), phys_term=np.bool_(PHYS_TERM),
          anchor_weight=np.str_(ANCHOR_WEIGHT), best_key=np.str_(BEST_KEY))
 print(f"saved -> {out_path}")

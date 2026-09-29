@@ -5,8 +5,10 @@ pieces in ``projects/pic/data/dp/cv_metric.py``:
 
   * ``global_ols``  -- ONE solve shared by the statistic and by any loss
     term that reads the net's own data-driven coefficients,
-  * ``bounded``     -- order-preserving map onto [0, 1) so an unbounded
-    statistic needs no weight,
+  * ``bounded``     -- order-preserving map onto [0, 1), the OPT-IN form
+    (``STAT_BOUND=True``); the statistics enter the loss raw by default,
+  * ``het_per_window``'s ``score_raw`` -- the unbounded ``tau2/theta_bar^2``
+    whose ``bounded`` image is exactly the bounded het score,
   * ``max_corr``    -- the ``sparsity.PhysicsInformedLasso`` scale anchor
     (``active_thresholds = active_cv * max_corr``), carried as a
     diagnostic,
@@ -46,6 +48,12 @@ global_ols = _cv_metric.global_ols
 het_per_window = _cv_metric.het_per_window
 max_corr = _cv_metric.max_corr
 observation_loss = _cv_metric.observation_loss
+anchor_penalty = _cv_metric.anchor_penalty
+anchor_scales = _cv_metric.anchor_scales
+central_diff = _cv_metric.central_diff
+fd_core = _cv_metric.fd_core
+spectral_diff = _cv_metric.spectral_diff
+combine_loss = _cv_metric.combine_loss
 
 
 def _problem(n=600):
@@ -147,7 +155,7 @@ class TestHardIC:
 class TestStatisticsAreScaleFree:
     """Why unit weights are legitimate: a common rescaling of the
     equation (y, A -> a*y, a*A) leaves both statistics unchanged, so
-    neither needs a yardstick -- only its unbounded RANGE needed fixing.
+    neither needs a yardstick -- raw or bounded, only the RANGE differs.
     """
 
     @pytest.mark.parametrize("a", [1e-3, 1e3])
@@ -165,9 +173,285 @@ class TestStatisticsAreScaleFree:
         mask = torch.zeros(12, n, dtype=torch.float64)
         for i, s in enumerate(lo):
             mask[i, int(s):int(s) + 60] = 1.0
-        base = het_per_window(y, A, mask, ridge=0.0)["score"]
-        scaled = het_per_window(a * y, a * A, mask, ridge=0.0)["score"]
+        base = het_per_window(y, A, mask, ridge=0.0)
+        scaled = het_per_window(a * y, a * A, mask, ridge=0.0)
+        for key in ("score", "score_raw"):
+            assert scaled[key].numpy() == pytest.approx(base[key].numpy(),
+                                                        rel=1e-6), key
+
+
+def _windows(n, n_win=12, width=60):
+    lo = torch.linspace(0, n - width, n_win).round()
+    mask = torch.zeros(n_win, n, dtype=torch.float64)
+    for i, s in enumerate(lo):
+        mask[i, int(s):int(s) + width] = 1.0
+    return mask
+
+
+class TestHetRaw:
+    """The unbounded het is the SAME statistic as the bounded one, only
+    un-squashed: tau2/(tau2 + m^2) == r/(1 + r) with r = tau2/m^2."""
+
+    def test_bounded_image_is_the_bounded_score(self):
+        # _problem's middle coefficient drifts (x * f2), so tau2 > 0 there
+        # and the identity is exercised off the trivial zero.
+        A, y = _problem()
+        out = het_per_window(y, A, _windows(y.numel()), ridge=0.0)
+        assert float(out["score_raw"].max()) > 0.0
+        assert bounded(out["score_raw"]).numpy() == pytest.approx(
+            out["score"].numpy(), rel=1e-12, abs=1e-15)
+
+    def test_is_tau2_over_squared_level(self):
+        A, y = _problem()
+        out = het_per_window(y, A, _windows(y.numel()), ridge=0.0)
+        want = out["tau2"] / out["theta_bar"] ** 2
+        assert out["score_raw"].numpy() == pytest.approx(want.numpy(),
+                                                         rel=1e-12)
+
+    def test_parked_field_stays_finite(self):
+        # A collapsed net (A == 0, theta_bar == 0) must not put inf/nan
+        # into the loss.
+        A = torch.zeros(600, 3, dtype=torch.float64)
+        y = torch.zeros(600, dtype=torch.float64)
+        out = het_per_window(y, A, _windows(600))
+        assert torch.all(torch.isfinite(out["score_raw"]))
+
+    def test_gradient_does_not_fade_with_inconsistency(self):
+        # The reason to want it raw: d score/d tau2 = m^2/(tau2+m^2)^2
+        # vanishes as tau2 grows, d score_raw/d tau2 = 1/m^2 does not.
+        m2 = torch.tensor(1.0, dtype=torch.float64)
+        for t in (1e-2, 1.0, 1e2):
+            tau2 = torch.tensor(t, dtype=torch.float64, requires_grad=True)
+            (g_b,) = torch.autograd.grad(tau2 / (tau2 + m2), tau2)
+            tau2r = torch.tensor(t, dtype=torch.float64, requires_grad=True)
+            (g_r,) = torch.autograd.grad(tau2r / m2, tau2r)
+            assert float(g_r) == pytest.approx(1.0)
+            assert float(g_b) == pytest.approx(1.0 / (1.0 + t) ** 2)
+
+
+class TestStatScoresDefaultsToRaw:
+    """``pinn_common.stat_scores`` is the route dp and duffing take into
+    the loss; its default is the raw statistic."""
+
+    @pytest.fixture(scope="class")
+    def stat_scores(self):
+        data_dir = os.path.dirname(_DP_DIR)
+        if data_dir not in sys.path:
+            sys.path.insert(0, data_dir)
+        return pytest.importorskip("pinn_common").stat_scores
+
+    def test_het(self, stat_scores):
+        A, y = _problem()
+        mask = _windows(y.numel())
+        out = het_per_window(y, A, mask, ridge=1e-12)
+        raw, _ = stat_scores(y, A, mask, "het")
+        bnd, _ = stat_scores(y, A, mask, "het", bound=True)
+        assert torch.equal(raw, out["score_raw"])
+        assert torch.equal(bnd, out["score"])
+
+    def test_chi(self, stat_scores):
+        A, y = _problem()
+        mask = _windows(y.numel())
+        out = chi2_per_term(y, A, ridge=1e-12)
+        raw, _ = stat_scores(y, A, mask, "chi")
+        bnd, _ = stat_scores(y, A, mask, "chi", bound=True)
+        assert torch.equal(raw, out["score"])
+        assert torch.equal(bnd, bounded(out["score"]))
+
+
+class TestFiniteDifferences:
+    """THETA_FD is only as good as the derivative behind it; these pin
+    the stencils' accuracy order and the edge trimming the scripts rely
+    on to keep channels aligned."""
+
+    @pytest.mark.parametrize("deriv", [1, 2])
+    @pytest.mark.parametrize("order", [2, 4, 6])
+    def test_converges_at_its_order(self, deriv, order):
+        errs = []
+        # Coarse on purpose: at n=161 the 6th-order 2nd derivative is already
+        # at the eps/h^2 roundoff floor and the measured rate is noise.
+        for n in (21, 41):
+            x = np.linspace(0.0, 1.0, n)
+            h = x[1] - x[0]
+            f = np.sin(3.0 * x)
+            exact = (3.0 * np.cos(3.0 * x) if deriv == 1
+                     else -9.0 * np.sin(3.0 * x))[fd_core(order)]
+            errs.append(np.abs(central_diff(f, h, deriv, order) - exact).max())
+        rate = np.log2(errs[0] / errs[1])
+        assert rate == pytest.approx(order, abs=0.3), (errs, rate)
+
+    @pytest.mark.parametrize("order", [2, 4, 6, 8])
+    def test_exact_on_polynomials_it_can_represent(self, order):
+        x = np.linspace(-1.0, 2.0, 40)
+        h = x[1] - x[0]
+        f = x ** order
+        want = order * x ** (order - 1)
+        got = central_diff(f, h, 1, order)
+        assert got == pytest.approx(want[fd_core(order)], rel=1e-7, abs=1e-7)
+
+    def test_trims_the_differentiated_axis_only(self):
+        f = np.random.default_rng(0).standard_normal((30, 50))
+        out = central_diff(f, 0.1, 2, 6, axis=1)
+        assert out.shape == (30, 50 - 6)
+        out0 = central_diff(f, 0.1, 1, 4, axis=0)
+        assert out0.shape == (30 - 4, 50)
+
+    def test_periodic_wraps_and_keeps_length(self):
+        x = np.linspace(0.0, 2.0 * np.pi, 128, endpoint=False)
+        h = x[1] - x[0]
+        out = central_diff(np.sin(x), h, 2, 6, periodic=True)
+        assert out.shape == x.shape
+        assert np.abs(out + np.sin(x)).max() < 1e-7
+
+    def test_order_two_matches_np_gradient_interior(self):
+        # FD_ORDER=2 in the scripts keeps np.gradient itself; the stencil
+        # must agree with it where both are centred.
+        x = np.linspace(0.0, 1.0, 101)
+        f = np.exp(np.sin(4.0 * x))
+        assert central_diff(f, x[1] - x[0], 1, 2) == pytest.approx(
+            np.gradient(f, x)[1:-1], rel=1e-12)
+
+    def test_spectral_is_exact_on_band_limited_periodic_fields(self):
+        x = np.linspace(-1.0, 1.0, 64, endpoint=False)
+        h = x[1] - x[0]
+        f = np.sin(3.0 * np.pi * x) + 0.5 * np.cos(np.pi * x)
+        d2 = -(3.0 * np.pi) ** 2 * np.sin(3.0 * np.pi * x) \
+            - 0.5 * np.pi ** 2 * np.cos(np.pi * x)
+        assert np.abs(spectral_diff(f, h, 2) - d2).max() < 1e-9
+        g = np.stack([f, 2.0 * f], axis=1)          # axis handling
+        assert np.abs(spectral_diff(g, h, 2, axis=0)[:, 1] - 2.0 * d2).max() < 1e-8
+
+    def test_rejects_unknown_stencils(self):
+        with pytest.raises(ValueError):
+            central_diff(np.zeros(10), 0.1, 3, 4)
+        with pytest.raises(ValueError):
+            central_diff(np.zeros(10), 0.1, 1, 5)
+
+
+class TestAnchorPenalty:
+    """The anchor measures a coefficient miss by the residual it would
+    leave on the observed design, as a share of Var(y) -- the same
+    1 - R^2 form l_phys has, which is what licenses weight 1."""
+
+    def test_is_the_share_of_target_variance_the_miss_leaves(self):
+        A, y = _problem()
+        col_ms, y_var = anchor_scales(y, A)
+        a = torch.tensor([2.0, 1.0, -3.0], dtype=torch.float64)
+        c = a + torch.tensor([0.1, -0.2, 0.05], dtype=torch.float64)
+        per = anchor_penalty(c, a, "signal", col_ms, y_var)
+        want = [float(((c[j] - a[j]) * A[:, j]).pow(2).mean()
+                      / y.var(unbiased=False)) for j in range(3)]
+        assert per.numpy() == pytest.approx(want, rel=1e-6)
+
+    @pytest.mark.parametrize("s", [1e-4, 1e4])
+    def test_invariant_under_rescaling_one_column(self, s):
+        # A unit change on one feature moves its coefficient by 1/s and its
+        # column energy by s^2 -- the penalty must not notice.
+        A, y = _problem()
+        a = torch.tensor([2.0, 1.0, -3.0], dtype=torch.float64)
+        c = a + torch.tensor([0.1, -0.2, 0.05], dtype=torch.float64)
+        base = anchor_penalty(c, a, "signal", *anchor_scales(y, A))
+        A2, a2, c2 = A.clone(), a.clone(), c.clone()
+        A2[:, 0] *= s; a2[0] /= s; c2[0] /= s
+        scaled = anchor_penalty(c2, a2, "signal", *anchor_scales(y, A2))
         assert scaled.numpy() == pytest.approx(base.numpy(), rel=1e-6)
+
+    @pytest.mark.parametrize("k", [1e-3, 1e3])
+    def test_invariant_under_common_rescaling(self, k):
+        A, y = _problem()
+        a = torch.tensor([2.0, 1.0, -3.0], dtype=torch.float64)
+        c = a + torch.tensor([0.1, -0.2, 0.05], dtype=torch.float64)
+        base = anchor_penalty(c, a, "signal", *anchor_scales(y, A))
+        scaled = anchor_penalty(c, a, "signal", *anchor_scales(k * y, k * A))
+        assert scaled.numpy() == pytest.approx(base.numpy(), rel=1e-6)
+
+    def test_relative_form_is_signal_over_energy_share(self):
+        # The defect, pinned: relative = signal / (a_j^2 mean(A_j^2)/Var y),
+        # so a weak term is pulled harder exactly by how weak it is.
+        A, y = _problem()
+        col_ms, y_var = anchor_scales(y, A)
+        a = torch.tensor([2.0, 1.0, -3.0], dtype=torch.float64)
+        c = a * 1.1
+        share = a ** 2 * col_ms / y_var
+        rel = anchor_penalty(c, a, "relative")
+        sig = anchor_penalty(c, a, "signal", col_ms, y_var)
+        assert rel.numpy() == pytest.approx((sig / share).numpy(), rel=1e-9)
+
+    def test_weak_term_is_not_inflated(self):
+        # Allen-Cahn shape: a real but WEAK term (tiny coefficient, share
+        # ~1e-5) next to a dominant one, same 10% miss on each. Relative
+        # calls them equal; signal ranks them by what they do to the fit.
+        n = 800
+        x = torch.linspace(0.0, 6.0, n, dtype=torch.float64)
+        A = torch.stack([torch.sin(3.0 * x), torch.cos(2.0 * x)], dim=1)
+        a = torch.tensor([1e-3, 5.0], dtype=torch.float64)
+        y = A @ a
+        c = a * 1.1
+        rel = anchor_penalty(c, a, "relative")
+        sig = anchor_penalty(c, a, "signal", *anchor_scales(y, A))
+        assert float(rel[0]) == pytest.approx(float(rel[1]), rel=1e-9)
+        assert float(sig[0]) < 1e-6 * float(sig[1])
+
+    def test_gradient_bearing_and_needs_its_scales(self):
+        A, y = _problem()
+        a = torch.tensor([2.0, 1.0, -3.0], dtype=torch.float64)
+        c = (a + 0.1).clone().requires_grad_(True)
+        anchor_penalty(c, a, "signal", *anchor_scales(y, A)).sum().backward()
+        assert torch.all(torch.isfinite(c.grad)) and float(c.grad.abs().sum()) > 0
+        with pytest.raises(ValueError):
+            anchor_penalty(c, a, "signal")
+        with pytest.raises(ValueError):
+            anchor_penalty(c, a, "absolute")
+
+
+class TestCombineLoss:
+    """The total loss, with no coefficients in either form."""
+
+    def _terms(self):
+        torch.manual_seed(0)
+        p = torch.randn(5, dtype=torch.float64, requires_grad=True)
+        phys = (p ** 2).sum() * 1e-3
+        data = ((p - 1.0) ** 2).mean()
+        return p, phys, data
+
+    def test_sum_is_the_original_line_exactly(self):
+        _, phys, data = self._terms()
+        zero = torch.zeros((), dtype=torch.float64)
+        got = combine_loss([phys, zero, 0.0, zero, data], "sum")
+        assert torch.equal(got, phys + zero + 0.0 + zero + data)
+
+    def test_log_is_the_sum_of_logs_of_active_terms(self):
+        _, phys, data = self._terms()
+        zero = torch.zeros((), dtype=torch.float64)       # a disabled term
+        got = combine_loss([phys, zero, 0.0, data], "log").detach()
+        want = (torch.log(phys) + torch.log(data)).detach()
+        assert float(got) == pytest.approx(float(want), rel=1e-12)
+
+    @pytest.mark.parametrize("k", [1e-6, 1e6])
+    def test_log_gradient_ignores_a_constant_factor_on_any_term(self, k):
+        # The licence for dropping yardsticks: rescaling a term by a
+        # constant only shifts the log-loss, never its gradient.
+        p, phys, data = self._terms()
+        (g1,) = torch.autograd.grad(combine_loss([phys, data], "log"), p,
+                                    retain_graph=True)
+        (g2,) = torch.autograd.grad(combine_loss([k * phys, data], "log"), p)
+        assert g2.numpy() == pytest.approx(g1.numpy(), rel=1e-9)
+
+    def test_log_balances_relative_progress(self):
+        # grad of log(t) is grad(t)/t: a term 1000x smaller in value gets
+        # the same pull as a large one with the same relative slope.
+        p = torch.tensor(1.0, dtype=torch.float64, requires_grad=True)
+        small, large = 1e-3 * p ** 2, 1.0 * p ** 2
+        (gs,) = torch.autograd.grad(combine_loss([small], "log"), p)
+        (gl,) = torch.autograd.grad(combine_loss([large], "log"), p)
+        assert float(gs) == pytest.approx(float(gl), rel=1e-12)
+
+    def test_rejects_unknown_forms_and_empty_log(self):
+        _, phys, _ = self._terms()
+        with pytest.raises(ValueError):
+            combine_loss([phys], "mean")
+        with pytest.raises(ValueError):
+            combine_loss([torch.zeros(()), 0.0], "log")
 
 
 class TestObservationLoss:
@@ -221,7 +505,7 @@ class TestDataTermWiring:
     that is the point". Structural, because importing a script would
     start a training run."""
 
-    SCRIPTS = ("dp", "duffing", "wave")
+    SCRIPTS = ("dp", "duffing", "wave", "ac")
 
     def _tree(self, system):
         path = os.path.join(_REPO_ROOT, "projects", "pic", "data", system,
@@ -245,6 +529,14 @@ class TestDataTermWiring:
         assert len(set(data.values())) == 1, f"DATA_TERM disagrees: {data}"
         assert len(set(coef.values())) == 1, f"COEF_SOURCE disagrees: {coef}"
         assert data["dp"] is True and coef["dp"] == "ols", (data, coef)
+        bound = {s: self._flag(s, "STAT_BOUND") for s in self.SCRIPTS}
+        assert set(bound.values()) == {False}, f"STAT_BOUND: {bound}"
+        order = {s: self._flag(s, "FD_ORDER") for s in self.SCRIPTS}
+        assert set(order.values()) == {4}, f"FD_ORDER: {order}"
+        form = {s: self._flag(s, "LOSS_FORM") for s in self.SCRIPTS}
+        assert set(form.values()) == {"sum"}, f"LOSS_FORM: {form}"
+        phys = {s: self._flag(s, "PHYS_TERM") for s in self.SCRIPTS}
+        assert set(phys.values()) == {True}, f"PHYS_TERM: {phys}"
 
     @pytest.mark.parametrize("system", SCRIPTS)
     def test_gated_and_uses_the_shared_formula(self, system):
@@ -268,3 +560,9 @@ class TestDataTermWiring:
         # is what "no weights" means operationally
         assert not any(isinstance(n, ast.BinOp) and isinstance(n.op, ast.Mult)
                        for n in ast.walk(ret[0])), f"{system}: a weight crept in"
+        # and the terms go through the ONE shared combiner, keyed on the flag
+        call = ret[0].value
+        assert (isinstance(call, ast.Call) and getattr(call.func, "id", None)
+                == "combine_loss"), f"{system}: total_loss bypasses combine_loss"
+        assert any(isinstance(a, ast.Name) and a.id == "LOSS_FORM"
+                   for a in call.args), f"{system}: LOSS_FORM not passed"

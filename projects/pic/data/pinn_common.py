@@ -67,10 +67,17 @@ class MLP(nn.Module):
 
 
 # ============================================================ statistic
-def stat_scores(y, A, mask, stat, *, bound=True, float64=True, floor=False,
+def stat_scores(y, A, mask, stat, *, bound=False, float64=True, floor=False,
                 ridge=1e-12):
-    """The truth-free constancy statistic, already dimensionless and
-    (after ``bounded``) bounded -- so it enters the loss at weight 1.
+    """The truth-free constancy statistic, already dimensionless -- scale-
+    free under a common rescaling of the equation, so it enters the loss at
+    weight 1 with no yardstick.
+
+    ``bound=False`` (default) returns the RAW statistic: chi's Nyblom-Hansen
+    score and het's ``tau2 / theta_bar^2``, both in [0, inf). ``bound=True``
+    returns the bounded forms in [0, 1) -- ``bounded(chi)`` and het's own
+    ``tau2 / (tau2 + theta_bar^2)`` -- which fix the RANGE but flatten the
+    gradient on exactly the states judged least constant.
 
     Returns ``(score_or_None, theta_hat)`` with theta_hat the SAME global
     OLS the physics term reads when COEF_SOURCE='ols': one loss must not
@@ -95,7 +102,7 @@ def stat_scores(y, A, mask, stat, *, bound=True, float64=True, floor=False,
     if stat == "het":
         out = het_per_window(y, A, mask, ridge=ridge)
         c, _ = global_ols(y, A, ridge=ridge)
-        return out["score"], c
+        return (out["score"] if bound else out["score_raw"]), c
     c, _ = global_ols(y, A, ridge=ridge)
     return None, c
 
@@ -407,7 +414,16 @@ def train(net, loss_fn, *, adam_iters, adam_lr, lbfgs_max, checkpoint,
         checkpoint.update(loss.item(), adam_iters, aux)
         return loss
 
-    final = lbfgs.step(closure)
+    lbfgs.step(closure)
+    # ``LBFGS.step`` returns the loss of its FIRST closure call, i.e. the
+    # loss where the phase STARTED, and that is what used to be printed as
+    # "last loss". The last closure call is no better: under strong-Wolfe it
+    # can be a rejected trial point. So re-evaluate at the terminal
+    # parameters. Grad mode stays on because the residual differentiates the
+    # net w.r.t. its inputs. Nothing is backpropagated, the checkpoint is not
+    # touched, and ``loss_fn`` draws no random numbers (the samplers do), so
+    # the trajectory and the selected state are unchanged.
+    final = loss_fn(fixed)[0].detach()
     return final, time.time() - t0
 
 
