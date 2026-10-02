@@ -1,0 +1,44 @@
+# Method variants compared by the benchmark. Each entry is merged on top of
+# _base.yaml + <dataset>.yaml. `default` changes nothing: it is EPDE as
+# shipped on domain_refactor (wape discrepancy, chi2 instability as the second
+# Pareto axis, VWSR sparsity) with the FD preprocessor of the base protocol.
+
+default: {}
+
+# Old EPDE: L2 discrepancy, LASSO sparsity, complexity as the second axis
+# (the `legacy` pipeline of the group's former benchmark).
+legacy:
+  search:
+    objectives:
+      discrepancy_metric: l2
+      sparsity_cls: lasso
+      sparsity_kwargs: {initial_sparsity_interval: [1.0e-12, 1.0e-4]}
+      second_objective: complexity
+
+# Derivatives from local polynomial fits instead of finite differences.
+poly:
+  search:
+    preprocessing:
+      default_preprocessor_type: poly
+
+# Support chosen by the knee of the residual-vs-size curve instead of VWSR.
+knee:
+  search:
+    objectives:
+      sparsity_cls: knee
+
+# Instability measured by cross-validation over windows instead of chi2.
+instab_cv:
+  search:
+    objectives:
+      instability_metric: cv
+
+# The trigonometric family exactly as the scripts in data/ declare it: the
+# library's TrigonometricTokens on a narrow interval around 2. Measures the
+# frequency-bucketing effect explained in epde_bench/tokens.py.
+trig_native:
+  search:
+    search_space:
+      tokens:
+        - {family: grid, labels: [x], max_power: 2}
+        - {family: trigonometric, freq: [1.99999999, 2.00000001]}
