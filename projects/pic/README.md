@@ -33,6 +33,28 @@ ks.py, ns.py, ...), PINN-исследования (`pinn_test_*.py`, `cv_metric.
 
 ## Установка
 
+### Через uv
+
+Из папки `projects/pic` выбрать один вариант PyTorch и сохранять его в командах:
+
+```bash
+cd projects/pic
+uv sync --locked --extra cpu
+uv run --locked --extra cpu python bench.py list
+uv run --locked --extra cpu python bench.py run ode --noise 0
+uv run --locked --extra cpu python -m ipykernel install --user --name epde-pic --display-name "EPDE PIC"
+```
+
+Для NVIDIA с CUDA 12.8 использовать `cu128` вместо `cpu` и при установке,
+и при `uv run`. Опции взаимоисключающие. После выбранной установки также можно
+использовать `uv run --no-sync ...`, если обновление окружения не требуется.
+Обычный `uv run` без extra может убрать PyTorch, поэтому extra указан в каждом примере.
+
+`uv.lock` фиксирует зависимости; EPDE подключается в editable-режиме из этой
+рабочей копии. Для генерации и исполнения ноутбуков включены nbformat, nbclient
+и ipykernel. Установка через pip остаётся доступна ниже.
+
+### Через pip
 
 Python 3.11-3.13. Из корня репозитория:
 
