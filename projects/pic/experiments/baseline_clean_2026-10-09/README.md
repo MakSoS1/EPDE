@@ -62,3 +62,8 @@ the limit. That controller was stopped; the 21 runs without a record (five EPDE 
 frozen code, with a kill fallback that also works without access to the process table.
 Every one of the 150 records was checked against the planned identity in
 `campaign.json`. The fallback is now part of `epde_bench/campaign.py`.
+
+The campaign ran before EPDE's per-offspring debug output (`runtime.verbose_params.candidate_objectives`)
+was switched off in `configs/_base.yaml`. That setting only changes printed output, but it is part of the
+recorded configuration, so rerunning the command above now produces runs with a different identity
+(and needs a new campaign name); the search results themselves are unaffected.

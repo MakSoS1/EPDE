@@ -36,7 +36,9 @@ search:
     population_size: 16
     training_epochs: 5
   runtime:
-    verbose_params: {show_iter_idx: false}
+    # candidate_objectives: EPDE's per-offspring debug output; it does not affect
+    # the search and would flood notebook outputs and run logs.
+    verbose_params: {show_iter_idx: false, candidate_objectives: false}
     # Cache for evaluated terms, % of TOTAL RAM per process. EPDE's default
     # (15) asserts that much is free at start, which fails as soon as several
     # runs share a 16 GB machine; 2 % (~330 MB there) is enough for the
