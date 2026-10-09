@@ -1,5 +1,14 @@
 # Streamlit Community Cloud
 
+Public review demo: https://epde-explorer-demo.streamlit.app/
+
+Deployed on 2026-10-09 from `demo/streamlit-community-cloud` in `MakSoS1/EPDE`.
+Cloud verification: the short live evolution completed in 2.632 seconds; a
+standard seed-0 oscillator search completed with status `ok`, correct selected
+terms and 0.58% coefficient error. Its saved record appeared on Results and was
+still available after reloading the application. Full cloud campaigns and
+large uploads have not been verified.
+
 Deploy the existing application from the GitHub fork. No separate website or
 interface is needed. Community Cloud requires the app and its dependencies to
 have been pushed to the selected GitHub branch; it cannot deploy local changes.
@@ -9,7 +18,7 @@ Use these settings at https://share.streamlit.io:
 | Setting | Value |
 | --- | --- |
 | Repository | `MakSoS1/EPDE` |
-| Branch | The branch containing the reviewed app changes |
+| Branch | `demo/streamlit-community-cloud` |
 | Main file path | `projects/pic/app/Home.py` |
 | Python version (Advanced settings) | `3.13` |
 
