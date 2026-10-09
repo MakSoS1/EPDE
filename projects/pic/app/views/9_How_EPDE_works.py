@@ -122,10 +122,10 @@ with st.expander('Watch a short evolution', expanded=False):
                 'smaller population and equation size for this lesson.')
     st.latex(r'u(t)=e^{-t/4}\sin t,\qquad u_{tt}+0.5u_t+1.0625u=0')
     if st.button('Run short evolution', key='run_optimizer_demo'):
-        from epde_bench.optimizer_demo import run_optimizer_demo
+        from support.optimizer_process import run_optimizer_subprocess
         try:
             with st.spinner('Evolving a small population…'):
-                st.session_state['optimizer_demo_result'] = run_optimizer_demo()
+                st.session_state['optimizer_demo_result'] = run_optimizer_subprocess()
         except Exception as exc:
             st.session_state.pop('optimizer_demo_result', None)
             st.error(f'The short evolution could not complete: {exc}')
