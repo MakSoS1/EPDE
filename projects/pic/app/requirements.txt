@@ -1,0 +1,15 @@
+# Community Cloud looks beside Home.py before checking the repository root.
+# Paths in -r are relative to this file; EPDE itself is imported from this checkout.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.9.0+cpu ; sys_platform == "linux"
+torch==2.9.0 ; sys_platform != "linux"
+-r ../../../requirements.txt
+streamlit==1.65.0
+numpy==2.3.4
+scipy==1.16.2
+scikit-learn==1.7.2
+pandas==2.3.3
+dill==0.4.1
+pyyaml>=6.0,<7
+pysindy==2.1.0
+netCDF4==1.7.4
