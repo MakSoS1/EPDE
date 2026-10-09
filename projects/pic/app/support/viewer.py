@@ -79,6 +79,21 @@ def _verdict(m, truth):
                      'terms).')
 
 
+def _term_comparison(found, truth, axes):
+    import pandas as pd
+    from .compare import match_equations, term_rows
+    from .equations import term_plain
+    rows = []
+    for truth_eq, found_eq in match_equations(found, truth):
+        target = term_plain(truth_eq.split('=')[1], axes)
+        for row in term_rows(found_eq, truth_eq, axes):
+            rows.append({'equation for': target, **row} if len(truth) > 1 else row)
+    if not rows:
+        return
+    st.markdown('**Term by term** (both written as *target = sum of terms*, scaled to the known target)')
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width='stretch')
+
+
 def render_record(record, key='rec'):
     status = record.get('status')
     if status != 'ok':
@@ -106,16 +121,28 @@ def render_record(record, key='rec'):
         return
 
     shown = selected if selected is not None and selected < len(front) else 0
-    st.markdown('**Found equation**')
-    try:
-        st.latex(system_latex(front[shown], axes))
-    except Exception:                             # noqa: BLE001
-        st.code('\n'.join(front[shown]))
+
+    def _latex(system):
+        try:
+            st.latex(system_latex(system, axes))
+        except Exception:                         # noqa: BLE001
+            st.code('\n'.join(system))
+
     kind, text = _verdict(m, truth)
-    getattr(st, kind)(text)
     if truth:
-        with st.expander('known law'):
-            st.latex(system_latex(truth, axes))
+        left, right = st.columns(2)
+        with left:
+            st.markdown('**Known law** (what the search should recover)')
+            _latex(truth)
+        with right:
+            st.markdown('**Found equation** (selected from the front)')
+            _latex(front[shown])
+        getattr(st, kind)(text)
+        _term_comparison(front[shown], truth, axes)
+    else:
+        st.markdown('**Found equation**')
+        _latex(front[shown])
+        getattr(st, kind)(text)
 
     tab_data, tab_all, tab_details = st.tabs(['Compare with data', 'All candidates', 'Details'])
     with tab_all:

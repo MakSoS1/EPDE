@@ -17,6 +17,13 @@ name = c1.selectbox('record', names, index=names.index('ode'), format_func=datas
 noise = c2.number_input('noise, %', 0.0, 50.0, 0.0, 0.5)
 start = c3.empty()
 variant, seed, overrides, problem = search_options(name)
+if problem is not None:
+    if problem.truth:
+        from support.equations import system_latex
+        st.markdown('**Known law of this record** — the search does not see it; it is used only to score the result')
+        st.latex(system_latex(problem.truth, problem.axis_names))
+    else:
+        st.caption('The governing law of this record is not known, so the result will not be scored.')
 if start.button('Start', type='primary', width='stretch', disabled=problem is None):
     job = jobs.start_run(name, variant, float(noise), seed, overrides)
     st.session_state['run_job'] = job['id']
