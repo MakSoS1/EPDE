@@ -234,8 +234,8 @@
   "status": "ok",
   "total_seconds": 26.966508875004365,
   "artifacts": {
-    "record.json": "/Users/maksos/Documents/work/nir_epde/EPDE_ready/projects/pic/results/heldout_2026-10-09/adversarial_changed_test/record.json",
-    "trajectory.png": "/Users/maksos/Documents/work/nir_epde/EPDE_ready/projects/pic/results/heldout_2026-10-09/adversarial_changed_test/trajectory.png",
-    "trajectory.npz": "/Users/maksos/Documents/work/nir_epde/EPDE_ready/projects/pic/results/heldout_2026-10-09/adversarial_changed_test/trajectory.npz"
+    "record.json": "<repo>/projects/pic/results/heldout_2026-10-09/adversarial_changed_test/record.json",
+    "trajectory.png": "<repo>/projects/pic/results/heldout_2026-10-09/adversarial_changed_test/trajectory.png",
+    "trajectory.npz": "<repo>/projects/pic/results/heldout_2026-10-09/adversarial_changed_test/trajectory.npz"
   }
 }

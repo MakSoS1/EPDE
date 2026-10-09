@@ -171,10 +171,13 @@ runs are listed separately; errors and timeouts count as failures.
 | 09 · Measured data | pendulums, robot arm, ball on a beam, sea surface temperature |
 | 10 · Benchmark | comparison of methods |
 
-Each worked example shows the data, the signal check, a search and the selected
-equation side by side with the data: the left-hand side computed from the data against
-the value predicted by the equation and, for ordinary differential equations, the
-integrated solution against the record.
+The tutorials separate data inspection, checks of the known law, discovery and
+reconstruction. Where a search is performed, its selected equation is compared with
+the data: the left-hand side computed from the data against the value predicted by
+the equation and, for ordinary differential equations, the integrated solution
+against the record. Reconstruction starts at the first retained interior point.
+The oscillator lesson also demonstrates discovery on the first 70% of raw samples
+and forecasting the remaining 30%, with candidate selection using training data only.
 
 The notebooks run missing searches themselves and reuse a saved result only when its
 settings, data, code and dependencies match exactly. Long searches are not run inside
@@ -202,8 +205,10 @@ uv sync --locked --extra cpu --extra app
 uv run --locked --extra cpu --extra app streamlit run app/Home.py
 ```
 
-Every search started in the app runs as a separate process and saves the same record
-as the command line, so work started in the app can be continued in a notebook.
+Ordinary dataset and uploaded-data searches run in separate processes and save the
+common benchmark record, so their results can be inspected in a notebook. The short
+optimizer and chronological forecasting lessons have their own evidence records;
+their computations are isolated from Streamlit sessions as well.
 
 ## Checks
 
@@ -211,8 +216,9 @@ as the command line, so work started in the app can be continued in a notebook.
 python -m unittest discover -s projects/pic/tests -v
 ```
 
-The tests do not run the evolution. Checks that need files missing from the repository
-are skipped and reported as such.
+Tests cover data, term parsing, metrics, run identity, process lifecycle and small
+executable optimizer/API lessons. Full dataset campaigns run separately. Checks that
+need files missing from the repository are skipped and reported as such.
 
 ### Reading and running in the visual app
 
@@ -224,6 +230,10 @@ From `projects/pic`, start the local application with:
 uv run --locked --extra cpu --extra app streamlit run app/Home.py --server.address 127.0.0.1
 ```
 
-GitHub Pages cannot serve the Python Streamlit application. Local execution uses the application above. Saved notebook outputs are illustrations; the short optimizer notebook was rerun after these corrections, while full dataset campaigns were not.
+GitHub Pages cannot serve the Python Streamlit application. Local execution uses the
+application above; Community Cloud runs Python on its server. Published experiment
+folders retain raw run records, settings, source identities and validation evidence.
+Notebook outputs distinguish discovery, reconstruction and unseen-data forecasting;
+optional extended comparisons must be enabled explicitly before running them.
 
 The architecture sources are included in `architecture/`; they describe framework packages and the benchmark workflow.

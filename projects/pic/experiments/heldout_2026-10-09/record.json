@@ -234,8 +234,8 @@
   "status": "ok",
   "total_seconds": 25.41312020800251,
   "artifacts": {
-    "record.json": "/Users/maksos/Documents/work/nir_epde/EPDE_ready/projects/pic/results/heldout_2026-10-09/record.json",
-    "trajectory.png": "/Users/maksos/Documents/work/nir_epde/EPDE_ready/projects/pic/results/heldout_2026-10-09/trajectory.png",
-    "trajectory.npz": "/Users/maksos/Documents/work/nir_epde/EPDE_ready/projects/pic/results/heldout_2026-10-09/trajectory.npz"
+    "record.json": "<repo>/projects/pic/results/heldout_2026-10-09/record.json",
+    "trajectory.png": "<repo>/projects/pic/results/heldout_2026-10-09/trajectory.png",
+    "trajectory.npz": "<repo>/projects/pic/results/heldout_2026-10-09/trajectory.npz"
   }
 }
