@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 
 from support import jobs
-from support.common import KIND_NAMES, RESULTS_DIR, cpu_count, dataset_label, dataset_names, page, variant_label, variants
+from support.common import KIND_NAMES, PIC_DIR, RESULTS_DIR, cpu_count, dataset_label, dataset_names, page, variant_label, variants
 
 page('Benchmark', '🏁')
 st.caption('A campaign runs every combination of records, methods, noise levels and seeds and compares '
@@ -57,13 +57,19 @@ with tab_start:
                 st.code(jobs.log_tail(job), language=None)
 
 with tab_read:
-    campaigns = sorted([p for p in RESULTS_DIR.iterdir() if (p / 'campaign.json').exists()],
-                       key=lambda p: p.stat().st_mtime, reverse=True) if RESULTS_DIR.exists() else []
+    live = [p for p in RESULTS_DIR.iterdir() if (p / 'campaign.json').exists()] if RESULTS_DIR.exists() else []
+    published_root = PIC_DIR / 'experiments'
+    published = [p for p in published_root.iterdir() if (p / 'campaign.json').exists()
+                 and p.name not in {c.name for c in live}] if published_root.exists() else []
+    campaigns = sorted(live + published, key=lambda p: p.stat().st_mtime, reverse=True)
     if not campaigns:
         st.info('No campaigns yet. Start one in the next tab or from the command line.')
         st.stop()
     folder = st.selectbox('campaign', campaigns, format_func=lambda p: p.name)
-    done, planned = jobs.campaign_progress(folder.name)
+    records, planned = jobs.campaign_records(folder)
+    done = len(records)
+    if folder.parent == published_root:
+        st.caption('Published experiment evidence from the repository. New campaigns save their own records.')
     st.progress(done / planned if planned else 0.0, text=f'{done} of {planned} runs finished')
     report = folder / 'report'
     if (done and not (report / 'success_front.csv').exists()) or st.button('Refresh the report'):

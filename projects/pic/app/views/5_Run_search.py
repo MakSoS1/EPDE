@@ -22,6 +22,10 @@ if start.button('Start', type='primary', width='stretch', disabled=problem is No
     st.session_state['run_job'] = job['id']
     st.toast(f"started: {job['title']}")
 
+from support.heldout_view import heldout_example
+
+heldout_example()
+
 all_jobs = jobs.jobs(('run', 'custom'))
 if not all_jobs:
     st.stop()

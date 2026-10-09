@@ -86,6 +86,9 @@ st.write(text)
 if link:
     page_link(link, label='Try it in the app', icon='👉')
 
+from support.interfaces import stage_interfaces
+stage_interfaces(chosen)
+
 # Each stage opens the matching view of the architecture model.
 STAGE_VIEWS = {
     'settings': ('stageSettings', False), 'domain': ('stageData', False), 'trajectory': ('stageData', False),

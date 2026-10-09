@@ -30,6 +30,8 @@ def page(title, icon):
     st.title(f'{icon} {title}')
     from .guide import reading_notes
     reading_notes(title)
+    from .interfaces import page_interfaces
+    page_interfaces(title)
 
 
 @st.cache_data(show_spinner=False)

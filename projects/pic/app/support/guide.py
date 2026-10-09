@@ -7,8 +7,9 @@ LESSONS = {
 Look at its signal and known law, compare derivatives, then run a search with the shipped settings.
 The resulting equations are saved, so you can inspect them again on Results.
 
-**Local computation.** This application runs Python on the computer where you launched it.
-The browser displays the interface. Keep the application terminal open while a search is running;
+**Where computation runs.** This application runs Python on the machine hosting Streamlit.
+For a local launch that is your computer; for a hosted deployment it is the hosting server,
+not the computer displaying the browser. Keep the application terminal open for a local search;
 closing a browser tab does not stop the separate search process. Use Stop on the search page.
 
 **A first exercise.** Keep the same record and seed. Change only the noise level, then compare
@@ -93,7 +94,9 @@ can create many equally accurate explanations.
 
 **After the search.** Your uploaded record has no known governing law, so structural correctness
 is not scored. Inspect reconstruction, units and plausible terms, then evaluate on independently
-reserved data. The application saves local data and result records for later inspection.
+reserved data. The application saves data and result records on the machine hosting
+Streamlit for later inspection. Hosted deployments need persistent storage to retain
+these files across restarts.
 ''',
     'Results': '''
 **A result is evidence from a specific run.** Read the seed, noise level, derivative method and
