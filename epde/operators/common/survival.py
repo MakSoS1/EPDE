@@ -848,9 +848,11 @@ def nir1_conditional_scores(features, target, sample_weights, grid_shape,
         gram = np.sum(blocks, axis=0)
         gy = np.sum(gyblocks, axis=0)
         yy = float(np.sum(yyblocks))
-    if (not np.isfinite(gram).all() or not np.isfinite(gy).all()
-            or np.linalg.matrix_rank(gram, tol=1e-10) < gram.shape[0]):
-        return base  # No unique conditional contribution in rank-deficient design.
+    if not np.isfinite(gram).all() or not np.isfinite(gy).all():
+        return base
+    gram_condition = np.linalg.cond(gram)
+    if not np.isfinite(gram_condition) or gram_condition > 1e8:
+        return base  # Non-identifiable: data cannot justify a deletion test.
     precision = np.linalg.pinv(gram, rcond=1e-10)
     beta = precision @ gy
     residual = max(float(yy - 2 * beta @ gy + beta @ gram @ beta), 0.)
