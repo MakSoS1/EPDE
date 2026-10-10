@@ -1,0 +1,15 @@
+# LAUNCHED after v3 tests and real EPDE smoke passed in Actions run 38083731200.
+# S1d is another DEVELOPMENT pilot on already-observed S1/S1c systems.
+# Real PIC 16-population x 5 epochs, every algorithm crash in denominator.
+stage: S1
+cases: [ode, vdp, duffing, ac, burgers]
+methods: [default, nir1_conditional_regulator]
+data_seeds: [0]
+optimizer_seeds: [0, 1, 2]
+noise: 0.0
+shards: 4
+estimated_minutes_per_run: 11
+max_run_minutes: 30
+soft_deadline_minutes: 300
+hard_deadline_minutes: 340
+max_infrastructure_retries: 2
