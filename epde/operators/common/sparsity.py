@@ -67,7 +67,8 @@ def _minmax_normalize_columns(features: np.ndarray) -> np.ndarray:
 
 
 def instability_scores(metric, X, y, sw, grid_shape, active_mask, n_features,
-                       *, gram_setup=None, cv_reducer=None, weights=None):
+                       *, gram_setup=None, cv_reducer=None, weights=None,
+                       nir1_full_blocks=None):
     """Per-active-COLUMN instability score for a support mask.
 
     THE SAME estimator the ``Instability`` objective uses, and the single
@@ -97,6 +98,28 @@ def instability_scores(metric, X, y, sw, grid_shape, active_mask, n_features,
     Xa = X[:, feat_cols]
     if cols.size and cols[-1] == n_features:
         Xa = np.hstack([Xa, np.ones((X.shape[0], 1))])
+    if metric in {'nir1_excess', 'nir1_protected'} and nir1_full_blocks is not None:
+        # Full-library block Grams were formed once in PhysicsInformedLasso.fit.
+        # Every recursive support is a SUBMATRIX of the same sufficient stats.
+        # The last entry is the internal bookkeeping intercept of the
+        # augmented Gram (even if the actual model intercept was eliminated).
+        G, Gy, yy = nir1_full_blocks
+        full_last = G.shape[1] - 1
+        selected = np.append(cols, full_last)
+        # The estimator chooses its block count based on the reference
+        # library width. If this differs (e.g. very small data, active p
+        # crossing the global max), use the existing full-data path.
+        from epde.operators.common.survival import (_DEFAULT_N_BLOCKS_HET,
+                                                      _reference_width)
+        max_blocks = len(X) // (4 * (_reference_width(len(cols)) + 1))
+        expected_blocks = max(3, min(_DEFAULT_N_BLOCKS_HET, max_blocks))
+        if G.shape[0] == expected_blocks:
+            sub = (G[:, selected][:, :, selected],
+                   Gy[:, selected], yy)
+            return _KEEP_RULE_ESTIMATORS[metric](
+                Xa, y, sw, grid_shape, fit_intercept=False,
+                precomputed_grams=sub)
+        _loop_stats.record('nir1.block_gram_partition_fallback', 1, 1)
     return _KEEP_RULE_ESTIMATORS[metric](Xa, y, sw, grid_shape,
                                          fit_intercept=False)
 
@@ -249,6 +272,21 @@ class PhysicsInformedLasso(BaseEstimator, RegressorMixin):
         # neither the varying-coefficient mode solve nor the sliding-window
         # stack is built at all.
 
+        # E1 opt-in acceleration. The cache is per fit / per trajectory,
+        # never global. The first N-by-P block Gram is reused by all RFE
+        # supports, including their actual intercept column. The NIR1 metrics
+        # are the ONLY clients; production chi2/VWSR remains untouched.
+        nir1_full_blocks = None
+        if metric in {'nir1_excess', 'nir1_protected'}:
+            from epde.operators.common.survival import (
+                block_gram_partition, _DEFAULT_N_BLOCKS_HET, _reference_width)
+            max_blocks = n_samples // (4 * (_reference_width(total_features) + 1))
+            if max_blocks >= 3:
+                nr_blocks = max(3, min(_DEFAULT_N_BLOCKS_HET, max_blocks))
+                nir1_full_blocks = block_gram_partition(
+                    Xf, y, sw, grid_shape, nr_blocks, return_yy=True)
+                _loop_stats.record('nir1.block_gram_build_once', 1, 1)
+
         is_vcoef = getattr(gram_setup, 'is_vcoef', False)
 
         outer_iteration = 0
@@ -289,7 +327,7 @@ class PhysicsInformedLasso(BaseEstimator, RegressorMixin):
             # the one the Pareto axis reads.
             active_cv = self._keep_rule_scores(metric, gram_setup, weights, Xf, y,
                                             sw, grid_shape, active_mask,
-                                            n_features)
+                                            n_features, nir1_full_blocks=nir1_full_blocks)
 
             # Tackle the most physically unstable feature first.
             active_thresholds = active_cv * max_corr
@@ -432,14 +470,16 @@ class PhysicsInformedLasso(BaseEstimator, RegressorMixin):
         return self
 
     def _keep_rule_scores(self, metric, gram_setup, weights, X, y, sw,
-                       grid_shape, active_mask, n_features):
+                       grid_shape, active_mask, n_features,
+                       nir1_full_blocks=None):
         """This estimator's view of :func:`instability_scores` -- the L1
         threshold's per-column scale. Kept as a method because the ``'cv'``
         branch reduces the window stack through :meth:`get_cv`, which is
         this class's own reduction."""
         return instability_scores(metric, X, y, sw, grid_shape, active_mask,
                                   n_features, gram_setup=gram_setup,
-                                  cv_reducer=self.get_cv, weights=weights)
+                                  cv_reducer=self.get_cv, weights=weights,
+                                  nir1_full_blocks=nir1_full_blocks)
 
     def predict(self, X):
         return X @ self.coef_ + self.intercept_
