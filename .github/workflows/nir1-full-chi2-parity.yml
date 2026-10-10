@@ -1,0 +1,62 @@
+name: NIR1 | full EPDE prefix-chi2 parity
+on:
+  push:
+    branches: [nir1]
+    paths:
+      - '.github/workflows/nir1-full-chi2-parity.yml'
+permissions:
+  contents: read
+jobs:
+  exact-form-full-search:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - dataset: burgers
+            seed: 0
+          - dataset: burgers
+            seed: 1
+          - dataset: ode
+            seed: 0
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      UV_CACHE_DIR: /tmp/nir1-chi2-parity-uv
+    steps:
+      - name: Checkout exact same EPDE code SHA for both arms
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Install UV
+        uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+      - name: Install locked PIC CPU dependencies
+        run: |
+          uv sync --project projects/pic --extra cpu --locked
+          mkdir -p artifacts
+      - name: Original unmodified chi2 RFE, 16x5 generations
+        env:
+          NIR1_CHI2_PREFIX_CACHE: '0'
+        run: |
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli epde --dataset '${{ matrix.dataset }}' --variant default --seed '${{ matrix.seed }}' --data-seed 0 --output artifacts/reference.json
+      - name: Experimental E1 axis-prefix chi2 RFE, same 16x5 generations
+        env:
+          NIR1_CHI2_PREFIX_CACHE: '1'
+        run: |
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli epde --dataset '${{ matrix.dataset }}' --variant default --seed '${{ matrix.seed }}' --data-seed 0 --output artifacts/cached.json
+      - name: Refuse quality or Pareto change before any speed claim
+        run: |
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.compare_full_e1 --reference artifacts/reference.json --cached artifacts/cached.json --output artifacts/prefix-chi2-parity.json
+          git rev-parse HEAD > artifacts/source-sha.txt
+      - name: Preserve both original results, profiles and parity failures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nir1-chi2-full-${{ matrix.dataset }}-seed-${{ matrix.seed }}-${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 30
