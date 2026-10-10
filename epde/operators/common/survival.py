@@ -707,7 +707,8 @@ def chi2_centered_scores(features, target, sample_weights, grid_shape=None,
 #: since ``subset_selection`` imports ``sparsity``.
 def nir1_excess_scores(features, target, sample_weights, grid_shape,
                        fit_intercept: bool = True,
-                       n_blocks: int = _DEFAULT_N_BLOCKS_HET):
+                       n_blocks: int = _DEFAULT_N_BLOCKS_HET,
+                       quality_policy: str = "penalize_low_q"):
     """Research-only joint coefficient-drift and non-identifiability score.
 
     For each term ``j``:
@@ -753,13 +754,33 @@ def nir1_excess_scores(features, target, sample_weights, grid_shape,
         cross = scaled[other, j]
         coef = np.linalg.lstsq(scaled[np.ix_(other, other)], cross, rcond=1e-10)[0]
         quality[j] = np.clip(1.0 - cross @ coef / scaled[j, j], 0.0, 1.0)
-    combined = 0.5 * (np.asarray(excess) + (1.0 - quality))
+    if quality_policy == "penalize_low_q":
+        # Original NIR1 v1: low identifiability is incorrectly treated as
+        # evidence of a false term, and can eliminate true correlated terms.
+        combined = 0.5 * (np.asarray(excess) + (1.0 - quality))
+    elif quality_policy == "protect_low_q":
+        # NIR1 v2 hypothesis: no additional evidence of structural falsity
+        # follows from collinearity alone. Instability is penalized only
+        # to the extent that the fitted term is individually identifiable.
+        # WARNING: this may retain collinear false positives; test directly.
+        combined = np.asarray(excess) * quality
+    else:
+        raise ValueError(f"Unknown NIR1 identifiability policy: {quality_policy}")
     return np.where(norm[:p] > 0, np.clip(combined, 0., 1.), 1.)
+
+
+def nir1_protected_scores(features, target, sample_weights, grid_shape,
+                          fit_intercept: bool = True,
+                          n_blocks: int = _DEFAULT_N_BLOCKS_HET):
+    """Experimental guarded RFE score; not a validated improvement."""
+    return nir1_excess_scores(features, target, sample_weights, grid_shape,
+                              fit_intercept=fit_intercept, n_blocks=n_blocks,
+                              quality_policy="protect_low_q")
 
 
 _BASIS_FREE_METRICS = {
     'survival': survival_scores, 'tile': tile_scores,
     'het': heterogeneity_scores, 'het_raw': heterogeneity_raw_scores,
     'chi2': chi2_scores, 'chi2_centered': chi2_centered_scores,
-    'nir1_excess': nir1_excess_scores,
+    'nir1_excess': nir1_excess_scores, 'nir1_protected': nir1_protected_scores,
 }
