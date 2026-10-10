@@ -1,0 +1,50 @@
+name: NIR1 | exact E1 performance and parity
+on:
+  push:
+    branches: [nir1]
+    paths:
+      - '.github/workflows/nir1-perf.yml'
+      - 'projects/nir1_stability/nir1/benchmark_e1.py'
+      - 'projects/nir1_stability/tests/test_exact_gram_reuse.py'
+      - 'epde/operators/common/survival.py'
+permissions:
+  contents: read
+jobs:
+  bench-e1:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      UV_CACHE_DIR: /tmp/uv-cache-nir1-perf
+    steps:
+      - name: Checkout immutable scientific revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Install UV
+        uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+      - name: Install locked isolated CPU dependencies
+        run: |
+          uv sync --project projects/pic --extra cpu --locked
+          uv pip install --python projects/pic/.venv/bin/python pytest
+      - name: Prove Gram-reuse parity before timing
+        run: |
+          projects/pic/.venv/bin/python -m pytest projects/nir1_stability/tests/test_exact_gram_reuse.py -q
+      - name: Measure old vs E1 metric under matched BLAS threads
+        run: |
+          mkdir -p artifacts
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.benchmark_e1 --samples 12000 --features 7 --repetitions 5 --output artifacts/e1-12000.json
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.benchmark_e1 --samples 60000 --features 7 --repetitions 5 --output artifacts/e1-60000.json
+          git rev-parse HEAD > artifacts/source-sha.txt
+      - name: Preserve measured timings AND numerical mismatch failures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nir1-e1-benchmark-${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 30
