@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from itertools import product
 from typing import Mapping, Sequence
 
 import numpy as np
@@ -38,9 +39,38 @@ def summarize_outcomes(ledger: Mapping[str, object],
             "conclusion_status": conclusion}
 
 
+def _cluster_signflip_p(effects: np.ndarray, *, seed: int) -> tuple[float, str]:
+    """Two-sided paired sign-flip on independent SYSTEM effects, not run seeds.
+
+    Exact enumeration is used for at most 18 systems; beyond this limit the
+    fixed-seed Monte Carlo p-value includes the observed arrangement (+1).
+    """
+    values = np.asarray(effects, dtype=float)
+    if values.ndim != 1 or not len(values) or not np.all(np.isfinite(values)):
+        raise ValueError("Expected nonempty finite system effects")
+    observed = abs(float(values.mean()))
+    cutoff = observed - max(1e-12, 1e-12 * observed)
+    if len(values) <= 18:
+        extreme = 0
+        for signs in product((-1., 1.), repeat=len(values)):
+            extreme += abs(float(np.dot(values, signs)) / len(values)) >= cutoff
+        return float(extreme / (1 << len(values))), "exact_cluster_signflip"
+    rng = np.random.default_rng(seed)
+    total = 99999
+    extreme = 0
+    for _ in range(total):
+        signs = rng.choice((-1., 1.), size=len(values))
+        extreme += abs(float(np.dot(values, signs)) / len(values)) >= cutoff
+    return float((extreme + 1) / (total + 1)), "monte_carlo_cluster_signflip"
+
+
 def paired_effect_ci(a: Sequence[bool], b: Sequence[bool], groups: Sequence[str], *,
-                     n_boot: int = 2000, seed: int = 0) -> dict[str, float | int]:
-    """Method B minus A in percentage points, resampling WHOLE systems."""
+                     n_boot: int = 2000, seed: int = 0) -> dict[str, float | int | str]:
+    """Method B minus A, each independent physical system weighted equally.
+
+    Repeated optimizer seeds within a system do NOT contribute independent
+    degrees of freedom to p-values or cluster bootstrap uncertainty.
+    """
     if not len(a) or not (len(a) == len(b) == len(groups)) or n_boot < 100:
         raise ValueError("Paired arrays must be nonempty and equal in length; >=100 bootstrap draws")
     a_arr, b_arr = np.asarray(a, dtype=bool), np.asarray(b, dtype=bool)
@@ -48,26 +78,32 @@ def paired_effect_ci(a: Sequence[bool], b: Sequence[bool], groups: Sequence[str]
     for i, group in enumerate(groups):
         cluster_ids[str(group)].append(i)
     cluster_names = sorted(cluster_ids)
-    cluster_diffs = [np.asarray(b_arr[cluster_ids[name]], dtype=int) -
-                     np.asarray(a_arr[cluster_ids[name]], dtype=int)
-                     for name in cluster_names]
-    delta = float(np.mean(b_arr.astype(float) - a_arr.astype(float)) * 100)
+    effects = np.asarray([
+        float(np.mean(b_arr[cluster_ids[name]].astype(float) -
+                      a_arr[cluster_ids[name]].astype(float)))
+        for name in cluster_names
+    ])
+    delta = float(100 * effects.mean())
     rng = np.random.default_rng(seed)
     samples = np.empty(n_boot)
     for iteration in range(n_boot):
-        selected = rng.integers(0, len(cluster_diffs), size=len(cluster_diffs))
-        values = np.concatenate([cluster_diffs[k] for k in selected])
-        samples[iteration] = 100 * float(values.mean())
+        selected = rng.integers(0, len(effects), size=len(effects))
+        samples[iteration] = float(100 * effects[selected].mean())
     low, high = (float(v) for v in np.quantile(samples, [.025, .975]))
     a_only = int(np.sum(a_arr & ~b_arr))
     b_only = int(np.sum(~a_arr & b_arr))
     discordant = a_only + b_only
-    p_value = (float(binomtest(min(a_only, b_only), discordant, .5).pvalue)
-               if discordant else 1.)
+    # This pooled McNemar value is diagnostic ONLY: it treats optimizer seeds
+    # within one system as independent and MUST NOT be used for inference.
+    pooled_diagnostic_p = (float(binomtest(min(a_only, b_only), discordant, .5).pvalue)
+                           if discordant else 1.)
+    p_value, p_method = _cluster_signflip_p(effects, seed=seed)
     return {"delta_pp": delta, "ci_low_pp": low, "ci_high_pp": high,
             "n_pairs": len(a), "n_clusters": len(cluster_names),
             "discordant": discordant, "a_only": a_only, "b_only": b_only,
-            "mcnemar_exact_p": p_value}
+            "cluster_signflip_p": p_value, "cluster_signflip_method": p_method,
+            "effect_unit": "independent_system_equal_weight",
+            "mcnemar_exact_p_diagnostic_only": pooled_diagnostic_p}
 
 
 def holm_adjust(p_values: Sequence[float]) -> list[float]:
