@@ -59,3 +59,22 @@ def test_v3_opt_in_does_not_change_baseline_configuration():
     assert conditional == {"instability_metric": "chi2",
                            "sparsity_cls": "nir1_adaptive",
                            "research_regularizer_metric": "nir1_conditional"}
+
+
+def test_cached_condition_excludes_dummy_intercept_from_regression():
+    """Regression for the 2026-10-10 CI finding: phantom ones column.
+
+    Block-Gram stores a final bookkeeping intercept; the actual fitted
+    support with fit_intercept=False does NOT contain this extra column.
+    """
+    X, y, w = _sample(seed=991)
+    blocks = block_gram_partition(X, y, w, (44, 20), 16, return_yy=True)
+    from epde.operators.common.survival import nir1_conditional_scores
+    measured = nir1_conditional_scores(X[:, [0, 2]], y, w, (44, 20),
+                                       fit_intercept=False,
+                                       precomputed_grams=(
+                                           blocks[0][:, [0, 2, 4]][:, :, [0, 2, 4]],
+                                           blocks[1][:, [0, 2, 4]], blocks[2]))
+    original = nir1_conditional_scores(X[:, [0, 2]], y, w, (44, 20),
+                                       fit_intercept=False)
+    np.testing.assert_allclose(measured, original, rtol=2e-6, atol=2e-8)
