@@ -84,6 +84,18 @@ def test_shard_atomic_execution_skips_matching_completed_run(tmp_path):
     assert first == second
 
 
+def test_soft_deadline_marks_shard_retryable_without_losing_incomplete_ids(tmp_path, monkeypatch):
+    manifest = plan_campaign(config())
+    planned = tmp_path / "planned.json"
+    planned.write_text(json.dumps(manifest))
+    monkeypatch.setenv("NIR1_SOFT_DEADLINE_SECONDS", "0")
+    result = execute_shard(planned, "0", tmp_path / "runs")
+    assert result == 2  # Failed Actions job can be rerun with restored artifacts.
+    assert list((tmp_path / "runs").glob("*.json")) == []
+    summary = resume_plan(manifest, [])
+    assert summary["status_counts"]["incomplete"] == len(manifest["runs"])
+
+
 def test_cli_plan_and_summarize_reconcile_partial_runs(tmp_path):
     launch = tmp_path / "s0.yaml"
     launch.write_text("stage: S0\ncases: [T1]\nmethods: [lasso]\n"

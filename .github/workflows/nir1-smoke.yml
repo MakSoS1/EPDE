@@ -22,7 +22,7 @@ jobs:
       OPENBLAS_NUM_THREADS: '1'
       OMP_NUM_THREADS: '1'
       MKL_NUM_THREADS: '1'
-      UV_CACHE_DIR: ${{ runner.temp }}/uv-cache-nir1
+      UV_CACHE_DIR: /tmp/uv-cache-nir1
     steps:
       - name: Checkout exact research SHA
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

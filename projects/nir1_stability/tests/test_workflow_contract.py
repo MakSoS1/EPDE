@@ -58,3 +58,13 @@ def test_real_epde_cpu_smoke_and_research_shards_use_locked_pic_environment():
         contents = (ROOT / ".github/workflows" / name).read_text()
         assert "uv sync --project projects/pic --extra cpu --locked" in contents
         assert "projects/pic/.venv/bin/python" in contents
+
+
+def test_job_level_environment_never_uses_unavailable_runner_context():
+    # GitHub rejects `runner.temp` inside jobs.<job>.env BEFORE creating a job.
+    # The runner context becomes available only inside individual steps.
+    for name in ("nir1-smoke.yml", "nir1-research.yml"):
+        data, _ = _load(name)
+        for job in data["jobs"].values():
+            for value in job.get("env", {}).values():
+                assert "${{ runner." not in str(value)

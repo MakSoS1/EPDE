@@ -158,10 +158,13 @@ def restore_shard_records(manifest: Mapping[str, object], shard_id: str,
 
 
 def execute_shard(manifest_path: Path, shard_id: str, output_root: Path) -> int:
-    """Run S0 identities separately, atomically persisting each completion.
+    """Run independent identities, atomically persisting each completion.
 
     The local VM directory is NOT assumed to survive a sudden VM failure;
-    artifacts must be uploaded in an Actions ``if: always()`` step.
+    artifacts must be uploaded in an Actions ``if: always()`` step. A shard
+    with retryable incomplete identities exits nonzero so GitHub offers a
+    failed-job rerun that restores verified prior checkpoints; a finished
+    scientific algorithm failure is terminal evidence, not infra retry.
     """
     from .audit import evaluate_candidate_set
     manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
@@ -255,4 +258,7 @@ def execute_shard(manifest_path: Path, shard_id: str, output_root: Path) -> int:
                           traceback=traceback.format_exc(limit=2)[-1300:])
         result["elapsed_seconds"] = time.monotonic() - start
         atomic_record(path, result)
-    return 0
+    summary = resume_plan(manifest, sorted(output_root.glob("*.json")))
+    shard_ids = {str(run["run_id"]) for run in manifest["runs"]
+                 if str(run["shard"]) == str(shard_id)}
+    return 2 if shard_ids.intersection(summary["remaining"]) else 0
