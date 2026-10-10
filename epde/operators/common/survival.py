@@ -763,6 +763,14 @@ def nir1_excess_scores(features, target, sample_weights, grid_shape,
     denom = tau2 + theta_bar ** 2
     excess = np.where(denom > 0.0, tau2 / denom, 0.0)
     excess = np.where(_het_unresolved(theta_bar, S1), 1.0, excess)
+    # Guard near-singular Gram rounding: assembling from block submatrices
+    # is algebraically identical to the full matmul, but a tiny
+    # reassociation error could be amplified by near-dependent columns.
+    # The protected direct path intentionally trades speed for accuracy.
+    if not np.isfinite(np.linalg.cond(gram)) or np.linalg.cond(gram) > 1e8:
+        A = np.column_stack((X, np.ones(n))) if fit_intercept else X
+        gram = A.T @ (w[:, None] * A)
+        _loop_stats.record('nir1.precision_direct_gram_fallback', 1, 1)
     norm = np.sqrt(np.maximum(np.diag(gram), 0))
     safe = np.where(norm > 0, norm, 1)
     scaled = gram / np.outer(safe, safe)
