@@ -17,6 +17,10 @@ _VARIANTS = {
     "nir1_combined": {"instability_metric": "chi2", "sparsity_cls": "nir1_adaptive",
                       "research_objective_metric": "nir1_excess",
                       "research_regularizer_metric": "nir1_excess"},
+    # Conditional deletion-evidence regularizer; a development hypothesis.
+    "nir1_conditional_regulator": {"instability_metric": "chi2",
+                                   "sparsity_cls": "nir1_adaptive",
+                                   "research_regularizer_metric": "nir1_conditional"},
     # Separate, preregistered regularizer rescue hypothesis (no selector change).
     "nir1_protected_regulator": {"instability_metric": "chi2",
                                  "sparsity_cls": "nir1_adaptive",
