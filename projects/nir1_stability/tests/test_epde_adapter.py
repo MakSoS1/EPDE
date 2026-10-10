@@ -140,3 +140,23 @@ def test_sparsefront_keeps_original_pic_verdict_without_target_leak(monkeypatch)
     assert record["research_selected_index"] == select_sparsefront(
         front, [[0.001, 0.02], [0.002, 0.04]])
     assert record["selected"] == truth
+
+
+def test_guarded_penalty_never_increases_penalty_for_correlated_terms():
+    from epde.operators.common.survival import nir1_excess_scores, nir1_protected_scores
+    rng = np.random.default_rng(11)
+    x = rng.normal(size=300)
+    z = x + 1e-4 * rng.normal(size=300)
+    y = 2*x + 0.1*rng.normal(size=300)
+    X = np.column_stack([x, z])
+    original = nir1_excess_scores(X, y, None, (300,), True)
+    guarded = nir1_protected_scores(X, y, None, (300,), True)
+    assert np.isfinite(original).all() and np.isfinite(guarded).all()
+    assert guarded.shape == original.shape
+    assert np.all((guarded >= 0) & (guarded <= 1))
+    assert np.all(guarded <= original + 1e-12)
+    assert np.max(guarded) < np.max(original)
+    assert resolve_research_variant("nir1_protected_regulator") == {
+        "instability_metric": "chi2", "sparsity_cls": "nir1_adaptive",
+        "research_regularizer_metric": "nir1_protected",
+    }
