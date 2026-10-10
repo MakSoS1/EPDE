@@ -99,7 +99,7 @@ def instability_scores(metric, X, y, sw, grid_shape, active_mask, n_features,
     Xa = X[:, feat_cols]
     if cols.size and cols[-1] == n_features:
         Xa = np.hstack([Xa, np.ones((X.shape[0], 1))])
-    if metric in {'nir1_excess', 'nir1_protected'} and nir1_full_blocks is not None:
+    if metric in {'nir1_excess', 'nir1_protected', 'nir1_conditional'} and nir1_full_blocks is not None:
         # Full-library block Grams were formed once in PhysicsInformedLasso.fit.
         # Every recursive support is a SUBMATRIX of the same sufficient stats.
         # The last entry is the internal bookkeeping intercept of the
@@ -278,7 +278,7 @@ class PhysicsInformedLasso(BaseEstimator, RegressorMixin):
         # supports, including their actual intercept column. The NIR1 metrics
         # are the ONLY clients; production chi2/VWSR remains untouched.
         nir1_full_blocks = None
-        if (metric in {'nir1_excess', 'nir1_protected'}
+        if (metric in {'nir1_excess', 'nir1_protected', 'nir1_conditional'}
                 and os.environ.get('NIR1_DISABLE_GRAM_CACHE') != '1'):
             from epde.operators.common.survival import (
                 block_gram_partition, _DEFAULT_N_BLOCKS_HET, _reference_width)
@@ -758,8 +758,8 @@ class Nir1AdaptiveSparsity(VWSRSparsity):
     key = 'NIR1AdaptiveSparsity'
 
     def apply(self, objective: Equation, arguments: dict):
-        if active_config().objectives.regularizer_metric not in {'nir1_excess', 'nir1_protected'}:
-            raise ValueError("Nir1AdaptiveSparsity requires nir1_excess or nir1_protected research metric")
+        if active_config().objectives.regularizer_metric not in {'nir1_excess', 'nir1_protected', 'nir1_conditional'}:
+            raise ValueError("Nir1AdaptiveSparsity requires an opt-in NIR1 research metric")
         return super().apply(objective, arguments)
 
 
