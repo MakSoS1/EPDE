@@ -136,3 +136,33 @@ in this branch. The immutable S1 and the production defaults remain intact.
 GitHub Actions may require hours for sharded full-budget completion; missing
 or timed-out jobs remain visible instead of being omitted. CI status, run IDs
 and new success rates must be checked before any claim of improvement.
+
+## NIR-1 v2: quality and E1 performance research
+
+S1 showed **18/30** selected-exact for native EPDE, **4/30** for the new
+criterion alone, **6/30** for the initial adaptive regulator and **4/30** for
+their combined variant. These numbers are confirmed full search, NOT positive
+new-method evidence. The new hypotheses are independent:
+
+- [FRONT_SELECTOR_V2.md](FRONT_SELECTOR_V2.md): `nir1_sparsefront`, original
+  EPDE search plus a frozen data-only final Pareto compromise. Retrospective
+  S1-development result was 23/30 vs native 18/30; this has **not** been
+  independently confirmed. [S1b exploratory validation manifest](manifests/launch/s1b-2026-10-10.yaml).
+- [REGULARIZER_V2.md](REGULARIZER_V2.md): `nir1_protected_regulator` protects
+  non-identifiable coefficients from spurious excessive pruning. This is a
+  development hypothesis, not an observed improvement.
+  [S1c development pilot manifest](manifests/launch/s1c-2026-10-10.yaml).
+- [OPTIMIZATION_TRACK.md](OPTIMIZATION_TRACK.md): E1 elimination of duplicate
+  full-data Gram passes, one block-Gram cache across recursive supports,
+  numerical parity and ill-conditioning fallbacks, no second evolution for a
+  purely post-selection experiment. Independent CPU measurement workflows
+  `nir1-perf.yml` and `nir1-full-e1-parity.yml` produce raw evidence.
+- [S2_S3_PREREGISTRATION.md](S2_S3_PREREGISTRATION.md): independent confirmation
+  gate. The S1b/S1c studies are *not* automatically S2 or S3.
+- [PAPER_DRAFT_RU.md](PAPER_DRAFT_RU.md): preliminary scientific manuscript
+  with explicit negative results and limitations; not a finished publication.
+
+**E1 acceleration is opt-in for NIR1**: unchanged native EPDE uses neither
+the new score nor its Gram cache. Numerical parity must pass on full EPDE
+before declaring the optimization quality-preserving. No workflow silently
+shortens the 16×5 PIC budget.
