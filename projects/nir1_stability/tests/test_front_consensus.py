@@ -45,7 +45,7 @@ def test_rescue_repeated_front_candidate_never_selected_by_pic():
 
 def test_duplicate_candidate_support_on_one_front_counts_only_one_run():
     rows=[record(0,[A,"20.0 * u{power: 1.0} = du/dx0{power: 1.0}",B]),
-          record(1,[B]),record(2,[C])]
+          record(1,[C]),record(2,[D])]
     result=pool_consensus_decision(rows)
     assert result["allfront_fallback_to_v1"] is True
 
