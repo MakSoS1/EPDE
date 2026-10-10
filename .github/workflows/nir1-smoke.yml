@@ -43,6 +43,7 @@ jobs:
         run: |
           projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli epde --dataset ode --variant default --seed 0 --smoke --output artifacts/epde-default.json
           projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli epde --dataset ode --variant nir1_combined --seed 0 --smoke --output artifacts/epde-nir1.json
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli epde --dataset ode --variant nir1_conditional_regulator --seed 0 --smoke --output artifacts/epde-nir1-conditional-v3.json
       - name: Small real S0 fixed-candidate run
         run: |
           projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli audit --cases T1,T2 --seeds 0-1 --methods baseline_ols,lasso,identifiability --output artifacts/smoke-fixed-candidates.jsonl
