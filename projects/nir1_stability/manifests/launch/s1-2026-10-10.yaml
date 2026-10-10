@@ -1,0 +1,17 @@
+# Frozen S1 search, executed by four GitHub Actions CPU shards.
+# Real PIC/EPDE evolution (16 population * 5 epochs), NOT smoke, no oracle
+# inside either method or selector. The four variants form one factorial 2x2.
+# All 120 IDs, including crashes/timeouts, remain in the denominator.
+# Experimental purpose: feasibility plus comparison, NOT S2/S3 confirmation.
+stage: S1
+cases: [ode, vdp, duffing, lv, ac, burgers]
+methods: [default, nir1_criterion_only, nir1_regulator_only, nir1_combined]
+data_seeds: [0]
+optimizer_seeds: [0, 1, 2, 3, 4]
+noise: 0.0
+shards: 4
+estimated_minutes_per_run: 6
+max_run_minutes: 30
+soft_deadline_minutes: 300
+hard_deadline_minutes: 340
+max_infrastructure_retries: 2
