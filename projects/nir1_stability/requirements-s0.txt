@@ -1,0 +1,6 @@
+# Exact CPU dependency versions used for S0 numerical reproducibility.
+numpy==2.3.5
+scipy==1.17.0
+scikit-learn==1.8.0
+PyYAML==6.0.3
+pytest==9.1.1

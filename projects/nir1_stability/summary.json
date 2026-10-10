@@ -1,0 +1,62 @@
+{
+  "stage": "S0",
+  "planned": 240,
+  "ok": 240,
+  "rows": 930,
+  "invalid_candidate_scores": 80,
+  "methods": {
+    "baseline_ols": {
+      "n": 40,
+      "support_exact": 0,
+      "truth_first": 0,
+      "false_deleted": 0,
+      "false_included": 85,
+      "failures": 0
+    },
+    "historical_proxy": {
+      "n": 40,
+      "support_exact": 33,
+      "truth_first": 35,
+      "false_deleted": 0,
+      "false_included": 15,
+      "failures": 0
+    },
+    "hybrid": {
+      "n": 40,
+      "support_exact": 21,
+      "truth_first": 4,
+      "false_deleted": 0,
+      "false_included": 20,
+      "failures": 0
+    },
+    "identifiability": {
+      "n": 40,
+      "support_exact": 33,
+      "truth_first": 4,
+      "false_deleted": 0,
+      "false_included": 8,
+      "failures": 0
+    },
+    "instability": {
+      "n": 40,
+      "support_exact": 34,
+      "truth_first": 5,
+      "false_deleted": 0,
+      "false_included": 7,
+      "failures": 0
+    },
+    "lasso": {
+      "n": 40,
+      "support_exact": 33,
+      "truth_first": 0,
+      "false_deleted": 0,
+      "false_included": 8,
+      "failures": 0
+    }
+  },
+  "code_sha": "93b3edd39e5d373b76c7b975c0605aaac9633a9c",
+  "provisional": true,
+  "full_epde_status": "NOT RUN",
+  "historical_vclog_status": "ARCHIVAL; NOT REPRODUCED",
+  "raw_data_status": "fixed candidates constructed from explicit simulator truth (S0 only)"
+}
