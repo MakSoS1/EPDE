@@ -1,0 +1,15 @@
+# S1c development-only protected-RFE pilot; not an independent confirmatory S2.
+# Source algorithm variant: nir1_protected_regulator; other method is untouched PIC baseline.
+# The S1c cases were used in earlier S1 and CANNOT be called heldout.
+stage: S1
+cases: [ode, vdp, duffing, ac, burgers]
+methods: [default, nir1_protected_regulator]
+data_seeds: [0]
+optimizer_seeds: [0, 1, 2]
+noise: 0.0
+shards: 4
+estimated_minutes_per_run: 12
+max_run_minutes: 30
+soft_deadline_minutes: 300
+hard_deadline_minutes: 340
+max_infrastructure_retries: 2
