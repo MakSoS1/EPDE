@@ -1,0 +1,27 @@
+# PROPOSED/FROZEN: DO NOT launch until ALL 10 real-EPDE integration smoke jobs pass.
+# Stage S2e analytic transfer cases; full native EPDE same base budget.
+# Protocol: S2E_ANALYTIC_CONFIRMATION_PLAN_RU.md, commit 33c035d80c2409fe0a03ec61bbfbeaa0678cc275
+# No retraining or tuning on the results; all failures are part of the study.
+stage: S2
+cases:
+  - nir1_decay
+  - nir1_logistic
+  - nir1_quadratic
+  - nir1_cubic
+  - nir1_harmonic
+  - nir1_advection
+  - nir1_heat
+  - nir1_reactiondiff
+  - nir1_wave
+  - nir1_advdiff
+methods: [default]
+data_seeds: [0]
+optimizer_seeds: [0, 1, 2, 3, 4]
+noise: 0.0
+shards: 4
+estimated_minutes_per_run: 12
+max_run_minutes: 30
+soft_deadline_minutes: 300
+hard_deadline_minutes: 340
+max_infrastructure_retries: 2
+frozen_confirmation_sha: 33c035d80c2409fe0a03ec61bbfbeaa0678cc275
