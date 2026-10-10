@@ -107,3 +107,32 @@ inherited ITMO GitLab mirroring workflow has also been restricted on `nir1`:
 research pushes do not trigger it. Early zero-job failures were caused by
 using unavailable `runner.temp` in job-level `env`; that syntax was fixed and
 both smoke and sharded S0 now execute successfully on real GitHub VMs.
+
+
+## NIR1 v2 — exploratory follow-up to verified negative S1 (2026-10-10)
+
+The complete 120-run S1 revealed two independent failure mechanisms: the
+original NIR1 criterion lost correct models *during final front selection*
+(19/30 truth-on-front versus 4/30 PIC-selected), and the original adaptive
+regularizer often removed correct models *before selection* (6/30 on-front).
+The full unmodified baseline was 25/30 on-front, 18/30 PIC-selected.
+
+New work is **opt-in**, with two preregistered experiments and no claim of
+improvement before they are verified:
+
+- [S1b Pareto selector hypothesis](FRONT_SELECTOR_V2.md): `nir1_sparsefront`
+  (unchanged 16×5 evolution and VWSR, only truth-free final selection altered);
+  [50-run launch](manifests/launch/s1b-2026-10-10.yaml) on different systems.
+  Retrospective 23/30 vs 18/30 baseline selections was tuned on S1 and is
+  NOT an independent validation result. Wave has now been used in this
+  validation experiment; do not re-use it as untouched S3.
+- [S1c protected-regularizer hypothesis](REGULARIZER_V2.md):
+  `nir1_protected_regulator`, using `E_j*Q_j` rather than
+  `(E_j+(1-Q_j))/2`; [30-run launch](manifests/launch/s1c-2026-10-10.yaml).
+  This reuses original S1 systems and is **development-only**.
+
+Both experiments are triggered by additions of their frozen launch manifests
+in this branch. The immutable S1 and the production defaults remain intact.
+GitHub Actions may require hours for sharded full-budget completion; missing
+or timed-out jobs remain visible instead of being omitted. CI status, run IDs
+and new success rates must be checked before any claim of improvement.
