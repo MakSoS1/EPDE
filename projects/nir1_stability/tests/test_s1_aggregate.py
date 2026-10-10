@@ -8,6 +8,7 @@ from pathlib import Path
 from projects.nir1_stability.nir1.campaign import plan_campaign
 from projects.nir1_stability.nir1.records import atomic_record
 from projects.nir1_stability.nir1.s1_aggregate import analyze_s1, write_s1_report
+from projects.nir1_stability.nir1.metrics import paired_effect_ci, holm_adjust
 
 
 def _manifest():
@@ -62,7 +63,7 @@ def test_s1_full_paired_summary_and_holm_correction_are_reproducible(tmp_path):
     assert contrast["inference"] == "RECORDED_DESCRIPTIVE_WITH_CI"
     assert contrast["n_clusters"] == 3
     assert contrast["delta_pp"] == -100
-    assert contrast["holm_adjusted_p"] >= contrast["mcnemar_exact_p"]
+    assert contrast["holm_adjusted_p"] >= contrast["cluster_signflip_p"]
     assert result == analyze_s1(manifest, files)
     targets = write_s1_report(tmp_path / "out", result)
     assert len(targets) == 2
@@ -85,3 +86,34 @@ def test_cli_analyze_s1_produces_truthful_machine_and_review_artifacts(tmp_path)
     result = json.loads((tmp_path / "report" / "S1_SUMMARY.json").read_text())
     assert result["inference_gate"] == "PROVISIONAL_S1_ONLY"
     assert result["methods"]["default"]["selected_exact"] == 6
+
+
+def test_cluster_p_does_not_pseudoreplicate_optimizer_seeds():
+    """20 seeds x 6 systems gives 6 independent groups, NOT 120."""
+    systems = [f"system-{i}" for i in range(6)]
+    groups = [system for system in systems for _ in range(20)]
+    a = [False] * len(groups)
+    b = [True] * len(groups)
+    result = paired_effect_ci(a, b, groups, n_boot=200, seed=44)
+    assert result["n_pairs"] == 120
+    assert result["n_clusters"] == 6
+    assert result["cluster_signflip_method"] == "exact_cluster_signflip"
+    assert result["cluster_signflip_p"] == 0.03125
+    assert result["mcnemar_exact_p_diagnostic_only"] < 1e-20
+    # Three prespecified comparisons cannot all reach Holm p < 0.05
+    # with only six independent systems, even in this perfect case.
+    assert min(holm_adjust([result["cluster_signflip_p"]] * 3)) == 0.09375
+
+
+def test_cluster_p_minimum_with_five_systems_is_one_sixteenth():
+    groups = [f"sys-{i}" for i in range(5) for _ in range(20)]
+    res = paired_effect_ci([False] * 100, [True] * 100, groups,
+                           n_boot=200, seed=5)
+    assert res["cluster_signflip_p"] == 0.0625
+
+
+def test_cluster_p_identical_methods_is_one():
+    groups = [f"sys-{i}" for i in range(6) for _ in range(5)]
+    res = paired_effect_ci([True] * 30, [True] * 30, groups,
+                           n_boot=200, seed=6)
+    assert res["cluster_signflip_p"] == 1.0
