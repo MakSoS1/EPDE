@@ -278,7 +278,8 @@ def tile_scores(features, target, sample_weights, grid_shape,
 
 def _het_components(features, target, sample_weights, grid_shape,
                     fit_intercept: bool = True,
-                    n_blocks: int = _DEFAULT_N_BLOCKS_HET):
+                    n_blocks: int = _DEFAULT_N_BLOCKS_HET,
+                    return_full_gram: bool = False):
     """Per-term calibrated heterogeneity: Q-calibrated excess variance.
 
     One refit of the fixed structure per contiguous block, PLUS the
@@ -388,6 +389,16 @@ def _het_components(features, target, sample_weights, grid_shape,
     with np.errstate(divide='ignore', invalid='ignore'):
         tau2 = (Q - df) / C
     tau2 = np.clip(np.nan_to_num(tau2), 0.0, None)
+    if return_full_gram:
+        # The blockwise Gram stack was already computed for heterogeneity.
+        # Summing its augmented (intercept-aware) blocks is algebraically
+        # identical to a second A.T @ W @ A; the few FP rounding differences
+        # from reassociation are explicitly covered by NIR1 parity tests.
+        # No new O(n * p^2) matrix multiplication or n-by-(p+1) copy.
+        full = np.sum(G_blocks, axis=0)
+        if not fit_intercept:
+            full = full[:p, :p]
+        return tau2, theta_bar, S1, full
     return tau2, theta_bar, S1
 
 
@@ -736,10 +747,12 @@ def nir1_excess_scores(features, target, sample_weights, grid_shape,
          else np.asarray(sample_weights, dtype=float).reshape(-1))
     if n != w.size or not np.isfinite(w).all() or np.any(w < 0) or not w.sum() > 0:
         raise ValueError("NIR1 requires finite, nonnegative, nonzero sample weights")
-    excess = heterogeneity_scores(X, target, w, grid_shape,
-                                  fit_intercept=fit_intercept, n_blocks=n_blocks)
-    A = np.column_stack((X, np.ones(n))) if fit_intercept else X
-    gram = A.T @ (w[:, None] * A)
+    tau2, theta_bar, S1, gram = _het_components(
+        X, target, w, grid_shape, fit_intercept=fit_intercept,
+        n_blocks=n_blocks, return_full_gram=True)
+    denom = tau2 + theta_bar ** 2
+    excess = np.where(denom > 0.0, tau2 / denom, 0.0)
+    excess = np.where(_het_unresolved(theta_bar, S1), 1.0, excess)
     norm = np.sqrt(np.maximum(np.diag(gram), 0))
     safe = np.where(norm > 0, norm, 1)
     scaled = gram / np.outer(safe, safe)
