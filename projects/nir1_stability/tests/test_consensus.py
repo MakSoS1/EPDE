@@ -78,3 +78,29 @@ def test_equivalent_equations_ignore_coefficients_and_target_orientation():
     outcome = consensus_decision([a,b])
     assert outcome["mode_used"]
     assert outcome["distinct_structures"] == 1
+
+
+def test_equal_compute_min_discrepancy_is_truth_free_and_uses_all_runs():
+    from projects.nir1_stability.nir1.consensus import min_discrepancy_restart
+    records = [_record(0, F), _record(1, T), _record(2, F)]
+    records[0]["objectives"] = [[0.9, 0.1]]
+    records[1]["objectives"] = [[0.1, 0.8]]
+    records[2]["objectives"] = [[0.4, 0.2]]
+    pick = min_discrepancy_restart(records)
+    assert pick["chosen_seed"] == 1
+    assert pick["n_full_searches"] == 3
+    assert pick["chosen_equations"] == [T]
+    assert pick["truth_used_to_select"] is False
+    flipped = copy.deepcopy(records)
+    for row in flipped:
+        row["problem"] = {"truth": [F]}
+        row["metrics"]["success_selected"] = True
+    assert min_discrepancy_restart(flipped) == pick
+
+
+def test_equal_compute_discrepancy_rejects_invalid_objectives():
+    from projects.nir1_stability.nir1.consensus import min_discrepancy_restart
+    records = [_record(0, F), _record(1, T)]
+    records[0]["objectives"] = [[float("nan"), 0.]]
+    with pytest.raises(ValueError, match="Nonfinite"):
+        min_discrepancy_restart(records)
