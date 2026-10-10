@@ -1,0 +1,53 @@
+name: NIR1 | analytic transfer dataset integration smoke
+on:
+  push:
+    branches: [nir1]
+    paths:
+      - '.github/workflows/nir1-transfer-smoke.yml'
+permissions:
+  contents: read
+jobs:
+  independent-physics-families:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        system: [nir1_decay, nir1_logistic, nir1_quadratic, nir1_cubic,
+                 nir1_harmonic, nir1_advection, nir1_heat,
+                 nir1_reactiondiff, nir1_wave, nir1_advdiff]
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      UV_CACHE_DIR: /tmp/nir1-newcases-uv
+    steps:
+      - name: Checkout exact generated benchmark data revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Install UV
+        uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+      - name: Install locked EPDE CPU runtime and pytest
+        run: |
+          uv sync --project projects/pic --extra cpu --locked
+          uv pip install --python projects/pic/.venv/bin/python pytest
+      - name: Verify all analytically known equations before any EPDE fit
+        run: |
+          projects/pic/.venv/bin/python -m pytest projects/nir1_stability/tests/test_analytic_transfer.py -q
+      - name: One generation integration SMOKE, not a scientific metric
+        run: |
+          mkdir -p artifact
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli epde --dataset '${{ matrix.system }}' --variant default --seed 0 --data-seed 0 --smoke --output 'artifact/smoke.json'
+          git rev-parse HEAD > artifact/commit-sha.txt
+      - name: Preserve failed, timed-out and successful smoke evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nir1-newcase-smoke-${{ matrix.system }}-${{ github.sha }}
+          path: artifact/
+          if-no-files-found: warn
+          retention-days: 30
