@@ -75,8 +75,8 @@ def select_sparsefront(front: Sequence[Sequence[str]],
             if "=" not in equation:
                 raise ValueError("Unparseable discovered equation without '='")
             lhs = equation.split("=", 1)[0]
-            for term in re.split(r"(?<![eE])\\+", lhs):
-                if not re.search(r"\\{[^{}]*\\}", term):
+            for term in re.split(r"(?<![eE])\+", lhs):
+                if not re.search(r"\{[^{}]*\}", term):
                     continue
                 # The token presence check is exact for normal EPDE strings;
                 # constants and numerically zero terms are not counted.
@@ -89,7 +89,7 @@ def select_sparsefront(front: Sequence[Sequence[str]],
                 if abs(scalar) < 1e-12:
                     continue
                 term_count += 1
-                for match in re.finditer(r"d(?:\\^(\\d+))?u/dx", term):
+                for match in re.finditer(r"d(?:\^(\d+))?u/dx", term):
                     order = int(match.group(1)) if match.group(1) else 1
                     derivative_excess += max(0, order - 2)
         # Discrepancy is already a dimensionless relative-error objective.
