@@ -75,3 +75,42 @@ def test_full_gram_reuse_matches_legacy_gram_in_weighted_coordinates():
         previous = _het_components(X, y, w, (45, 10), fit_intercept=intercept)
         for actual, prior in zip(values, previous):
             np.testing.assert_array_equal(actual, prior)
+
+
+@pytest.mark.parametrize("variant", ["nir1_excess", "nir1_protected"])
+@pytest.mark.parametrize("with_intercept", [True, False])
+def test_cached_recursive_support_scores_match_uncached(variant, with_intercept):
+    from epde.operators.common.survival import block_gram_partition
+    from epde.operators.common.sparsity import instability_scores
+    rng = np.random.default_rng(2026)
+    n = 1400
+    X = rng.normal(size=(n, 6))
+    X[:, 2] = .7 * X[:, 0] + .714 * X[:, 2]
+    w = rng.uniform(.5, 2., n)
+    y = .6 * X[:, 0] - .4 * X[:, 3] + .2 + rng.normal(0, .05, n)
+    # n=1400: 16 blocks fixed for every recursive support at the
+    # max-width bound of the current EPDE/PIC search.
+    cache = block_gram_partition(X, y, w, (35, 40), 16, return_yy=True)
+    for kept in ([0, 1, 2, 3, 4, 5],
+                 [0, 2, 4], [1, 3], [0]):
+        mask = np.zeros(X.shape[1] + 1, dtype=bool)
+        mask[kept] = True
+        mask[-1] = with_intercept
+        common = dict(metric=variant, X=X, y=y, sw=w,
+                      grid_shape=(35, 40), active_mask=mask,
+                      n_features=X.shape[1])
+        old = instability_scores(**common)
+        new = instability_scores(**common, nir1_full_blocks=cache)
+        np.testing.assert_allclose(new, old, rtol=1e-6, atol=2e-8)
+
+
+def test_cached_recursion_refuses_incorrect_block_geometry():
+    from epde.operators.common.survival import _het_components
+    rng = np.random.default_rng(31)
+    X, y = rng.normal(size=(880, 3)), rng.normal(size=880)
+    # Incorrect geometry must fail rather than silently invent scores.
+    with pytest.raises(ValueError, match="not aligned"):
+        _het_components(X, y, np.ones(880), (44, 20),
+                        fit_intercept=True, precomputed_grams=(
+                            np.zeros((16, 3, 3)), np.zeros((16, 3)),
+                            np.zeros(16)))
