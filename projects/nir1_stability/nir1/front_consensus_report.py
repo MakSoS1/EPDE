@@ -15,7 +15,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .consensus import consensus_decision
+from .consensus import consensus_decision, min_discrepancy_restart
 from .consensus_report import analyze_consensus
 from .front_consensus import pool_consensus_decision
 from .metrics import _cluster_signflip_p
@@ -50,7 +50,8 @@ def analyze_front_consensus(manifest: dict, paths: list[Path]) -> dict:
         # from the dataset loader is accessed.
         old = consensus_decision(records)
         new = pool_consensus_decision(records)
-        if old["n_full_searches"] != new["n_full_searches"]:
+        equal_budget = min_discrepancy_restart(records)
+        if old["n_full_searches"] != new["n_full_searches"] or old["n_full_searches"] != equal_budget["n_full_searches"]:
             raise AssertionError("Unequal search budgets")
         problem = load(case, **records[0].get("config", {}).get("loader", {}))
         if not problem.truth_systems:
@@ -60,6 +61,7 @@ def analyze_front_consensus(manifest: dict, paths: list[Path]) -> dict:
         # run's default metrics.selected_index (which may differ).
         label_old = bool(hamming_best(canonical_tokens(old["chosen_equations"]), truth) == 0)
         label_new = bool(hamming_best(canonical_tokens(new["chosen_equations"]), truth) == 0)
+        label_equal = bool(hamming_best(canonical_tokens(equal_budget["chosen_equations"]), truth) == 0)
         native = native_by_system[key]
         if label_old != native["consensus_selected_exact"]:
             raise AssertionError("Scoring rule disagrees with original S2 consensus audit")
@@ -68,6 +70,8 @@ def analyze_front_consensus(manifest: dict, paths: list[Path]) -> dict:
             "native_pic_success_fraction": native["baseline_rate"],
             "v1_selected_only_consensus_exact": label_old,
             "v2_allfront_consensus_exact": label_new,
+            "equal_compute_native_min_discrepancy_exact": label_equal,
+            "equal_compute_native_chosen_seed": equal_budget["chosen_seed"],
             "v1_chosen_seed": old["chosen_seed"],
             "v2_chosen_seed": new["chosen_seed"],
             "v2_chosen_pareto_index": new.get("chosen_pareto_index"),
@@ -85,8 +89,13 @@ def analyze_front_consensus(manifest: dict, paths: list[Path]) -> dict:
         float(row["v2_allfront_consensus_exact"]) -
         float(row["native_pic_success_fraction"])
         for row in entries], dtype=float)
+    effects_vs_equal = np.array([
+        float(row["v1_selected_only_consensus_exact"]) -
+        float(row["equal_compute_native_min_discrepancy_exact"])
+        for row in entries], dtype=float)
     p_v1, _ = _cluster_signflip_p(effects_vs_v1, seed=21011)
     p_native, _ = _cluster_signflip_p(effects_vs_native, seed=21012)
+    p_equal, _ = _cluster_signflip_p(effects_vs_equal, seed=21013)
     return {
         "status": "COMPLETE_SECONDARY_EXPLORATORY_NOT_INDEPENDENT_CONFIRMATION",
         "manifest_sha": manifest["manifest_sha"],
@@ -102,6 +111,8 @@ def analyze_front_consensus(manifest: dict, paths: list[Path]) -> dict:
             [x["v2_allfront_consensus_exact"] for x in entries])),
         "v2_vs_v1_delta_pp": float(100 * np.mean(effects_vs_v1)),
         "v2_vs_native_delta_pp": float(100 * np.mean(effects_vs_native)),
+        "v1_vs_equal_compute_delta_pp": float(100 * np.mean(effects_vs_equal)),
+        "v1_vs_equal_compute_cluster_signflip_p": float(p_equal),
         "v2_vs_v1_cluster_signflip_p": float(p_v1),
         "v2_vs_native_cluster_signflip_p": float(p_native),
         "inference_warning": (
@@ -141,13 +152,14 @@ def main(argv=None) -> int:
         "This is an exploratory SECONDARY study. The algorithm was not "
         "fixed before the original S2 search began.",
         "",
-        "| System | Native exact / 5 | V1 selected-only | V2 all-front | V2 modal runs |",
-        "|---|---:|---:|---:|---:|"
+        "| System | Native exact / 5 | Equal-cost lowest-loss | V1 selected-only | V2 all-front | V2 modal runs |",
+        "|---|---:|---:|---:|---:|---:|"
     ]
     for row in result.get("entries", []):
         lines.append(
             f"| {row['system']} | "
             f"{row['native_pic_success_fraction'] * 5:.0f}/5 | "
+            f"{int(row['equal_compute_native_min_discrepancy_exact'])} | "
             f"{int(row['v1_selected_only_consensus_exact'])} | "
             f"{int(row['v2_allfront_consensus_exact'])} | "
             f"{row['v2_support_run_frequency']} |"
@@ -156,6 +168,7 @@ def main(argv=None) -> int:
         lines.extend([
             "", f"V2 minus native descriptive effect: {result['v2_vs_native_delta_pp']:+.1f} pp.",
             f"V2 minus frozen V1 effect: {result['v2_vs_v1_delta_pp']:+.1f} pp.",
+            f"V1 minus equal-compute lowest-native-discrepancy: {result['v1_vs_equal_compute_delta_pp']:+.1f} pp.",
             f"Independent-system exact two-sided sign-flip p against V1: "
             f"{result['v2_vs_v1_cluster_signflip_p']:.6g}.",
             "", result["inference_warning"],
