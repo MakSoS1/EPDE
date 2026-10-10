@@ -74,6 +74,7 @@ projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli analyze-s1 \
 
 ## Extended scientific materials
 
+- [`S1_VERIFIED_RU.md`](S1_VERIFIED_RU.md) — detailed Russian verification of all 120 full-search records, per-system outcomes and corrected clustered inference.
 - [`PAPER_DRAFT_RU.md`](PAPER_DRAFT_RU.md) — academic manuscript draft with formulas, preliminary real-search negatives, literature and explicit evidence boundary.
 - [`RESEARCH_COMPLETENESS.md`](RESEARCH_COMPLETENESS.md) — full plan audit: implemented vs scientifically established vs outstanding.
 - [`S2_S3_PREREGISTRATION.md`](S2_S3_PREREGISTRATION.md) — independent-system confirmation/transfer gate, not an automatic launch.
@@ -96,6 +97,7 @@ projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli analyze-s1 \
   frozen **120-run S1 manifest**, verified artifact hashes, archival original
   aggregate and corrected independent-system analysis. All 120 runs completed;
   the proposed variants did not improve the frozen baseline in exploratory S1.
+  See also the detailed [Russian verification report](S1_VERIFIED_RU.md).
 - `reports/s1_pilot/` and `reports/real_smoke/` retain unaggregated real EPDE
   run records; nine local full searches across `ode`/`vdp` expose negative
   feasibility observations, not a statistically powered method claim.

@@ -52,7 +52,7 @@
 
 1. [Методика и ограничения](METHODS.md) · [полный количественный отчёт S0](RESULTS.md) · [сырые прогоны EPDE](reports/s1_pilot/).
 2. [Воспроизводимый S0 в GitHub Actions](https://github.com/MakSoS1/EPDE/actions/runs/38075541420) и [проверенные архивы](reports/actions_s0/README.md).
-3. [Завершённый S1 run](https://github.com/MakSoS1/EPDE/actions/runs/38076377893) и [проверенный исправленный отчёт](reports/actions_s1/README.md).
+3. [Завершённый S1 run](https://github.com/MakSoS1/EPDE/actions/runs/38076377893), [evidence package](reports/actions_s1/README.md) и [подробный проверенный разбор](S1_VERIFIED_RU.md).
 4. [Протокол исследования](../../docs/research/NIR1_EPDE_Research_Protocol_2026-10-10.md) · [реализация NIR-1](nir1/) · [тесты](tests/).
 
 **Что требуется проверить научно:** корректность \(E_j\) при зависимых ошибках производных, поведение \(Q_j\) при почти коллинеарных истинных термах, выбор величины регуляризации и справедливость парного сравнения с baseline. **Решения о слиянии с ITMO и о научных утверждениях пока нет.**

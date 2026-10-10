@@ -26,5 +26,7 @@ The unchanged raw records were reanalyzed with the corrected code. The machine-r
 
 The baseline also placed the true structure on the Pareto front in 25/30 searches, versus 19/30, 6/30 and 7/30 for criterion-only, regulator-only and combined variants. S1 therefore provides no evidence that the proposed variants improve the frozen baseline; descriptively, all three recovered fewer exact selected structures and two were slower.
 
+The per-system 5-seed breakdown and scientific interpretation are recorded in [`../../S1_VERIFIED_RU.md`](../../S1_VERIFIED_RU.md).
+
 This is an exploratory six-system result, not a confirmatory significance claim. With six independent systems, the smallest possible two-sided exact sign-flip p-value is 0.03125; with three prespecified comparisons the smallest possible Holm-adjusted p-value is 0.09375. S2/S3 remain unrun and transfer to noisy or real systems is not established.
 
