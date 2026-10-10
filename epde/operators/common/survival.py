@@ -812,9 +812,62 @@ def nir1_protected_scores(features, target, sample_weights, grid_shape,
                               precomputed_grams=precomputed_grams)
 
 
+def nir1_conditional_scores(features, target, sample_weights, grid_shape,
+                            fit_intercept: bool = True,
+                            n_blocks: int = _DEFAULT_N_BLOCKS_HET,
+                            precomputed_grams=None):
+    """Exploratory NIR1 v3: prune only unstable terms without partial evidence.
+
+    For current support S, nested WLS gives an extra weighted residual cost
+    Delta_j when j is removed while other coefficients are refitted. Protect
+    a term whose deletion is strongly contradicted by current observations:
+
+        penalty_j = (E_j Q_j) * 4 / (4 + Delta_j / sigma2)
+
+    with sigma2 = weighted RSS / residual df, plus an explicit numeric floor.
+    This is *not* a significance test with calibrated p-values for temporally
+    correlated PDE errors. In rank-deficient cases the minimum-norm inverse
+    can be misleading; retain the original protected metric instead.
+    """
+    X = np.asarray(features, dtype=float)
+    if X.ndim == 1:
+        X = X[:, None]
+    n, p = X.shape
+    w = (np.ones(n) if sample_weights is None
+         else np.asarray(sample_weights, dtype=float).reshape(-1))
+    base = nir1_protected_scores(
+        X, target, w, grid_shape, fit_intercept=fit_intercept,
+        n_blocks=n_blocks, precomputed_grams=precomputed_grams)
+    A = np.column_stack((X, np.ones(n))) if fit_intercept else X
+    yy = float(np.dot(w, np.asarray(target, dtype=float).reshape(-1)**2))
+    if precomputed_grams is None:
+        gram = A.T @ (w[:, None] * A)
+        gy = A.T @ (w * np.asarray(target, dtype=float).reshape(-1))
+    else:
+        blocks, gyblocks, yyblocks = precomputed_grams
+        gram = np.sum(blocks, axis=0)
+        gy = np.sum(gyblocks, axis=0)
+        yy = float(np.sum(yyblocks))
+    if (not np.isfinite(gram).all() or not np.isfinite(gy).all()
+            or np.linalg.matrix_rank(gram, tol=1e-10) < gram.shape[0]):
+        return base  # No unique conditional contribution in rank-deficient design.
+    precision = np.linalg.pinv(gram, rcond=1e-10)
+    beta = precision @ gy
+    residual = max(float(yy - 2 * beta @ gy + beta @ gram @ beta), 0.)
+    floor = max(np.finfo(float).eps * max(yy, 1.), 1e-12 * max(yy, 1.))
+    effective_df = max(float(w.sum() - gram.shape[0]), 1.)
+    sigma2 = max(residual, floor) / effective_df
+    diag = np.diag(precision)[:p]
+    contribution = np.where(diag > 0, (beta[:p]**2) / diag, 0.)
+    relative_contribution = np.maximum(contribution, 0.) / sigma2
+    attenuation = 4. / (4. + relative_contribution)
+    return np.clip(base * attenuation, 0., 1.)
+
+
 _BASIS_FREE_METRICS = {
     'survival': survival_scores, 'tile': tile_scores,
     'het': heterogeneity_scores, 'het_raw': heterogeneity_raw_scores,
     'chi2': chi2_scores, 'chi2_centered': chi2_centered_scores,
     'nir1_excess': nir1_excess_scores, 'nir1_protected': nir1_protected_scores,
+    'nir1_conditional': nir1_conditional_scores,
 }
