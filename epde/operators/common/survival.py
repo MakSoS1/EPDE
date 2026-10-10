@@ -279,7 +279,8 @@ def tile_scores(features, target, sample_weights, grid_shape,
 def _het_components(features, target, sample_weights, grid_shape,
                     fit_intercept: bool = True,
                     n_blocks: int = _DEFAULT_N_BLOCKS_HET,
-                    return_full_gram: bool = False):
+                    return_full_gram: bool = False,
+                    precomputed_grams=None):
     """Per-term calibrated heterogeneity: Q-calibrated excess variance.
 
     One refit of the fixed structure per contiguous block, PLUS the
@@ -339,9 +340,16 @@ def _het_components(features, target, sample_weights, grid_shape,
             f'width w={_reference_width(p)} (equation_terms_max_number)')
     n_blocks = max(3, min(int(n_blocks), max_blocks))
 
-    G_blocks, Gy_blocks, yy_blocks = block_gram_partition(
-        features, target, sample_weights, grid_shape, n_blocks,
-        return_yy=True)
+    if precomputed_grams is None:
+        G_blocks, Gy_blocks, yy_blocks = block_gram_partition(
+            features, target, sample_weights, grid_shape, n_blocks,
+            return_yy=True)
+    else:
+        G_blocks, Gy_blocks, yy_blocks = precomputed_grams
+        if (G_blocks.ndim != 3 or G_blocks.shape != (n_blocks, p + 1, p + 1)
+                or Gy_blocks.shape != (n_blocks, p + 1)
+                or yy_blocks.shape != (n_blocks,)):
+            raise ValueError("Cached NIR1 block Grams are not aligned with the requested design")
     n_blocks = G_blocks.shape[0]
     sl = slice(None) if fit_intercept else slice(0, p)
     eye = np.eye(k)
@@ -719,7 +727,8 @@ def chi2_centered_scores(features, target, sample_weights, grid_shape=None,
 def nir1_excess_scores(features, target, sample_weights, grid_shape,
                        fit_intercept: bool = True,
                        n_blocks: int = _DEFAULT_N_BLOCKS_HET,
-                       quality_policy: str = "penalize_low_q"):
+                       quality_policy: str = "penalize_low_q",
+                       precomputed_grams=None):
     """Research-only joint coefficient-drift and non-identifiability score.
 
     For each term ``j``:
@@ -749,7 +758,8 @@ def nir1_excess_scores(features, target, sample_weights, grid_shape,
         raise ValueError("NIR1 requires finite, nonnegative, nonzero sample weights")
     tau2, theta_bar, S1, gram = _het_components(
         X, target, w, grid_shape, fit_intercept=fit_intercept,
-        n_blocks=n_blocks, return_full_gram=True)
+        n_blocks=n_blocks, return_full_gram=True,
+        precomputed_grams=precomputed_grams)
     denom = tau2 + theta_bar ** 2
     excess = np.where(denom > 0.0, tau2 / denom, 0.0)
     excess = np.where(_het_unresolved(theta_bar, S1), 1.0, excess)
@@ -784,11 +794,13 @@ def nir1_excess_scores(features, target, sample_weights, grid_shape,
 
 def nir1_protected_scores(features, target, sample_weights, grid_shape,
                           fit_intercept: bool = True,
-                          n_blocks: int = _DEFAULT_N_BLOCKS_HET):
+                          n_blocks: int = _DEFAULT_N_BLOCKS_HET,
+                          precomputed_grams=None):
     """Experimental guarded RFE score; not a validated improvement."""
     return nir1_excess_scores(features, target, sample_weights, grid_shape,
                               fit_intercept=fit_intercept, n_blocks=n_blocks,
-                              quality_policy="protect_low_q")
+                              quality_policy="protect_low_q",
+                              precomputed_grams=precomputed_grams)
 
 
 _BASIS_FREE_METRICS = {
