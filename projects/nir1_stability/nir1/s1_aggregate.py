@@ -117,10 +117,10 @@ def analyze_s1(manifest: Mapping[str, object], paths: Sequence[Path]) -> dict[st
 
     # All prespecified methods remain in the Holm family, even if blocked.
     names = [name for name in methods if name != "default"]
-    corrected = holm_adjust([float(comparisons[name].get("mcnemar_exact_p", 1.))
+    corrected = holm_adjust([float(comparisons[name].get("cluster_signflip_p", 1.))
                              for name in names])
     for name, p_adj in zip(names, corrected):
-        if "mcnemar_exact_p" in comparisons[name]:
+        if "cluster_signflip_p" in comparisons[name]:
             comparisons[name]["holm_adjusted_p"] = p_adj
 
     return {"stage": "S1", "manifest_sha": manifest["manifest_sha"],
@@ -158,7 +158,7 @@ def write_s1_report(output_dir: Path, analysis: Mapping[str, object]) -> list[Pa
                      f"{f'{wall:.1f}' if wall is not None else '—'} |")
     lines.extend(["", "## Paired vs PIC baseline (method minus baseline)", "",
                   "| Method | Scored / expected | Unresolved | Unsupported pairs | "
-                  "Difference (pp) | 95% system-cluster CI (pp) | Holm p | Gate |",
+                  "Difference (pp) | 95% system-cluster CI (pp) | Holm system-level p | Gate |",
                   "|---|---:|---:|---:|---:|---|---:|---|"])
     for name, row in analysis["comparisons"].items():
         delta = (f"{row['delta_pp']:+.1f}" if "delta_pp" in row else "—")
@@ -175,7 +175,7 @@ def write_s1_report(output_dir: Path, analysis: Mapping[str, object]) -> list[Pa
                   "(not silently dropped from planned denominators).",
                   "- The recovery measure is the frozen PIC truth-free compromise "
                   "selector, scored offline against known truth.",
-                  "- A system-clustered interval only appears when all planned "
+                  "- A system-clustered interval and exact system-signflip test only appear when all planned "
                   "pairs are verifiable and at least 3 systems are present.",
                   "- `PROVISIONAL_S1_ONLY` does not imply statistical significance, "
                   "transfer to real noisy data or completion of S2/S3 heldout validation.", ""])
