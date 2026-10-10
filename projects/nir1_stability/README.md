@@ -72,6 +72,13 @@ projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli analyze-s1 \
   --output /path/to/aggregated/
 ```
 
+## Extended scientific materials
+
+- [`PAPER_DRAFT_RU.md`](PAPER_DRAFT_RU.md) — academic manuscript draft with formulas, preliminary real-search negatives, literature and explicit evidence boundary.
+- [`RESEARCH_COMPLETENESS.md`](RESEARCH_COMPLETENESS.md) — full plan audit: implemented vs scientifically established vs outstanding.
+- [`S2_S3_PREREGISTRATION.md`](S2_S3_PREREGISTRATION.md) — independent-system confirmation/transfer gate, not an automatic launch.
+- **Frozen S1 research data must be reanalyzed after completion:** its original source revision had pooled McNemar p-values over repeated seeds. Current `nir1/metrics.py` and `nir1/s1_aggregate.py` fix the analysis to use independent-system sign flips and Holm. Keep the original S1 aggregate as archival, never as confirmatory p-value evidence.
+
 ## Status and review
 
 - [`REVIEW_RU.md`](REVIEW_RU.md) is the **one-page Russian briefing** for scientific review.
