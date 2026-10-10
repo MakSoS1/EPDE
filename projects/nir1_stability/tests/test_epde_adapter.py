@@ -102,3 +102,41 @@ def test_cli_epde_writes_raw_real_search_record(tmp_path, monkeypatch):
     assert main(["epde", "--dataset", "ode", "--variant", "nir1_combined",
                  "--seed", "2", "--smoke", "--output", str(output)]) == 0
     assert json.loads(output.read_text())["research_selected_index"] == 0
+
+
+def test_sparsefront_selects_parsimonious_compromise_without_truth_labels():
+    from projects.nir1_stability.nir1.selectors import select_sparsefront
+    front = [
+        ["0.001 * d^4u/dx1^4{power: 1.0} + 0.1 * d^2u/dx1^2{power: 1.0} = du/dx0{power: 1.0}"],
+        ["0.1 * d^2u/dx1^2{power: 1.0} = du/dx0{power: 1.0}"],
+    ]
+    objectives = [[0.001, 0.02], [0.002, 0.04]]
+    correct = select_sparsefront(front, objectives)
+    assert correct == 1
+    assert select_sparsefront(front, objectives, truth_labels=[False, True]) == correct
+    assert select_sparsefront(front, objectives, truth_labels=[True, False]) == correct
+    assert select_sparsefront([], []) is None
+
+
+def test_sparsefront_keeps_original_pic_verdict_without_target_leak(monkeypatch):
+    from projects.nir1_stability.nir1.selectors import select_sparsefront
+    from projects.pic.epde_bench import runner, datasets
+    from types import SimpleNamespace
+    front = [
+        ["0.001 * d^4u/dx1^4{power: 1.0} + 0.1 * d^2u/dx1^2{power: 1.0} = du/dx0{power: 1.0}"],
+        ["0.1 * d^2u/dx1^2{power: 1.0} = du/dx0{power: 1.0}"],
+    ]
+    metrics = {"success_selected": False, "hamming_selected": 1, "selected_index": 0,
+               "success_front": True}
+    monkeypatch.setattr(runner, "run_one", lambda *a, **k: {
+        "status": "ok", "front": front, "objectives": [[0.001, 0.02], [0.002, 0.04]],
+        "metrics": metrics.copy(), "config": {"loader": {}}, "selected": front[0]})
+    truth = front[1]
+    monkeypatch.setattr(datasets, "load", lambda *a, **k: SimpleNamespace(truth_systems=[truth]))
+    record = run_nir1_epde("burgers", "nir1_sparsefront", 7)
+    assert record["metrics_pic_original"]["success_selected"] is False
+    assert record["metrics"]["success_selected"] is True
+    assert record["metrics"]["selected_index"] == 1
+    assert record["research_selected_index"] == select_sparsefront(
+        front, [[0.001, 0.02], [0.002, 0.04]])
+    assert record["selected"] == truth
