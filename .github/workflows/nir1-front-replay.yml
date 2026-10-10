@@ -1,0 +1,58 @@
+name: NIR1 | development all-front replay (no evolution)
+on:
+  push:
+    branches: [nir1]
+    paths:
+      - '.github/workflows/nir1-front-replay.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  replay-s1b:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      UV_CACHE_DIR: /tmp/nir1-dev-replay-cache
+    steps:
+      - name: Checkout code for truth-free selector + audit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Install UV
+        uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+      - name: Install locked PIC CPU environment
+        run: uv sync --project projects/pic --extra cpu --locked
+      - name: Retrieve original immutable S1b manifest from completed run
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: 38081686540
+          name: nir1-ledger-38081686540-attempt-1
+          path: prepared/
+      - name: Retrieve original S1b raw 50 searches (no new EPDE fitting)
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: 38081686540
+          pattern: nir1-results-38081686540-attempt-1-shard-*
+          path: original/
+      - name: Check all 50 immutable identities and failures before analysis
+        run: |
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli summarize --manifest prepared/planned.json --records original/ --output output/validated-ledger.json
+      - name: Evaluate v2 allfront, v1 selected-only, K native selections, without oracle in choice
+        run: |
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.front_consensus_dev --manifest prepared/planned.json --records original/ --output output/S1B_FRONT_REPLAY.json
+          git rev-parse HEAD > output/analyzer-code-sha.txt
+          printf '%s\n' 'DEVELOPMENT ANALYSIS ONLY: original S1b previously observed, no scientific confirmation' > output/NO_CONFIRMATION.txt
+      - name: Upload report and frozen ledger even on failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nir1-s1b-allfront-development-${{ github.sha }}
+          path: output/
+          if-no-files-found: warn
+          retention-days: 30
