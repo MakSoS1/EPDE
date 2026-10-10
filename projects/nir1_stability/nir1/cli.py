@@ -69,6 +69,15 @@ def main(argv: list[str] | None = None) -> int:
     audit.add_argument("--seeds", default="0-4")
     audit.add_argument("--methods", default=",".join(METHODS))
     audit.add_argument("--output", type=Path, required=True)
+    epde = commands.add_parser("epde", help="One actual PIC full-search run, separately from S0")
+    epde.add_argument("--dataset", required=True)
+    epde.add_argument("--variant", default="default")
+    epde.add_argument("--seed", type=int, default=0)
+    epde.add_argument("--noise", type=float, default=0.)
+    epde.add_argument("--data-seed", type=int)
+    epde.add_argument("--smoke", action="store_true", help="Use one generation for a connectivity test; never research evidence")
+    epde.add_argument("--overrides-json", default="{}", help="Frozen JSON search overrides (never truth labels)")
+    epde.add_argument("--output", type=Path, required=True)
     plan = commands.add_parser("plan", help="Freeze one S0 Actions campaign from YAML")
     plan.add_argument("--launch", type=Path, required=True)
     plan.add_argument("--output", type=Path, required=True)
@@ -89,10 +98,28 @@ def main(argv: list[str] | None = None) -> int:
     report.add_argument("--s0-results", type=Path, required=True)
     report.add_argument("--output", type=Path, required=True)
     options = parser.parse_args(argv)
+    if options.command == "epde":
+        from .epde_adapter import run_nir1_epde
+        if options.smoke and options.overrides_json != "{}":
+            parser.error("Smoke settings cannot be mixed with research budget overrides")
+        overrides = (json.loads(options.overrides_json)
+                     if not options.smoke else
+                     {"search": {"evolution": {"population_size": 4, "training_epochs": 1}}})
+        if not isinstance(overrides, dict):
+            parser.error("Search overrides must be a JSON object")
+        record = run_nir1_epde(options.dataset, options.variant, options.seed,
+                               options.noise, data_seed=options.data_seed, overrides=overrides)
+        record["nir1_smoke_only"] = bool(options.smoke)
+        atomic_json(options.output, record)
+        print(json.dumps({"status": record["status"], "full_search": True,
+                          "smoke_only": bool(options.smoke), "output": str(options.output)}))
+        return 0 if record["status"] == "ok" else 1
     if options.command == "plan":
         config = yaml.safe_load(options.launch.read_text(encoding="utf-8"))
-        if not isinstance(config, dict) or config.get("stage") != "S0":
-            parser.error("Only the S0 fixed-candidate campaign is activated; full EPDE stages await S1 evidence")
+        if not isinstance(config, dict) or config.get("stage") not in {"S0", "S1", "S2", "S3"}:
+            parser.error("Launch manifest needs a known S0–S3 stage")
+        if config["stage"] in {"S2", "S3"} and not config.get("frozen_confirmation_sha"):
+            parser.error("Heldout confirmation requires a frozen S1 decision SHA")
         if int(config.get("shards", -1)) != 4:
             parser.error("The current GitHub Actions matrix has exactly four shards")
         from .audit import _repo_revision

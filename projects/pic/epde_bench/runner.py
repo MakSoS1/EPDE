@@ -99,7 +99,11 @@ def run_one(dataset: str, variant: str = 'default', noise: float = 0.0, seed: in
         if noise > 0 and problem.derivs is not None:
             raise UnsupportedProblem(dataset, 'Artificial noise with supplied derivatives requires '
                                      'a consistent noisy field/gradient protocol; use noise=0.')
-        data = problem.noisy(noise, seed)
+        # NIR1 paired experiments distinguish the noise realization (data seed)
+        # from the evolutionary RNG (optimizer seed). The research-only key is
+        # included in the frozen PIC config/identity, and its ABSENCE preserves
+        # the shipped benchmark behavior exactly.
+        data = problem.noisy(noise, int(cfg.get('nir1_data_seed', seed)))
         if cfg['method'] == 'epde':
             search_cfg = resolve_for_problem(cfg, problem)
             record['search_config'] = search_cfg

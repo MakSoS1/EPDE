@@ -34,8 +34,7 @@ jobs:
         uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
       - name: Install isolated CPU dependencies
         run: |
-          uv venv .venv --python 3.12
-          uv pip install --python .venv/bin/python -r projects/nir1_stability/requirements-s0.txt
+          uv sync --project projects/pic --extra cpu --locked
       - name: Refuse missing or multiple changed launch manifests
         env:
           BEFORE: ${{ github.event.before }}
@@ -46,7 +45,7 @@ jobs:
           test -f "$(head -n 1 changed-launch-paths.txt)"
       - name: Freeze planned identities for all shards
         run: |
-          .venv/bin/python -m projects.nir1_stability.nir1.cli plan --launch "$(head -n 1 changed-launch-paths.txt)" --output prepared/planned.json
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli plan --launch "$(head -n 1 changed-launch-paths.txt)" --output prepared/planned.json
       - name: Upload immutable ledger
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -82,8 +81,7 @@ jobs:
         uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
       - name: Install isolated CPU dependencies
         run: |
-          uv venv .venv --python 3.12
-          uv pip install --python .venv/bin/python -r projects/nir1_stability/requirements-s0.txt
+          uv sync --project projects/pic --extra cpu --locked
       - name: Download frozen ledger
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
@@ -98,10 +96,10 @@ jobs:
           merge-multiple: false
       - name: Validate and restore only this shard's earlier verified checkpoints
         run: |
-          .venv/bin/python -m projects.nir1_stability.nir1.cli restore --manifest prepared/planned.json --id '${{ matrix.shard }}' --from previous/ --output 'artifacts/shard-${{ matrix.shard }}'
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli restore --manifest prepared/planned.json --id '${{ matrix.shard }}' --from previous/ --output 'artifacts/shard-${{ matrix.shard }}'
       - name: Execute one bounded shard with per-run atomic checkpoints
         run: |
-          .venv/bin/python -m projects.nir1_stability.nir1.cli shard --manifest prepared/planned.json --id '${{ matrix.shard }}' --output 'artifacts/shard-${{ matrix.shard }}'
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli shard --manifest prepared/planned.json --id '${{ matrix.shard }}' --output 'artifacts/shard-${{ matrix.shard }}'
       - name: Upload every checkpoint (also on algorithm failure)
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -130,8 +128,7 @@ jobs:
         uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
       - name: Install CPU research dependencies
         run: |
-          uv venv .venv --python 3.12
-          uv pip install --python .venv/bin/python -r projects/nir1_stability/requirements-s0.txt
+          uv sync --project projects/pic --extra cpu --locked
       - name: Download immutable ledger
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
@@ -146,7 +143,7 @@ jobs:
           merge-multiple: false
       - name: Reconcile all planned statuses without silent omissions
         run: |
-          .venv/bin/python -m projects.nir1_stability.nir1.cli summarize --manifest prepared/planned.json --records downloaded/ --output aggregated/summary.json
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli summarize --manifest prepared/planned.json --records downloaded/ --output aggregated/summary.json
       - name: Preserve reconciled results even if a shard failed
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

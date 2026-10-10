@@ -127,3 +127,38 @@ def test_restore_only_records_for_own_shard_and_preserves_checksums(tmp_path):
     restored = restore_shard_records(manifest, "0", tmp_path / "past", tmp_path / "next")
     assert restored == 1
     assert read_record(tmp_path / "next" / copied.name) == read_record(copied)
+
+
+def test_s1_shard_runs_actual_pic_adapter_instead_of_unsupported_stub(tmp_path, monkeypatch):
+    from projects.nir1_stability.nir1 import campaign
+    called = []
+
+    def fake_subprocess(argv, **kwargs):
+        called.append(argv)
+        path = Path(argv[argv.index("--output") + 1])
+        path.write_text(json.dumps({"status": "ok", "front": [["u_t=u"]],
+                                    "objectives": [[1., 2.]],
+                                    "metrics": {"selected_exact": True}}))
+        return subprocess.CompletedProcess(argv, 0, stdout="ok", stderr="")
+
+    from pathlib import Path
+    monkeypatch.setattr(campaign.subprocess, "run", fake_subprocess)
+    c = config()
+    c.update(stage="S1", cases=["ode"], methods=["nir1_combined"],
+             data_seeds=[2], optimizer_seeds=[7], noise=.01,
+             search_overrides={"search": {"evolution": {"training_epochs": 2}}})
+    m = plan_campaign(c)
+    manifest_path = tmp_path / "m.json"
+    manifest_path.write_text(json.dumps(m))
+    assert execute_shard(manifest_path, "0", tmp_path / "runs") == 0
+    records = list((tmp_path / "runs").glob("*.json"))
+    assert len(records) == 1
+    result = read_record(records[0])
+    assert result["status"] == "ok"
+    assert result["rows"][0]["front"] == [["u_t=u"]]
+    cmd = called[0]
+    assert cmd[cmd.index("--dataset") + 1] == "ode"
+    assert cmd[cmd.index("--variant") + 1] == "nir1_combined"
+    assert cmd[cmd.index("--seed") + 1] == "7"
+    assert cmd[cmd.index("--data-seed") + 1] == "2"
+    assert cmd[cmd.index("--noise") + 1] == "0.01"

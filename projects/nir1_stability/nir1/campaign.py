@@ -6,6 +6,9 @@ import hashlib
 import json
 import math
 import os
+import subprocess
+import sys
+import tempfile
 import time
 import traceback
 from pathlib import Path
@@ -52,6 +55,10 @@ def plan_campaign(config: Mapping[str, object]) -> dict[str, object]:
     plan = {"stage": stage, "runs": runs, "shards": num_shards,
             "config_sha": str(config["config_sha"]), "code_sha": str(config["code_sha"]),
             "split_sha": str(config["split_sha"]),
+            "noise": float(config.get("noise", 0.)),
+            "search_overrides": dict(config.get("search_overrides", {})),
+            "max_run_minutes": min(float(config.get("max_run_minutes", 120)), soft),
+            "frozen_confirmation_sha": config.get("frozen_confirmation_sha"),
             "soft_deadline_minutes": soft, "hard_deadline_minutes": hard,
             "max_infrastructure_retries": min(int(config.get("max_infrastructure_retries", 2)), 2)}
     plan["manifest_sha"] = _manifest_sha(plan)
@@ -186,10 +193,7 @@ def execute_shard(manifest_path: Path, shard_id: str, output_root: Path) -> int:
                                      "manifest_sha": manifest["manifest_sha"],
                                      "attempt": previous_attempt + 1}
         try:
-            if manifest["stage"] != "S0":
-                result.update(status="unsupported", failure_kind="not_implemented",
-                              reason="Full-search EPDE adapter not yet enabled")
-            else:
+            if manifest["stage"] == "S0":
                 rows = evaluate_candidate_set(str(run["case"]),
                                               [str(run["method"])],
                                               int(run["data_seed"]))
@@ -198,6 +202,53 @@ def execute_shard(manifest_path: Path, shard_id: str, output_root: Path) -> int:
                                   reason="Candidate solver did not certify KKT convergence", rows=rows)
                 else:
                     result.update(status="ok", rows=rows)
+            else:
+                # PIC requires a FRESH interpreter for every EPDE evolution:
+                # process-global caches, operator parameters and RNG state
+                # must never bleed from the preceding candidate/seed. This is
+                # part of scientific independence, not an optional slowdown.
+                with tempfile.TemporaryDirectory(prefix=".nir1-child-", dir=output_root) as tmp:
+                    raw_file = Path(tmp) / "full-search.json"
+                    argv = [sys.executable, "-m", "projects.nir1_stability.nir1.cli",
+                            "epde", "--dataset", str(run["case"]),
+                            "--variant", str(run["method"]),
+                            "--seed", str(run["optimizer_seed"]),
+                            "--data-seed", str(run["data_seed"]),
+                            "--noise", str(manifest.get("noise", 0.)),
+                            "--overrides-json", json.dumps(manifest.get("search_overrides", {})),
+                            "--output", str(raw_file)]
+                    timeout = max(1., min(deadline - time.monotonic(),
+                                          float(manifest.get("max_run_minutes", 120)) * 60))
+                    try:
+                        process = subprocess.run(argv, capture_output=True, text=True,
+                                                 timeout=timeout, check=False)
+                    except subprocess.TimeoutExpired:
+                        result.update(status="timeout", failure_kind="infrastructure",
+                                      reason=f"Fresh EPDE subprocess exceeded {timeout:.1f}s")
+                        result["elapsed_seconds"] = time.monotonic() - start
+                        atomic_record(path, result)
+                        continue
+                    if not raw_file.exists():
+                        result.update(status="crash", failure_kind="infrastructure",
+                                      reason="No atomic EPDE record returned by child",
+                                      returncode=process.returncode,
+                                      stderr=process.stderr[-2000:])
+                        result["elapsed_seconds"] = time.monotonic() - start
+                        atomic_record(path, result)
+                        continue
+                    record = json.loads(raw_file.read_text(encoding="utf-8"))
+                    result["child_returncode"] = process.returncode
+                status = str(record["status"])
+                if status == "ok":
+                    result.update(status="ok", rows=[record])
+                elif status == "unsupported":
+                    result.update(status="unsupported", failure_kind="data_support",
+                                  reason=record.get("reason", "Unsupported PIC system"),
+                                  rows=[record])
+                else:
+                    result.update(status="crash", failure_kind="algorithm",
+                                  reason=record.get("error", "PIC runner error"),
+                                  rows=[record])
         except Exception as error:
             result.update(status="crash", failure_kind="algorithm",
                           error_type=type(error).__name__, reason=str(error)[:400],

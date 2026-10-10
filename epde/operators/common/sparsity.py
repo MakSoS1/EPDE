@@ -218,7 +218,7 @@ class PhysicsInformedLasso(BaseEstimator, RegressorMixin):
         # Pareto axis; the Gram is built only when that statistic is computed
         # from one (``None`` for the basis-free estimators).
         objectives_cfg = active_config().objectives
-        metric = objectives_cfg.instability_metric
+        metric = objectives_cfg.regularizer_metric
         gram_mode = objectives_cfg.gram_mode
         # Hoisted out of the outer RFE loop below: it used to be re-read per
         # iteration, per trajectory, per equation, per generation.
@@ -703,6 +703,22 @@ class VWSRSparsity(CompoundOperator):
 
     def use_default_tags(self):
         self._tags = {'sparsity', 'gene level', 'no suboperators', 'inplace'}
+
+
+class Nir1AdaptiveSparsity(VWSRSparsity):
+    """Opt-in EPDE keep-rule with NIR1 per-term excess/identifiability weights.
+
+    Reuses VWSR's exact weighted-Gram, recursive feature elimination and
+    per-trajectory coefficient averaging; only its per-term adaptive L1
+    penalty statistic differs. The stand-alone L1+L2 elastic-net ablation is
+    a distinct S0 experiment and is not misrepresented as this operator.
+    """
+    key = 'NIR1AdaptiveSparsity'
+
+    def apply(self, objective: Equation, arguments: dict):
+        if active_config().objectives.regularizer_metric != 'nir1_excess':
+            raise ValueError("Nir1AdaptiveSparsity requires research_regularizer_metric=nir1_excess")
+        return super().apply(objective, arguments)
 
 
 def build_sparsity_operator(sparsity_cls=None, sparsity_kwargs=None):

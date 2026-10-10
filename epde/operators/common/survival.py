@@ -705,8 +705,61 @@ def chi2_centered_scores(features, target, sample_weights, grid_shape=None,
 #: It lives here rather than in ``objectives`` so that ``sparsity`` can reach
 #: it without importing ``objectives`` -- that edge would close a cycle,
 #: since ``subset_selection`` imports ``sparsity``.
+def nir1_excess_scores(features, target, sample_weights, grid_shape,
+                       fit_intercept: bool = True,
+                       n_blocks: int = _DEFAULT_N_BLOCKS_HET):
+    """Research-only joint coefficient-drift and non-identifiability score.
+
+    For each term ``j``:
+
+    * ``E_j`` is the previously calibrated between-block excess dispersion
+      from :func:`heterogeneity_scores` (bounded in [0,1]);
+    * ``Q_j`` is the unique weighted Gram energy of column j after projecting
+      away every other column; ``Q=0`` means a duplicate term, ``Q=1`` an
+      orthogonal term, and both quantities are invariant to rescaling.
+
+    ``(E_j + (1-Q_j))/2`` exposes one dimensionless research metric. These
+    weights are a prespecified engineering hypothesis, not an inferred
+    probability of incorrectness nor a calibrated p-value. Zero-energy
+    columns are explicitly unresolved (score 1), never "stable".
+
+    ``fit_intercept`` mirrors the objective-vs-keep-rule alignment: when True,
+    the ones column is appended internally and omitted from the output; when
+    False, an explicitly supplied last column is treated like any other term.
+    """
+    X = np.asarray(features, dtype=float)
+    if X.ndim == 1:
+        X = X[:, None]
+    n, p = X.shape
+    w = (np.ones(n) if sample_weights is None
+         else np.asarray(sample_weights, dtype=float).reshape(-1))
+    if n != w.size or not np.isfinite(w).all() or np.any(w < 0) or not w.sum() > 0:
+        raise ValueError("NIR1 requires finite, nonnegative, nonzero sample weights")
+    excess = heterogeneity_scores(X, target, w, grid_shape,
+                                  fit_intercept=fit_intercept, n_blocks=n_blocks)
+    A = np.column_stack((X, np.ones(n))) if fit_intercept else X
+    gram = A.T @ (w[:, None] * A)
+    norm = np.sqrt(np.maximum(np.diag(gram), 0))
+    safe = np.where(norm > 0, norm, 1)
+    scaled = gram / np.outer(safe, safe)
+    quality = np.zeros(p)
+    for j in range(p):
+        if norm[j] == 0:
+            continue
+        other = np.arange(scaled.shape[0]) != j
+        if not other.any():
+            quality[j] = 1.
+            continue
+        cross = scaled[other, j]
+        coef = np.linalg.lstsq(scaled[np.ix_(other, other)], cross, rcond=1e-10)[0]
+        quality[j] = np.clip(1.0 - cross @ coef / scaled[j, j], 0.0, 1.0)
+    combined = 0.5 * (np.asarray(excess) + (1.0 - quality))
+    return np.where(norm[:p] > 0, np.clip(combined, 0., 1.), 1.)
+
+
 _BASIS_FREE_METRICS = {
     'survival': survival_scores, 'tile': tile_scores,
     'het': heterogeneity_scores, 'het_raw': heterogeneity_raw_scores,
     'chi2': chi2_scores, 'chi2_centered': chi2_centered_scores,
+    'nir1_excess': nir1_excess_scores,
 }

@@ -44,3 +44,17 @@ def test_repo_workflows_do_not_upload_to_upstream_or_require_secrets():
         assert "secrets." not in text
         assert "contents: write" not in text
         assert "timeout-minutes: 340" in text if name == "nir1-research.yml" else "timeout-minutes: 30" in text
+
+
+def test_inherited_gitlab_mirror_cannot_run_on_research_branch_push():
+    _, trigger = _load("mirror_repo_to_gitlab.yml")
+    assert isinstance(trigger, dict)
+    assert "nir1" not in trigger["push"].get("branches", [])
+    assert trigger["push"]["branches"] == ["master"]
+
+
+def test_real_epde_cpu_smoke_and_research_shards_use_locked_pic_environment():
+    for name in ("nir1-smoke.yml", "nir1-research.yml"):
+        contents = (ROOT / ".github/workflows" / name).read_text()
+        assert "uv sync --project projects/pic --extra cpu --locked" in contents
+        assert "projects/pic/.venv/bin/python" in contents

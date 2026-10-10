@@ -198,10 +198,22 @@ class ObjectivesConfig:
     second_objective: Optional[str] = 'instability'
     complexity_metric: Optional[str] = 'factors'
     instability_metric: Optional[str] = 'chi2'
+    # Research-only independent factorial channels; None preserves production
+    # behavior exactly. They are never inferred from the other channel.
+    research_objective_metric: Optional[str] = None
+    research_regularizer_metric: Optional[str] = None
     single_objective_metric: Optional[str] = 'discrepancy'
     anchor_on_residual: bool = False
     sparsity_cls: Any = 'vwsr'
     sparsity_kwargs: dict = field(default_factory=dict)
+
+    @property
+    def objective_metric(self):
+        return self.research_objective_metric or self.instability_metric
+
+    @property
+    def regularizer_metric(self):
+        return self.research_regularizer_metric or self.instability_metric
 
     @property
     def gram_mode(self):
@@ -216,7 +228,7 @@ class ObjectivesConfig:
         field, so it never appears in :data:`KEY_GROUP`, ``as_dict()`` or the
         JSON: it cannot be set from a config or a kwarg.
         """
-        return _GRAM_BY_INSTABILITY.get(self.instability_metric)
+        return _GRAM_BY_INSTABILITY.get(self.regularizer_metric)
 
 
 def default_device() -> str:
@@ -604,7 +616,7 @@ _SINGLE_OBJECTIVE_DEFAULTS = {'population_size': 4, 'training_epochs': 50}
 
 #: Sparsity operator by name. Imported lazily -- ``operators.common.sparsity``
 #: pulls in sklearn and the whole stability stack.
-SPARSITY_REGISTRY = ('vwsr', 'lasso', 'knee')
+SPARSITY_REGISTRY = ('vwsr', 'lasso', 'knee', 'nir1_adaptive')
 
 #: Prepared token families that are fully declarative, i.e. whose constructors
 #: take only scalars and so survive a JSON round trip. Families needing a
@@ -687,10 +699,10 @@ def resolve_sparsity(value):
         raise ValueError(
             'Unknown sparsity {0!r}; expected one of {1} or an operator '
             'class.'.format(value, list(SPARSITY_REGISTRY)))
-    from epde.operators.common.sparsity import LASSOSparsity, VWSRSparsity
+    from epde.operators.common.sparsity import LASSOSparsity, VWSRSparsity, Nir1AdaptiveSparsity
     from epde.operators.common.subset_selection import KneeSparsity
     return {'vwsr': VWSRSparsity, 'lasso': LASSOSparsity,
-            'knee': KneeSparsity}[key]
+            'knee': KneeSparsity, 'nir1_adaptive': Nir1AdaptiveSparsity}[key]
 
 
 def build_tokens(specs):
@@ -893,7 +905,11 @@ METRIC_MENUS = {
     'discrepancy_metric': ('wape', 'l2', 'l2_relative', 'scale_invariant'),
     'complexity_metric': ('factors', 'terms'),
     'instability_metric': ('vcoef', 'cv', 'survival', 'tile', 'het', 'chi2',
-                           'chi2_centered', 'het_raw'),
+                           'chi2_centered', 'het_raw', 'nir1_excess'),
+    'research_objective_metric': ('vcoef', 'cv', 'survival', 'tile', 'het', 'chi2',
+                                  'chi2_centered', 'het_raw', 'nir1_excess'),
+    'research_regularizer_metric': ('vcoef', 'cv', 'survival', 'tile', 'het', 'chi2',
+                                    'chi2_centered', 'het_raw', 'nir1_excess'),
     'single_objective_metric': ('discrepancy', 'instability'),
     'second_objective': ('instability', 'complexity'),
 }
@@ -927,6 +943,8 @@ def _normalise_metrics(resolved: dict) -> None:
         value = objectives[key]
         value = METRIC_ALIASES.get(key, {}).get(value, value)
         if value is None:
+            if key.startswith('research_'):
+                continue
             value = _DEFAULTS['objectives'][key]
             value = METRIC_ALIASES.get(key, {}).get(value, value)
         if value not in menu:
