@@ -1,4 +1,4 @@
-"""S1b development-only replay of all-front consensus (no new evolution)."""
+"""S1 and S1b development-only replay of all-front consensus (no new evolution)."""
 
 from __future__ import annotations
 
@@ -19,9 +19,12 @@ from .records import read_record
 def analyze_dev(manifest, paths):
     if manifest["stage"] != "S1":
         raise ValueError("S1b development replay expected")
-    required = {"default", "nir1_sparsefront"}
-    if {s["method"] for s in manifest["runs"]} != required:
-        raise ValueError("Expected untouched S1b default and sparsefront arms")
+    permitted = [
+        {"default", "nir1_sparsefront"},
+        {"default", "nir1_criterion_only", "nir1_regulator_only", "nir1_combined"},
+    ]
+    if {s["method"] for s in manifest["runs"]} not in permitted:
+        raise ValueError("Only original frozen S1 and S1b factorial arms are valid")
     ledger = resume_plan(manifest, paths)
     if (ledger["remaining"] or ledger["invalid_records"] or
             ledger["status_counts"]["ok"] != ledger["planned"]):
