@@ -10,7 +10,9 @@ import pytest
 from projects.nir1_stability.nir1.metrics import (
     paired_effect_ci, summarize_outcomes, wilson_interval,
 )
-from projects.nir1_stability.nir1.reporting import render_review, summarize_s0_rows
+from projects.nir1_stability.nir1.reporting import (
+    render_review, summarize_s0_rows, render_pilot_addendum,
+)
 
 
 def test_status_denominators_do_not_drop_crashes_timeouts_or_incomplete():
@@ -109,3 +111,26 @@ def test_lossless_compressed_raw_s0_evidence_can_be_reported(tmp_path):
                           capture_output=True, text=True)
     assert proc.returncode == 0, proc.stderr
     assert "1/1" in (tmp_path / "out/RESULTS.md").read_text()
+
+
+def test_full_epde_pilot_addendum_never_hides_failure_or_counts_smoke(tmp_path):
+    render_review({"stage": "S0", "planned": 2, "ok": 2, "methods": {},
+                   "full_epde_status": "S1 PILOT ONLY", "code_sha": "abc"}, tmp_path)
+    baseline = {"dataset": "ode", "seed": 0, "status": "ok", "research_variant": "default",
+                "metrics": {"success_selected": True}, "fit_seconds": 60.,
+                "total_seconds": 63., "front": [["true"]]}
+    new = {**baseline, "research_variant": "nir1_combined",
+           "metrics": {"success_selected": False}, "total_seconds": 180.,
+           "fit_seconds": 170.}
+    smoke = {**baseline, "nir1_smoke_only": True}
+    ledger = {"planned": 10, "status_counts": {"ok": 8, "crash": 2,
+              "timeout": 0, "unsupported": 0, "incomplete": 0}}
+    files = render_pilot_addendum(tmp_path, [baseline, new, smoke], ledger,
+                                  actions_runs=[{"run_id": 1, "conclusion": "failure", "job_count": 0}])
+    assert (tmp_path / "PILOT.md") in files
+    txt = (tmp_path / "PILOT.md").read_text()
+    assert "8/10" in txt and "2 crashes" in txt
+    assert "180.0" in txt and "63.0" in txt
+    assert "SMOKE EXCLUDED" in txt
+    assert "NO JOBS" in txt
+    assert "INSUFFICIENT" in txt

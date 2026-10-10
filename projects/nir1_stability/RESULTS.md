@@ -19,3 +19,7 @@ S0 is a **fixed-candidate regression/ranking test** on controlled, synthetically
 
 **Status:** PROVISIONAL. Numerical rates must be qualified by full planned counts,
 solver convergence and heldout split before making a scientific claim.
+
+## Independently recorded EPDE pilot and S0 job statuses
+
+The full-search observations, failed-run denominators and failed GitHub Actions attempts are reported in [PILOT.md](PILOT.md). The fixed-candidate S0 table above must not be presented as full EPDE accuracy.

@@ -29,3 +29,7 @@ S0 is a **fixed-candidate regression/ranking test** on controlled, synthetically
 
 See [METHODS.md](METHODS.md), [RESULTS.md](RESULTS.md), and
 `reports/s0/fixtures.jsonl.gz` (lossless gzip) for run-level verification.
+
+## Independently recorded EPDE pilot and S0 job statuses
+
+The full-search observations, failed-run denominators and failed GitHub Actions attempts are reported in [PILOT.md](PILOT.md). The fixed-candidate S0 table above must not be presented as full EPDE accuracy.

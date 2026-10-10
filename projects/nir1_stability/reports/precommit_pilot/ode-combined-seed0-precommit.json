@@ -1,0 +1,326 @@
+{
+  "config": {
+    "dataset": "ode",
+    "loader": {},
+    "method": "epde",
+    "nir1_data_seed": 0,
+    "search": {
+      "domain": {
+        "boundary_width": "auto"
+      },
+      "evolution": {
+        "population_size": 16,
+        "training_epochs": 5
+      },
+      "objectives": {
+        "instability_metric": "chi2",
+        "research_objective_metric": "nir1_excess",
+        "research_regularizer_metric": "nir1_excess",
+        "sparsity_cls": "nir1_adaptive"
+      },
+      "preprocessing": {
+        "default_preprocessor_type": "FD",
+        "max_deriv_order": "auto",
+        "preprocessor_kwargs": {}
+      },
+      "runtime": {
+        "memory_for_cache": 2,
+        "verbose_params": {
+          "candidate_objectives": false,
+          "show_iter_idx": false
+        }
+      },
+      "search_space": {
+        "data_fun_pow": 3,
+        "deriv_fun_pow": 2,
+        "equation_factors_max_number": {
+          "factors_num": [
+            1,
+            2
+          ],
+          "probas": [
+            0.65,
+            0.35
+          ]
+        },
+        "equation_terms_max_number": 10,
+        "tokens": [
+          {
+            "family": "grid",
+            "labels": [
+              "x"
+            ],
+            "max_power": 2
+          },
+          {
+            "family": "fixed_trigonometric",
+            "freq": 2.0
+          }
+        ]
+      },
+      "solver": {
+        "device": "cpu",
+        "use_solver": false
+      }
+    },
+    "variant": "default"
+  },
+  "dataset": "ode",
+  "environment": {
+    "blas_threads": "1",
+    "cpu_count": 9,
+    "cuda": false,
+    "epde_commit": "bc88f6d-dirty",
+    "machine": "x86_64",
+    "numpy": "2.5.3",
+    "platform": "Linux-6.18.44-x86_64-with-glibc2.39",
+    "pysindy": "2.1.0",
+    "python": "3.12.14",
+    "scipy": "1.18.1",
+    "torch": "2.14.1+cpu"
+  },
+  "fit_seconds": 170.32196219700018,
+  "front": [
+    [
+      "2.025885583450853 * u{power: 1.0} * d^2u/dx0^2{power: 1.0} + 0.6243433856926782 * du/dx0{power: 2.0} + 0.0 = x{power: 1.0, dim: 0.0} * d^2u/dx0^2{power: 1.0}"
+    ],
+    [
+      "-4.735624777836427 * u{power: 3.0} * cos{power: 1.0, freq: 2.0, dim: 0.0} + 0.0 = x{power: 2.0, dim: 0.0} * d^2u/dx0^2{power: 1.0}"
+    ],
+    [
+      "0.1071702876988964 * x{power: 2.0, dim: 0.0} + -2.4972772171566393 * u{power: 2.0} * cos{power: 1.0, freq: 2.0, dim: 0.0} + -4.3731787735953445 * x{power: 1.0, dim: 0.0} * sin{power: 1.0, freq: 2.0, dim: 0.0} + 0.0 = x{power: 1.0, dim: 0.0} * d^2u/dx0^2{power: 1.0}"
+    ],
+    [
+      "-0.7158442952651253 * du/dx0{power: 1.0} * sin{power: 1.0, freq: 2.0, dim: 0.0} + -1.2171553074701673 * u{power: 1.0} * cos{power: 1.0, freq: 2.0, dim: 0.0} + -0.44992755249938304 * x{power: 1.0, dim: 0.0} * sin{power: 1.0, freq: 2.0, dim: 0.0} + 0.0 = d^2u/dx0^2{power: 1.0}"
+    ]
+  ],
+  "identity": {
+    "config": {
+      "dataset": "ode",
+      "loader": {},
+      "method": "epde",
+      "nir1_data_seed": 0,
+      "search": {
+        "domain": {
+          "boundary_width": "auto"
+        },
+        "evolution": {
+          "population_size": 16,
+          "training_epochs": 5
+        },
+        "objectives": {
+          "instability_metric": "chi2",
+          "research_objective_metric": "nir1_excess",
+          "research_regularizer_metric": "nir1_excess",
+          "sparsity_cls": "nir1_adaptive"
+        },
+        "preprocessing": {
+          "default_preprocessor_type": "FD",
+          "max_deriv_order": "auto",
+          "preprocessor_kwargs": {}
+        },
+        "runtime": {
+          "memory_for_cache": 2,
+          "verbose_params": {
+            "candidate_objectives": false,
+            "show_iter_idx": false
+          }
+        },
+        "search_space": {
+          "data_fun_pow": 3,
+          "deriv_fun_pow": 2,
+          "equation_factors_max_number": {
+            "factors_num": [
+              1,
+              2
+            ],
+            "probas": [
+              0.65,
+              0.35
+            ]
+          },
+          "equation_terms_max_number": 10,
+          "tokens": [
+            {
+              "family": "grid",
+              "labels": [
+                "x"
+              ],
+              "max_power": 2
+            },
+            {
+              "family": "fixed_trigonometric",
+              "freq": 2.0
+            }
+          ]
+        },
+        "solver": {
+          "device": "cpu",
+          "use_solver": false
+        }
+      },
+      "variant": "default"
+    },
+    "data_sha256": "fb86492e27ea1441f366fc3cc790496a1a2c6c6f42b1fcbc03fbf0b23e958667",
+    "dependencies": {
+      "PyYAML": "6.0.3",
+      "epde": "1.2.18",
+      "h5py": null,
+      "netCDF4": "1.7.4",
+      "numba": null,
+      "numpy": "2.5.3",
+      "pandas": "3.0.6",
+      "psutil": "7.2.2",
+      "pysindy": "2.1.0",
+      "python": "3.12.14",
+      "scikit-learn": "1.9.1",
+      "scipy": "1.18.1",
+      "sympy": "1.14.0",
+      "tedeous": null,
+      "torch": "2.14.1+cpu"
+    },
+    "job": {
+      "dataset": "ode",
+      "noise": 0.0,
+      "seed": 0,
+      "variant": "default"
+    },
+    "schema": 1,
+    "sha256": "74de5339f615ac7156fadf1a2c168737e0b98881789eb68cc40848a16440f343",
+    "source_sha256": "a8e4c1c954f6eb8a5c238cf777537e146c5e58d3c60a7a5f406e3e44ba8ef2e5"
+  },
+  "method": "epde",
+  "metrics": {
+    "best_index": 3,
+    "coef_error": null,
+    "front_size": 4,
+    "hamming_min": 4,
+    "hamming_selected": 4,
+    "selected_index": 3,
+    "success_front": false,
+    "success_selected": false
+  },
+  "nir1_smoke_only": false,
+  "noise": 0.0,
+  "objectives": [
+    [
+      0.2730056989194718,
+      0.026688890708737426
+    ],
+    [
+      0.614456006834651,
+      0.0
+    ],
+    [
+      0.1314255696617168,
+      0.22010670302761706
+    ],
+    [
+      0.19742683108199335,
+      0.032050041701094566
+    ]
+  ],
+  "problem": {
+    "kind": "ode",
+    "meta": {},
+    "n_truth_alternatives": 0,
+    "shape": [
+      320
+    ],
+    "source": "synthetic",
+    "title": "Forced oscillator with time-dependent damping",
+    "truth": [
+      "-4.0 * u{power: 1.0} + -1.0 * du/dx0{power: 1.0} * sin{power: 1.0, freq: 2.0, dim: 0.0} + 1.5 * x{power: 1.0, dim: 0.0} = d^2u/dx0^2{power: 1.0}"
+    ],
+    "variables": [
+      "u"
+    ]
+  },
+  "research_overrides": {
+    "nir1_data_seed": 0,
+    "search": {
+      "objectives": {
+        "instability_metric": "chi2",
+        "research_objective_metric": "nir1_excess",
+        "research_regularizer_metric": "nir1_excess",
+        "sparsity_cls": "nir1_adaptive"
+      }
+    }
+  },
+  "research_selected": [
+    "-0.7158442952651253 * du/dx0{power: 1.0} * sin{power: 1.0, freq: 2.0, dim: 0.0} + -1.2171553074701673 * u{power: 1.0} * cos{power: 1.0, freq: 2.0, dim: 0.0} + -0.44992755249938304 * x{power: 1.0, dim: 0.0} * sin{power: 1.0, freq: 2.0, dim: 0.0} + 0.0 = d^2u/dx0^2{power: 1.0}"
+  ],
+  "research_selected_index": 3,
+  "research_variant": "nir1_combined",
+  "search_config": {
+    "domain": {
+      "boundary_width": 32
+    },
+    "evolution": {
+      "population_size": 16,
+      "training_epochs": 5
+    },
+    "objectives": {
+      "instability_metric": "chi2",
+      "research_objective_metric": "nir1_excess",
+      "research_regularizer_metric": "nir1_excess",
+      "sparsity_cls": "nir1_adaptive"
+    },
+    "preprocessing": {
+      "default_preprocessor_type": "FD",
+      "max_deriv_order": [
+        2
+      ],
+      "preprocessor_kwargs": {}
+    },
+    "runtime": {
+      "memory_for_cache": 2,
+      "verbose_params": {
+        "candidate_objectives": false,
+        "show_iter_idx": false
+      }
+    },
+    "search_space": {
+      "data_fun_pow": 3,
+      "deriv_fun_pow": 2,
+      "equation_factors_max_number": {
+        "factors_num": [
+          1,
+          2
+        ],
+        "probas": [
+          0.65,
+          0.35
+        ]
+      },
+      "equation_terms_max_number": 10,
+      "tokens": [
+        {
+          "dimensionality": 0,
+          "family": "grid",
+          "labels": [
+            "x"
+          ],
+          "max_power": 2
+        },
+        {
+          "dimensionality": 0,
+          "family": "fixed_trigonometric",
+          "freq": 2.0
+        }
+      ]
+    },
+    "solver": {
+      "device": "cpu",
+      "use_solver": false
+    }
+  },
+  "seed": 0,
+  "selected": [
+    "-0.7158442952651253 * du/dx0{power: 1.0} * sin{power: 1.0, freq: 2.0, dim: 0.0} + -1.2171553074701673 * u{power: 1.0} * cos{power: 1.0, freq: 2.0, dim: 0.0} + -0.44992755249938304 * x{power: 1.0, dim: 0.0} * sin{power: 1.0, freq: 2.0, dim: 0.0} + 0.0 = d^2u/dx0^2{power: 1.0}"
+  ],
+  "started": "2026-10-10T17:40:43+00:00",
+  "status": "ok",
+  "total_seconds": 180.6106806130001,
+  "variant": "default"
+}

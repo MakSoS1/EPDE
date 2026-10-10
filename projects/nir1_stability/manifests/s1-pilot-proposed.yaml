@@ -1,0 +1,16 @@
+# PROPOSAL ONLY. Not in launch/; GitHub Actions is currently not scheduling jobs.
+# Six diverse PIC systems x four methods x five paired optimizer seeds = 120.
+# Preserves the PIC 16-population / 5-epoch benchmark budget (no fast smoke).
+# Missing method names and all failures must stay in the denominator.
+stage: S1
+cases: [ode, vdp, duffing, lv, ac, burgers]
+methods: [default, nir1_criterion_only, nir1_regulator_only, nir1_combined]
+data_seeds: [0]
+optimizer_seeds: [0, 1, 2, 3, 4]
+noise: 0.0
+shards: 4
+estimated_minutes_per_run: 6
+max_run_minutes: 30
+soft_deadline_minutes: 300
+hard_deadline_minutes: 340
+max_infrastructure_retries: 2

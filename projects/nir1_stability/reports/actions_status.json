@@ -1,0 +1,18 @@
+[
+  {
+    "run_id": 38073552748,
+    "workflow": "nir1-smoke.yml",
+    "commit_sha": "b5fbd9732258f5a9be2298cbad4e139df4f8e47a",
+    "conclusion": "failure",
+    "job_count": 0,
+    "observation": "GitHub public Actions REST shows completed/failure; jobs API lists zero jobs"
+  },
+  {
+    "run_id": 38073552119,
+    "workflow": "nir1-research.yml",
+    "commit_sha": "b5fbd9732258f5a9be2298cbad4e139df4f8e47a",
+    "conclusion": "failure",
+    "job_count": 0,
+    "observation": "GitHub public Actions REST shows completed/failure; jobs API lists zero jobs"
+  }
+]

@@ -223,3 +223,76 @@ def render_s0_figures(rows: Sequence[Mapping[str, object]], output_dir: Path) ->
     plt.close(fig)
     outputs.append(target)
     return outputs
+
+
+def render_pilot_addendum(output_dir: Path, full_search_records: Sequence[Mapping[str, object]],
+                          s0_ledger: Mapping[str, object] | None = None,
+                          *, actions_runs: Sequence[Mapping[str, object]] = ()) -> list[Path]:
+    """Truthful research appendix from raw EPDE runs and reconciled statuses.
+
+    A full EPDE run with 1 seed is a feasibility pilot, not a statistically
+    powered S1 comparison. Smoke records are explicitly excluded. No CI is
+    generated until preregistered independent systems/seeds are available.
+    """
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    full = [r for r in full_search_records if not r.get("nir1_smoke_only", False)]
+    smoke = sum(bool(r.get("nir1_smoke_only", False)) for r in full_search_records)
+    lines = ["# NIR-1 actual EPDE pilot — PROVISIONAL", "",
+             "**Scope:** genuine PIC/EPDE evolutionary searches; NOT the S0 fixed-candidate tests.",
+             "**Inferential status:** INSUFFICIENT independent systems/seeds for confidence intervals or superiority claims.",
+             f"**SMOKE EXCLUDED:** {smoke} reduced-budget runs are not scientific trials.", ""]
+    if s0_ledger:
+        counts = s0_ledger["status_counts"]
+        planned = int(s0_ledger["planned"])
+        lines.extend(["## S0 frozen campaign reconciliation", "",
+                      f"- **{counts['ok']}/{planned}** successful S0 method trials; "
+                      f"**{counts['crash']} crashes**, {counts['timeout']} timeouts, "
+                      f"{counts['unsupported']} unsupported, {counts['incomplete']} incomplete.",
+                      "- Every planned identity is counted, including invalid/singular solver cases.", ""])
+    lines.extend(["## Measured full-search records", "",
+                  "| Dataset | Variant | Optimizer seed | Source revision | Status | Selected exact | Full fit (s) | Wall (s) |",
+                  "|---|---|---:|---|---|---|---:|---:|"])
+    for r in sorted(full, key=lambda x: (str(x.get("dataset")), int(x.get("seed", -1)),
+                                         str(x.get("research_variant", "")))):
+        status = str(r.get("status", "NOT RECORDED"))
+        hit = r.get("metrics", {}).get("success_selected") if status == "ok" else None
+        success = "yes" if hit is True else "no" if hit is False else "—"
+        fit = r.get("fit_seconds")
+        wall = r.get("total_seconds")
+        fit_text = f"{float(fit):.1f}" if isinstance(fit, (int, float)) else "—"
+        wall_text = f"{float(wall):.1f}" if isinstance(wall, (int, float)) else "—"
+        revision = str(r.get("environment", {}).get("epde_commit", "UNRECORDED"))
+        if "dirty" in revision:
+            revision = f"{revision} (PRE-COMMIT; not frozen)"
+        lines.append(f"| `{r.get('dataset', '?')}` | `{r.get('research_variant', '?')}` | "
+                     f"{r.get('seed', '?')} | `{revision}` | {status} | {success} | "
+                     f"{fit_text} | {wall_text} |")
+    if not full:
+        lines.append("| NOT RUN | — | — | — | — | — | — | — |")
+    lines.extend(["", "## GitHub Actions evidence", ""])
+    for run in actions_runs:
+        zero_jobs = int(run.get("job_count", -1)) == 0
+        verdict = "NO JOBS; no VM experiment executed" if zero_jobs else "jobs recorded"
+        lines.append(f"- [Run {run['run_id']}](https://github.com/MakSoS1/EPDE/actions/runs/{run['run_id']}): "
+                     f"{run.get('conclusion', 'unknown')} — **{verdict}**.")
+    if not actions_runs:
+        lines.append("- No independently verified workflow results available.")
+    lines.extend(["", "## Interpretation and next gate", "",
+                  "A single paired system/seed is an engineering smoke/pilot, not proof of a method effect. "
+                  "A slower or incorrect equation is a negative observation, not removed from statistics.",
+                  "S2 heldout and S3 transfer cannot be advertised until the S1 finalist/budget are "
+                  "frozen and Actions (or another authorized isolated runner) executes all planned IDs.",
+                  "The historical 58/76 count is not reproduced here.", ""])
+    target = output_dir / "PILOT.md"
+    target.write_text("\n".join(lines), encoding="utf-8")
+    for name in ("REVIEW.md", "RESULTS.md", "Кратко_для_ревью.md"):
+        doc = output_dir / name
+        if doc.exists():
+            body = doc.read_text(encoding="utf-8")
+            body += ("\n## Independently recorded EPDE pilot and S0 job statuses\n\n"
+                     "The full-search observations, failed-run denominators and failed "
+                     "GitHub Actions attempts are reported in [PILOT.md](PILOT.md). "
+                     "The fixed-candidate S0 table above must not be presented as full EPDE accuracy.\n")
+            doc.write_text(body, encoding="utf-8")
+    return [target, *(output_dir / x for x in ("REVIEW.md", "RESULTS.md", "Кратко_для_ревью.md"))]

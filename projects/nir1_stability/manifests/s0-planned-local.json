@@ -1,0 +1,1937 @@
+{
+  "code_sha": "6003467e728c7d70daa25584b2e71b2edd860602",
+  "config_sha": "da59e39b6736d8f620f0004eee9cf2747830a08822d36bc9799875ebbd10fe7b",
+  "frozen_confirmation_sha": null,
+  "hard_deadline_minutes": 340,
+  "manifest_sha": "a1085fcfe254747a8e2b113345b42694c0ccd27390f86cebfbeb22e4eabd1354",
+  "max_infrastructure_retries": 2,
+  "max_run_minutes": 120.0,
+  "noise": 0.0,
+  "runs": [
+    {
+      "case": "T1",
+      "data_seed": 0,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "d7c3698134f6a3aba76ca6f7cd1b593aba3795f7c4b1da1173735198209dc785",
+      "shard": "0"
+    },
+    {
+      "case": "T1",
+      "data_seed": 1,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "b124ccf8be3ff21551cfcfa7ba8926660ff9ce54fdad3783c04c4010cde2a536",
+      "shard": "1"
+    },
+    {
+      "case": "T1",
+      "data_seed": 2,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "15ce00000d41b17bdcc498582658b81da86e0b4f6d96d9268d7bb766daeec063",
+      "shard": "2"
+    },
+    {
+      "case": "T1",
+      "data_seed": 3,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "78304a1b685a17093df4c0b9a9885e4c66a41deab9b42988ba2f3c0c3672b598",
+      "shard": "3"
+    },
+    {
+      "case": "T1",
+      "data_seed": 4,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "749d0e1438e70a30fd8b6d5eedc55e035647150df7aeeaeada030e11c231a453",
+      "shard": "0"
+    },
+    {
+      "case": "T1",
+      "data_seed": 0,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "80a2d19fc89c2bdb5fae597ed6f0b4ab43d3885e5cdc96f0c3cf67a591aec498",
+      "shard": "1"
+    },
+    {
+      "case": "T1",
+      "data_seed": 1,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "83462b3ba0f0048ed0181f487c526335245a1c50fb9584d21e99f736258cb917",
+      "shard": "2"
+    },
+    {
+      "case": "T1",
+      "data_seed": 2,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "74af35de3af60f4ba7f31e18c0c2adbf5208cd7195468c6ed7e25693804bfaac",
+      "shard": "3"
+    },
+    {
+      "case": "T1",
+      "data_seed": 3,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "cf4e5ee17edd2be6cdc3eeea93c242b4bc58e88382ca8e1941ae40cf044b45c6",
+      "shard": "0"
+    },
+    {
+      "case": "T1",
+      "data_seed": 4,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "e6eaaf0e95fde57a45ff27a48218fb23c7378a8d4dfa703368d8235147a23267",
+      "shard": "1"
+    },
+    {
+      "case": "T1",
+      "data_seed": 0,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "e0e05e067ab75aed647f0be0600b37e55cf4f0df86335c7d65eb030882bfb064",
+      "shard": "2"
+    },
+    {
+      "case": "T1",
+      "data_seed": 1,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "84fbdf9a0ddc0182912f6a6d71828719dd14e985a2fc81c6eb9744862400ff8f",
+      "shard": "3"
+    },
+    {
+      "case": "T1",
+      "data_seed": 2,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "0844ab7b4762e82ea006c7db2fc230e487c3ff2d1d1cfbb9dd396eea928a04f9",
+      "shard": "0"
+    },
+    {
+      "case": "T1",
+      "data_seed": 3,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "2e14dedf296a6bcf5179850820aa26a5bcfb0556b85e5313f38be17ae2b8cfec",
+      "shard": "1"
+    },
+    {
+      "case": "T1",
+      "data_seed": 4,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "a589cb5e8c0e76ac616ddf7ad62e490a3bccff93b9b12e3b6946f67b55d39e5c",
+      "shard": "2"
+    },
+    {
+      "case": "T1",
+      "data_seed": 0,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "d6db8b8fc5bdac108b518e584cd7ccca794389a021ee6021425cb2a869744dca",
+      "shard": "3"
+    },
+    {
+      "case": "T1",
+      "data_seed": 1,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "3758c2821386fb852cd1f64a2b9b7eca767e1d616fe11d9e50c3316fd47ab868",
+      "shard": "0"
+    },
+    {
+      "case": "T1",
+      "data_seed": 2,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "12178d2dbd665fff223b0aa640a467d035525af7d501b9538ea440637ce386aa",
+      "shard": "1"
+    },
+    {
+      "case": "T1",
+      "data_seed": 3,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "fd5fb409fb8bb30ddb979c1857cacb46f2478e76f28e82a75805a0a4cfdb90e5",
+      "shard": "2"
+    },
+    {
+      "case": "T1",
+      "data_seed": 4,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "3ff6fa7c1024574f40064d67bdb9109b19b932626b8fdba1df0d79d614cc313c",
+      "shard": "3"
+    },
+    {
+      "case": "T1",
+      "data_seed": 0,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "746bf8eab088f37537da0356acd478d8995059fb08d8d23e603d9bf31c4b48f0",
+      "shard": "0"
+    },
+    {
+      "case": "T1",
+      "data_seed": 1,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "a2085caf0d9d746d0e63ae48f6dcc9a2f803a259d04fc4899750b1ff5e4a2276",
+      "shard": "1"
+    },
+    {
+      "case": "T1",
+      "data_seed": 2,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "962bcf12f6f81ea984d2104368ca5d8c1f0e17892b9cd7cf5945996b57529dff",
+      "shard": "2"
+    },
+    {
+      "case": "T1",
+      "data_seed": 3,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "a0689986e3fe8f8a28bbedd09fee360afc99e83203bbfce4b739b079ed282c6e",
+      "shard": "3"
+    },
+    {
+      "case": "T1",
+      "data_seed": 4,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "dfba5a4bd675536b504adb0fcc3b7ddb269992dd56fd6f6a7d98e7538c240027",
+      "shard": "0"
+    },
+    {
+      "case": "T1",
+      "data_seed": 0,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "cc779076ed222022fc768fda4685baaccb225715ff041f66d280fb8e563ea14b",
+      "shard": "1"
+    },
+    {
+      "case": "T1",
+      "data_seed": 1,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "dca62e2747b6b684a10f881139b6069bd53604ed33f87cf4250742eceb5709c3",
+      "shard": "2"
+    },
+    {
+      "case": "T1",
+      "data_seed": 2,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "2e6546a96a0a9a627a7b11c43cc228ea9de90087e30366c12bb063757104132c",
+      "shard": "3"
+    },
+    {
+      "case": "T1",
+      "data_seed": 3,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "0cb03187dfa32cd0add30bb892faf3c0e302467fa3c7a7a5fd450ddd9fd36c9d",
+      "shard": "0"
+    },
+    {
+      "case": "T1",
+      "data_seed": 4,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "021e32bf8347e7b95da7d443f8efdaa5dc575a8f83826b8ba7e0e3c06aba8553",
+      "shard": "1"
+    },
+    {
+      "case": "T2",
+      "data_seed": 0,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "d52298ca6a8a5a339cea0601bae686f360338af5de4e62f3d47ee3f2006c290f",
+      "shard": "2"
+    },
+    {
+      "case": "T2",
+      "data_seed": 1,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "ccda697a28a04058c0da346dbf647be596dc1befc64e7bdd5254359fc7b23602",
+      "shard": "3"
+    },
+    {
+      "case": "T2",
+      "data_seed": 2,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "443d988ec3c297c7f3910e6e6ab5449aabc3a6a9109d07b6f2ff9e58b7d08135",
+      "shard": "0"
+    },
+    {
+      "case": "T2",
+      "data_seed": 3,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "a81d33c5276a93de05990331f8a17093bd46e96210f1fad692ebc736b977e0d2",
+      "shard": "1"
+    },
+    {
+      "case": "T2",
+      "data_seed": 4,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "bf1c9129fd9b62f5f21c71f13f5d64957ef3a88c8f719e968b3fb77a789a032f",
+      "shard": "2"
+    },
+    {
+      "case": "T2",
+      "data_seed": 0,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "4b26ec4fc3e1ea5eb034228e915e1315999ddc06cfff2091834012d9f1686ba5",
+      "shard": "3"
+    },
+    {
+      "case": "T2",
+      "data_seed": 1,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "228d2d9885d5b4affae396ed78b1ab401e943598e9caed2de5af89c4b3473f0c",
+      "shard": "0"
+    },
+    {
+      "case": "T2",
+      "data_seed": 2,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "e3386a09b0c03c2ede60fab5d83148335607114e782e78788990a48450c9fb5e",
+      "shard": "1"
+    },
+    {
+      "case": "T2",
+      "data_seed": 3,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "6ca0f7e0d17cfad1004a1d22114ba4771a5013caca7fc3bc7dc4e005046941be",
+      "shard": "2"
+    },
+    {
+      "case": "T2",
+      "data_seed": 4,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "587fd5e69b2214c4e5c232a0610807a7186864a315a2d7826aa4f8978a6d1faa",
+      "shard": "3"
+    },
+    {
+      "case": "T2",
+      "data_seed": 0,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "cc6a0800b95aa8f8533d80b210c772418e03d699031b90f0599b3215f3eae5c1",
+      "shard": "0"
+    },
+    {
+      "case": "T2",
+      "data_seed": 1,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "08926c843ed1584f493c7632ec2000f95bb45208560bf9268cc180ebf7b1f335",
+      "shard": "1"
+    },
+    {
+      "case": "T2",
+      "data_seed": 2,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "bf163ac89ef5a755958c45d6e8f2841e5cb1d7efdb7fc03080999e07479095eb",
+      "shard": "2"
+    },
+    {
+      "case": "T2",
+      "data_seed": 3,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "7d73be0321a375bbd32be54b08518921261d4d4e662acc14a85ee79f4e55745f",
+      "shard": "3"
+    },
+    {
+      "case": "T2",
+      "data_seed": 4,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "8145e5e3a98a0850fbfa2c611877f0e3e155720f8d2ab1dd900c04bb74ee903f",
+      "shard": "0"
+    },
+    {
+      "case": "T2",
+      "data_seed": 0,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "a86859fe6a2580d2305f63a73c10678081243af8dc7d40c049cf8b3f13a09b74",
+      "shard": "1"
+    },
+    {
+      "case": "T2",
+      "data_seed": 1,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "bd61deac02176b4ebe2ea2c91bd9268f5369f97445af8e167555b8ad830014c0",
+      "shard": "2"
+    },
+    {
+      "case": "T2",
+      "data_seed": 2,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "c145f3322bfffd6f930e39e462cc86bb5fc65c87b0cd30bef88e3d905e3405ec",
+      "shard": "3"
+    },
+    {
+      "case": "T2",
+      "data_seed": 3,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "55c5c9448b5ea5ed69bc95a7171a72a9dcec9e438ab7538773d2e3d4dcd1f29b",
+      "shard": "0"
+    },
+    {
+      "case": "T2",
+      "data_seed": 4,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "0ca218a50a3d064ff16d18cfda026f7d1bb3edaf269649441739213e3826d606",
+      "shard": "1"
+    },
+    {
+      "case": "T2",
+      "data_seed": 0,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "6cfc2b50a18c98e5bfc39d5925c1f2b5d1ffe836ff922bbf2abd58e154af5515",
+      "shard": "2"
+    },
+    {
+      "case": "T2",
+      "data_seed": 1,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "5932d1e5b2f32bf307e1455e0163dba3c83a20007a0faf50a83533058cd7a186",
+      "shard": "3"
+    },
+    {
+      "case": "T2",
+      "data_seed": 2,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "2db5aed399c8f33a7b1ee783d4e1d89f38c6abccdfcddd29ec2a4c603d08a200",
+      "shard": "0"
+    },
+    {
+      "case": "T2",
+      "data_seed": 3,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "b0ab890295784ad726e351f8e0e04eb53863cf3ab18019d11a218bac2fefe181",
+      "shard": "1"
+    },
+    {
+      "case": "T2",
+      "data_seed": 4,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "5a564f3827061873af752b131aa0a2341b2bf5065f1f314cd4f22472348b1cf2",
+      "shard": "2"
+    },
+    {
+      "case": "T2",
+      "data_seed": 0,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "f19b8847f7fee104675814143085ff7f3d131d996fb6b987601ca371ef163909",
+      "shard": "3"
+    },
+    {
+      "case": "T2",
+      "data_seed": 1,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "bb162def553d692a22adf5ae8f236b45539b8955ae1c4d37c2c7d2f7e77f642f",
+      "shard": "0"
+    },
+    {
+      "case": "T2",
+      "data_seed": 2,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "e743a99b7608191ae57ce82b1b40d0b4fd11cd6b04605d61eeb3290da0bd27fc",
+      "shard": "1"
+    },
+    {
+      "case": "T2",
+      "data_seed": 3,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "44e45122576bd965d969f07d589eef8e6e444a34fb551ff0e2f22995891dfa39",
+      "shard": "2"
+    },
+    {
+      "case": "T2",
+      "data_seed": 4,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "4edb566f982a73183038eed2c43bcd8f3b38b03887bedc48e8e6cad0bcc9c34c",
+      "shard": "3"
+    },
+    {
+      "case": "T3",
+      "data_seed": 0,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "2999a2c75109ca849eb7e06160902a1f638aede597814fe90d0c49f9cfe89390",
+      "shard": "0"
+    },
+    {
+      "case": "T3",
+      "data_seed": 1,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "561a1dfdd592340a2f1c6d22266035b340e01c4d19b9c38dd9d71b7620dce635",
+      "shard": "1"
+    },
+    {
+      "case": "T3",
+      "data_seed": 2,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "2123388facd0c4ae183d38e5c1faae598f5afa2da4935ebef0b69cc3386c967b",
+      "shard": "2"
+    },
+    {
+      "case": "T3",
+      "data_seed": 3,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "4704788d639c0f32157e08970e99ecf5f2b358df05a1f0583d0fc761727e9818",
+      "shard": "3"
+    },
+    {
+      "case": "T3",
+      "data_seed": 4,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "cb0882b7c1903fa75c73f8b73c9cc0bb681285c3d92ebb2515f0c069e1d20326",
+      "shard": "0"
+    },
+    {
+      "case": "T3",
+      "data_seed": 0,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "92cee7364140fbda2eef39a28420fb6ca6328ca6cf55e0826b9189852539465b",
+      "shard": "1"
+    },
+    {
+      "case": "T3",
+      "data_seed": 1,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "02e5113fb8c0422d20f661334586b60c46041806f5bc27b18cce51f5459269e6",
+      "shard": "2"
+    },
+    {
+      "case": "T3",
+      "data_seed": 2,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "8d2c70e473c715de3a9e2c9f5f87404c0293e16433dcc0307fce91b4e7f34105",
+      "shard": "3"
+    },
+    {
+      "case": "T3",
+      "data_seed": 3,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "125496f33ee1cfb7a41a9bdbdd734ccf99f78b5bdb51293a4e237fd0b807b089",
+      "shard": "0"
+    },
+    {
+      "case": "T3",
+      "data_seed": 4,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "c2b676f6100a4af3b4d57f34fbe243a05c3800ecada198f86e39045ee2733a91",
+      "shard": "1"
+    },
+    {
+      "case": "T3",
+      "data_seed": 0,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "61f7c3b1c3510a52869ae28a1bfdeb096756d25999b4e2f74d070b9c15c95ba5",
+      "shard": "2"
+    },
+    {
+      "case": "T3",
+      "data_seed": 1,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "84f023f757353c59d3049940409343d1b81e41ee7e1873d8763e7b50ef351776",
+      "shard": "3"
+    },
+    {
+      "case": "T3",
+      "data_seed": 2,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "3a99ff976a9f2ec18be9bfdaf7dbaf8dbed0e28037b53a5f9419d3fabe7c41de",
+      "shard": "0"
+    },
+    {
+      "case": "T3",
+      "data_seed": 3,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "2a50db14e78502ab33914e186c55e359c195411277dbf4ba1f470d3dfc74b45f",
+      "shard": "1"
+    },
+    {
+      "case": "T3",
+      "data_seed": 4,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "d3389d3e8285a322a272944dfe67464b6ae6c8130b2013c519210f0780e3a32d",
+      "shard": "2"
+    },
+    {
+      "case": "T3",
+      "data_seed": 0,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "95756fa8a2ed40e83751d514779ddf8f0ba00ff2833ee8d04677054a7acd2d0e",
+      "shard": "3"
+    },
+    {
+      "case": "T3",
+      "data_seed": 1,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "eed5b92203438cc8174a1df317a3dd88f98a2524d3b86e3befe79670c7ed4cdb",
+      "shard": "0"
+    },
+    {
+      "case": "T3",
+      "data_seed": 2,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "c21d0db0e3391f3b12d12b6251a196e20ddcbb97e50749d9b94f8bec53a31aea",
+      "shard": "1"
+    },
+    {
+      "case": "T3",
+      "data_seed": 3,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "0717f95163a4f2eb547b2fe670dccbfabaeadab8320ae58fe472e9833d7a7fbc",
+      "shard": "2"
+    },
+    {
+      "case": "T3",
+      "data_seed": 4,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "4169bb2da655c4ef78cc71a792bd5d0ffba40d05aab5a5bdc2724b14fcaebac8",
+      "shard": "3"
+    },
+    {
+      "case": "T3",
+      "data_seed": 0,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "a2efcb133e804b982633d1eaffd18b6b02be4f4c29606b478048cbd89c4c99ac",
+      "shard": "0"
+    },
+    {
+      "case": "T3",
+      "data_seed": 1,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "38c237078f633a62302830d5a56ea6f0b276cbd375852061214161f6b93f32b8",
+      "shard": "1"
+    },
+    {
+      "case": "T3",
+      "data_seed": 2,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "a51a2f11ce246028f134bc449fb88e15268cd816500f90a8aa92c03a9693a032",
+      "shard": "2"
+    },
+    {
+      "case": "T3",
+      "data_seed": 3,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "ec2255bb5354782f06948b6f98cd262ef3745d953ac68eda099ffe16705210c9",
+      "shard": "3"
+    },
+    {
+      "case": "T3",
+      "data_seed": 4,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "7de89ab2a1a64b10fc26673475a6fa4b0abcff35e6bb967efd5e9f341304c073",
+      "shard": "0"
+    },
+    {
+      "case": "T3",
+      "data_seed": 0,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "64071451531f7fb6912847a6c00ed56671f0044792245e7affae83a6e794b00b",
+      "shard": "1"
+    },
+    {
+      "case": "T3",
+      "data_seed": 1,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "6135aac343dc7edfcdc429da48a0441a72900bd9b5a312c33ef617935583ca64",
+      "shard": "2"
+    },
+    {
+      "case": "T3",
+      "data_seed": 2,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "4830b44ad36ec7fc83bf18c950691cbf5a486ff79cdfdf8f13a603749ac9ec86",
+      "shard": "3"
+    },
+    {
+      "case": "T3",
+      "data_seed": 3,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "95cf8df4eba61bbdbfdb45deb918b802bcc6cae74354b69aacae706978c6fe72",
+      "shard": "0"
+    },
+    {
+      "case": "T3",
+      "data_seed": 4,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "5727fe7cfadcbe59f9bfd493740535d6768c9f433ba0ecf92e530b8f7fff1222",
+      "shard": "1"
+    },
+    {
+      "case": "T4",
+      "data_seed": 0,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "70609e2915243178694af6339f13eb9f43bb65c5eb6c103bd3c5b3a2c03e6d86",
+      "shard": "2"
+    },
+    {
+      "case": "T4",
+      "data_seed": 1,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "1c29fdff8082d3057d2e660f51a47056fec5c1fb9061bc8f9bf8d2f8eefded90",
+      "shard": "3"
+    },
+    {
+      "case": "T4",
+      "data_seed": 2,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "5eb21492175c747f94e7f32ba5e64bf0d503df22038988823f43b8a2fb4a90b1",
+      "shard": "0"
+    },
+    {
+      "case": "T4",
+      "data_seed": 3,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "ba74a1583afeb1d73071643e4d81a349ff0c4532dc3624edf4bd3881297cf2b2",
+      "shard": "1"
+    },
+    {
+      "case": "T4",
+      "data_seed": 4,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "97db6233026693ae23100a03566de00bfa52e0febcb4d7fc8e6fe3cf535c3afd",
+      "shard": "2"
+    },
+    {
+      "case": "T4",
+      "data_seed": 0,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "0facf10a28564def717454244a3b80e30a2fdfcbdb7d5bbdafcafd504e0a0494",
+      "shard": "3"
+    },
+    {
+      "case": "T4",
+      "data_seed": 1,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "1384836d6f35ab084021a7dd75805c0c435c983c152fa4467d02cce5cc184473",
+      "shard": "0"
+    },
+    {
+      "case": "T4",
+      "data_seed": 2,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "78c548628214de6939b9eb7fa2aed2b8209745a1b81d01c9d7f5999e3c1ddcb9",
+      "shard": "1"
+    },
+    {
+      "case": "T4",
+      "data_seed": 3,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "c5afb494797d9ae9b491410de15f46561791bb209bc10dedff177756ab227273",
+      "shard": "2"
+    },
+    {
+      "case": "T4",
+      "data_seed": 4,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "62f0d7f69a6fac9df690f0d9bea5a691b5ea31bd9383e8e8febad20e00c208de",
+      "shard": "3"
+    },
+    {
+      "case": "T4",
+      "data_seed": 0,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "8d5015c56b5682c7ea92809eaf43fc2dc25c733d8cc8fee0b2e5bc4035d0a571",
+      "shard": "0"
+    },
+    {
+      "case": "T4",
+      "data_seed": 1,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "caf880fcccd938828881dd833de3352de79be90e6a456b411dce8b0fbf464c1d",
+      "shard": "1"
+    },
+    {
+      "case": "T4",
+      "data_seed": 2,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "437fe219dc1bf4b255dcbc05f45a24fe58b95b125b7e8ffec7937752442da4ff",
+      "shard": "2"
+    },
+    {
+      "case": "T4",
+      "data_seed": 3,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "b50aaf789130f2ab1d9007e8f031ebf6c9bd4b1f66cd44fd4d3f424572d573f7",
+      "shard": "3"
+    },
+    {
+      "case": "T4",
+      "data_seed": 4,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "6a0c77f83f4cfa8f7288e47a17cd415d6c5c438284a9bbd65d8cf0d2f9730ecd",
+      "shard": "0"
+    },
+    {
+      "case": "T4",
+      "data_seed": 0,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "f571a9fd9fea81d0c17729e81dd39b262953387a1f9939fa6bb88596be229821",
+      "shard": "1"
+    },
+    {
+      "case": "T4",
+      "data_seed": 1,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "c90a6d68f77b9e1434958471cd6ed2b203d8a122c4e22743e304bb2e727740b5",
+      "shard": "2"
+    },
+    {
+      "case": "T4",
+      "data_seed": 2,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "c06a08c1793c0ade4b30993819daf93e7bfa8f9774bfb511fb5bb6e03bcb3801",
+      "shard": "3"
+    },
+    {
+      "case": "T4",
+      "data_seed": 3,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "041496adefa67c5cc25482e6828548f0538f2d6058bb03d072e767839bee84a6",
+      "shard": "0"
+    },
+    {
+      "case": "T4",
+      "data_seed": 4,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "fe7468b30b65bd79a99ba130d405350062ff749f5d714c9497429f6ea65d53ee",
+      "shard": "1"
+    },
+    {
+      "case": "T4",
+      "data_seed": 0,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "afca4fcb7c77bf4f16f5ede4939ed1823b16b495d81f3d179325ca6c77698b8d",
+      "shard": "2"
+    },
+    {
+      "case": "T4",
+      "data_seed": 1,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "22823ea289b8d72b19695145cb68e2a5eaf79df2a9737364cb385b7e0c970a10",
+      "shard": "3"
+    },
+    {
+      "case": "T4",
+      "data_seed": 2,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "406c2ef6b9e9a429bedca7a979dd8d454218b4c2a2d1df68d2a9478cdf6974c2",
+      "shard": "0"
+    },
+    {
+      "case": "T4",
+      "data_seed": 3,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "f29eb0d970f7ef943a84b304c0744c300bc9f74c1fd73197616a8ba216d2df3b",
+      "shard": "1"
+    },
+    {
+      "case": "T4",
+      "data_seed": 4,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "44f5f6798eb17868f7ecbc3f483a10b96f7ccba2bf8f7b18c82917f9464cc938",
+      "shard": "2"
+    },
+    {
+      "case": "T4",
+      "data_seed": 0,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "b48816a3ce0dea1bfa6abbc5f21c0bf5df0a8dd0f84be4afb3316cb95de52e61",
+      "shard": "3"
+    },
+    {
+      "case": "T4",
+      "data_seed": 1,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "bd432c4c7f6567aee8a24b627201a5556b90642f7fc6bd11e97e23e4b663c86f",
+      "shard": "0"
+    },
+    {
+      "case": "T4",
+      "data_seed": 2,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "fcb9463e119b19032c4427c440dea346369368f8bdb36a09b7adb8da9307a31d",
+      "shard": "1"
+    },
+    {
+      "case": "T4",
+      "data_seed": 3,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "5f4ceadb0bc98468434cd832841991fd15534c8e14847f6b78002f96a2b78a6d",
+      "shard": "2"
+    },
+    {
+      "case": "T4",
+      "data_seed": 4,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "52bd11cfcb71a9326cd6f69f38ddba07f312858fec36254d22c64f8d30140fc2",
+      "shard": "3"
+    },
+    {
+      "case": "T5",
+      "data_seed": 0,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "903e7dd1dc40bfd2fde6b03b0f1bf3d8d5ccdeee8426138884fff4ceb8b6b158",
+      "shard": "0"
+    },
+    {
+      "case": "T5",
+      "data_seed": 1,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "b0bfc1552c97807a925b6d76912475bac1be350ad2eb4e153e649d8c66df590f",
+      "shard": "1"
+    },
+    {
+      "case": "T5",
+      "data_seed": 2,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "f16cab5221d1fd63f9a8777d4f4264756af9687778afe6271b3e482123de59fd",
+      "shard": "2"
+    },
+    {
+      "case": "T5",
+      "data_seed": 3,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "0c0567fe1ce338dcc764fe9b741e1a9bc1770d2c41bac2c1ff71688ea87a789a",
+      "shard": "3"
+    },
+    {
+      "case": "T5",
+      "data_seed": 4,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "49d957804b8e8f31a6ff708ba5cb0716f2e5a4cccdb64710532207d92d6c2aff",
+      "shard": "0"
+    },
+    {
+      "case": "T5",
+      "data_seed": 0,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "58b7c7319790451b9c4d29204b596361d3add58a3aa0ef524144a22fe99c656f",
+      "shard": "1"
+    },
+    {
+      "case": "T5",
+      "data_seed": 1,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "3661fb80d8448d04a3e2f399ed08272a92741ecef0b954ac9f9c6984049eb3cd",
+      "shard": "2"
+    },
+    {
+      "case": "T5",
+      "data_seed": 2,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "160425b5327d716fdaa51cbf954557243f4a979f5d4fc4c44a36fb37d643dd4b",
+      "shard": "3"
+    },
+    {
+      "case": "T5",
+      "data_seed": 3,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "ee4f05ffe1e3f8ea7e46bc43e8d0696a0d15a66a32324a300f278887fe17c959",
+      "shard": "0"
+    },
+    {
+      "case": "T5",
+      "data_seed": 4,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "9174647ee3c67e4791e9817131db07ef9dfb1152ee822ce225e94fcc1025f3d7",
+      "shard": "1"
+    },
+    {
+      "case": "T5",
+      "data_seed": 0,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "e6fe1326a60a49d7e8cd547e3ec4837a50cffea337a2a4c8bc6941963eb45051",
+      "shard": "2"
+    },
+    {
+      "case": "T5",
+      "data_seed": 1,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "584568c9a1f155c0286fbcef44c43590c7259f9ccb6c31575cf7bef8c98a66b2",
+      "shard": "3"
+    },
+    {
+      "case": "T5",
+      "data_seed": 2,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "55992e26b15a0367e37aef9ecc630f4446e45ba5757ea541f7529688a571f341",
+      "shard": "0"
+    },
+    {
+      "case": "T5",
+      "data_seed": 3,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "34178da1d7fc58fb3dd0ec17a04056a4395bd884e94cc52dca97ddd82660fdd4",
+      "shard": "1"
+    },
+    {
+      "case": "T5",
+      "data_seed": 4,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "eb81c4e74397731a6a329ec04abc4b1fed192be5a2297f20550f4c7e1fb59175",
+      "shard": "2"
+    },
+    {
+      "case": "T5",
+      "data_seed": 0,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "b6a14a790f438b707c72654b1162881ddec7b8722ce14da2015531cf0c60c987",
+      "shard": "3"
+    },
+    {
+      "case": "T5",
+      "data_seed": 1,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "1101c4018fbf41f10a35b3ac31b296784c79534df9a9a71d8b8e9c9016f2409a",
+      "shard": "0"
+    },
+    {
+      "case": "T5",
+      "data_seed": 2,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "63ef5ef06ec18a3e2795978de8543e506e8caa7f6e063140cd0fa3580f590d17",
+      "shard": "1"
+    },
+    {
+      "case": "T5",
+      "data_seed": 3,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "a348cc826a0e9f5b50638a67e71ac6a18eea50ae6ad3e9498caf8c657f3b03bc",
+      "shard": "2"
+    },
+    {
+      "case": "T5",
+      "data_seed": 4,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "a8642e1c5008a09f41008bf3e0f812872e1469df8bd8a742124d275ff9d8438b",
+      "shard": "3"
+    },
+    {
+      "case": "T5",
+      "data_seed": 0,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "274418b556f0e9b491c43a03c6645e655350c86ec1e413cef6eee48588cc9c3d",
+      "shard": "0"
+    },
+    {
+      "case": "T5",
+      "data_seed": 1,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "d07fe34db4aeb5be0d9131217142f1ef237e61f9168384eb8b9cda681ba82765",
+      "shard": "1"
+    },
+    {
+      "case": "T5",
+      "data_seed": 2,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "ea1e7855eac63d47a3ffca5fbeb735cbe2477eea39fd498ee46a4cceb5ec81f8",
+      "shard": "2"
+    },
+    {
+      "case": "T5",
+      "data_seed": 3,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "f623e99702b601c0fc304f0b9571e4e8540baa0171040a6ee526a6372b5fd08b",
+      "shard": "3"
+    },
+    {
+      "case": "T5",
+      "data_seed": 4,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "e1f988b3ae8445d8f18a8571c93ab1928b7cd327defad61ccfabee598616311c",
+      "shard": "0"
+    },
+    {
+      "case": "T5",
+      "data_seed": 0,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "03be06a299b55c19101d2fc50ed2fd25454d0e182db0911fde8097d9e7f208d1",
+      "shard": "1"
+    },
+    {
+      "case": "T5",
+      "data_seed": 1,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "704a9dd3ea6d0b4a2f5ad0741411989e8e4c2f185d9dccd5004295dac421406b",
+      "shard": "2"
+    },
+    {
+      "case": "T5",
+      "data_seed": 2,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "18844035c2bebd23a985118d8fb6ac282bd6a97b2ebe4ce443ab724dead8c4cb",
+      "shard": "3"
+    },
+    {
+      "case": "T5",
+      "data_seed": 3,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "0febe945974f56c2fad221192e6a118aa039cc48afea5ffe18bfa1e792946caa",
+      "shard": "0"
+    },
+    {
+      "case": "T5",
+      "data_seed": 4,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "a282ec2850602911b89cd7e04fff535f475e7d7e23928073b50886b177f2c4ed",
+      "shard": "1"
+    },
+    {
+      "case": "T6",
+      "data_seed": 0,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "6c5f6f17b80bc065b823749f56b279c46f0303ad42aa3ef2e75987cd8b0f1a19",
+      "shard": "2"
+    },
+    {
+      "case": "T6",
+      "data_seed": 1,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "57718d70a5899c57bf4cbe77d2c04d65288e7a4b8df669b9e61e2a08cab05ef6",
+      "shard": "3"
+    },
+    {
+      "case": "T6",
+      "data_seed": 2,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "650cdb025f6997b2444fe429a56273188666eb3927eb688c7b3c06ae1270ab47",
+      "shard": "0"
+    },
+    {
+      "case": "T6",
+      "data_seed": 3,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "cc55e352e0dd919bee0b78d64c54268adc5c4f0e043ddc87b6b62d948c46d9e0",
+      "shard": "1"
+    },
+    {
+      "case": "T6",
+      "data_seed": 4,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "f4db5bc60e5a768d8487f3b7913219bbf9c24fea7287b398805f45a0476e8f2f",
+      "shard": "2"
+    },
+    {
+      "case": "T6",
+      "data_seed": 0,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "b77007d7c8b2b6329ecaddb592b353890b71e10fdf67421af77bda9907374b6f",
+      "shard": "3"
+    },
+    {
+      "case": "T6",
+      "data_seed": 1,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "b5df527fadd5aa3f422227158c6270d430f17b1bf462fde55959dd86ef46b848",
+      "shard": "0"
+    },
+    {
+      "case": "T6",
+      "data_seed": 2,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "b19ce8ae321956aa8d144217b076f1157e3c52de3523fd22011f164546c0dd84",
+      "shard": "1"
+    },
+    {
+      "case": "T6",
+      "data_seed": 3,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "d51ed6a10c9a704041a073647f73f2ada2b8970e6b351ded3dcfd66e963c8ea0",
+      "shard": "2"
+    },
+    {
+      "case": "T6",
+      "data_seed": 4,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "57973f6234d058221dd6f48c26b92d4c50ba9863c5641d3bb5aa7a7487441dee",
+      "shard": "3"
+    },
+    {
+      "case": "T6",
+      "data_seed": 0,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "86add37bea90f24eca3cad09bc3ce9fda13291f8bedec2143db139f58b2a63e1",
+      "shard": "0"
+    },
+    {
+      "case": "T6",
+      "data_seed": 1,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "b4bf90ee2f339fc05e426aea2a13bfcdf9bc2846e023f83598fa2ef8b052361a",
+      "shard": "1"
+    },
+    {
+      "case": "T6",
+      "data_seed": 2,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "e47512784600ff290ee03548e365ac94663b4abc6a6399b2c54a4e432d2de653",
+      "shard": "2"
+    },
+    {
+      "case": "T6",
+      "data_seed": 3,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "1022125380730144c432ae0c35078bd00f653dbf6b5d507db12b95cbe09ab5f8",
+      "shard": "3"
+    },
+    {
+      "case": "T6",
+      "data_seed": 4,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "2be86a79f495fdb3fa9f2df98a262cc28f507e2c7737cc26807fa33610954669",
+      "shard": "0"
+    },
+    {
+      "case": "T6",
+      "data_seed": 0,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "974a17b45ce8911ab62f43ba80f4db29dc2a896304a42e145f67b5fdea65d85f",
+      "shard": "1"
+    },
+    {
+      "case": "T6",
+      "data_seed": 1,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "9126f1dd8e523b16d44ed2002a4144884b665d482082da1fad6a47a2c2cd2b39",
+      "shard": "2"
+    },
+    {
+      "case": "T6",
+      "data_seed": 2,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "30b904e74c4011cdbd16afd51e6e5b4eb7d48d6198c7c1c73d210516ac7ba6be",
+      "shard": "3"
+    },
+    {
+      "case": "T6",
+      "data_seed": 3,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "86246dd01c5fcb5d2a4a478e6c621c2b6765941ee0939c2ed198344f6f06e999",
+      "shard": "0"
+    },
+    {
+      "case": "T6",
+      "data_seed": 4,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "973c1ae04d44508476e045eea6a789c88272f8521359139e0f526b17b8b37c79",
+      "shard": "1"
+    },
+    {
+      "case": "T6",
+      "data_seed": 0,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "53d3084f5a9687f8f7bfc1b1e5380c0e9e3c3709f25c535ee3ffb702c8d32388",
+      "shard": "2"
+    },
+    {
+      "case": "T6",
+      "data_seed": 1,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "caf6f4273c8a264efce6acf0a9026d459e595c5558b942ec59235ae6f58b252e",
+      "shard": "3"
+    },
+    {
+      "case": "T6",
+      "data_seed": 2,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "93298cb80a4419f220cab33a27bcd2062c226927874fe5d53e4767f99e821f20",
+      "shard": "0"
+    },
+    {
+      "case": "T6",
+      "data_seed": 3,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "46d5d25cff690b4a5a82768a9454078eacf2c383fc0c4f6c4884b4c36edbfc64",
+      "shard": "1"
+    },
+    {
+      "case": "T6",
+      "data_seed": 4,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "abff8be3a843a4c7731c3dc73b4364f269e030638747d1ce2d85b9d6cd45ce5e",
+      "shard": "2"
+    },
+    {
+      "case": "T6",
+      "data_seed": 0,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "2391e8ceecd1bf1186c653c2d81dafd946ea55c0ec3faa1632e1b68b47022cba",
+      "shard": "3"
+    },
+    {
+      "case": "T6",
+      "data_seed": 1,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "f89fcca24f2ef6d10405228b42db27fe1b14277ac180bbc3fd637fcfccc4cf84",
+      "shard": "0"
+    },
+    {
+      "case": "T6",
+      "data_seed": 2,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "ee4afe8c8d65695f1c916b0c3dc60b55a9c48bccfb27157ee72f44abd5e02daa",
+      "shard": "1"
+    },
+    {
+      "case": "T6",
+      "data_seed": 3,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "9f7c9b3373155f54409c5778fa23a1beb2d8550b9ca530f158675e83560c673e",
+      "shard": "2"
+    },
+    {
+      "case": "T6",
+      "data_seed": 4,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "80d12b3d17a3d15e74aed8879bc7c2ad1a315d3e38b52299c80912366c1f4600",
+      "shard": "3"
+    },
+    {
+      "case": "T7",
+      "data_seed": 0,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "8c28774b07c5b8c058660f032f8d72fe686680559dc7bca4ff18b3e0b4effcf2",
+      "shard": "0"
+    },
+    {
+      "case": "T7",
+      "data_seed": 1,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "e0308cf671fced77d486bf31abe31cc2831d6aed538f40bdcf52f8855d5147c0",
+      "shard": "1"
+    },
+    {
+      "case": "T7",
+      "data_seed": 2,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "63d9a3176b3c032c7b18d03cabbffb4e684c2eec13bd8019b9889d0b27db5261",
+      "shard": "2"
+    },
+    {
+      "case": "T7",
+      "data_seed": 3,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "d00fff8b8e7c4e64f913bd0d0553f2f63cc055e0bd1d07dded614c2c2a722412",
+      "shard": "3"
+    },
+    {
+      "case": "T7",
+      "data_seed": 4,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "9d4e66777463d1f35c58c20dc19151ee5c1696531e629ac0cfbee7cee165e428",
+      "shard": "0"
+    },
+    {
+      "case": "T7",
+      "data_seed": 0,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "d954facba355dd48fdc638afef417d494539ee13182fad95d74d02b5d117c300",
+      "shard": "1"
+    },
+    {
+      "case": "T7",
+      "data_seed": 1,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "a6479156b8fbe6098a4abd40b6f5367ab6a63f23bcb1e3c0c11ed710969ec3a3",
+      "shard": "2"
+    },
+    {
+      "case": "T7",
+      "data_seed": 2,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "84810173c8952d5c40cbdc793f90eb3edb5271b3e7e271b9d6f1a6b039d261b8",
+      "shard": "3"
+    },
+    {
+      "case": "T7",
+      "data_seed": 3,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "1323267619a963a0ecf6d5bd31ce7bc159d946e4c446fbcb3ef4488b78495c8c",
+      "shard": "0"
+    },
+    {
+      "case": "T7",
+      "data_seed": 4,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "eb3b58349072258ce4d3a6c356fadedfcd7c7e798457706c565bf1bbb26e018e",
+      "shard": "1"
+    },
+    {
+      "case": "T7",
+      "data_seed": 0,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "302707678b13220ec096c08c56480ee5c6efee377db1d2924a6d2178f61b1191",
+      "shard": "2"
+    },
+    {
+      "case": "T7",
+      "data_seed": 1,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "cab9875b235577aeb76e9d68be9f7beab10b791fb4f348c23135f2805c4644e7",
+      "shard": "3"
+    },
+    {
+      "case": "T7",
+      "data_seed": 2,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "c3b76e4cb87339befa585b814b729be28f8b8aaf4d589ae3d37b12eaaef42d11",
+      "shard": "0"
+    },
+    {
+      "case": "T7",
+      "data_seed": 3,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "e49951391655e095e14ba277249d4764df6b4277c08cc720b97fba374a13a212",
+      "shard": "1"
+    },
+    {
+      "case": "T7",
+      "data_seed": 4,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "f3f352b1ef108bd3bc3c62dff9dc958ef5e9f9d330939656ac5a5f8070b7a4ac",
+      "shard": "2"
+    },
+    {
+      "case": "T7",
+      "data_seed": 0,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "f8946eaa206db978bec2bb19c10658d9e6a362aeb34963e2a1dddb6930bb1ce0",
+      "shard": "3"
+    },
+    {
+      "case": "T7",
+      "data_seed": 1,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "20a4692269453affbf68d0849ab9541b6c41993e2b8cce69500459857d450886",
+      "shard": "0"
+    },
+    {
+      "case": "T7",
+      "data_seed": 2,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "4e356f4b59e69234817266ac9d9aadf57dfff092cf05c27e97eea486cf9af835",
+      "shard": "1"
+    },
+    {
+      "case": "T7",
+      "data_seed": 3,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "c0d3648fe969386aa168cc9344c02432437dc55f20e954f80034c421917798c8",
+      "shard": "2"
+    },
+    {
+      "case": "T7",
+      "data_seed": 4,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "aaa9cf20dd8be04948beffc4a2622d41f1584141530d27c3ced7c449c8765263",
+      "shard": "3"
+    },
+    {
+      "case": "T7",
+      "data_seed": 0,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "d7bfaf72f3547d20d02969d39ae5b2f07810b9e63b7d4c6e20c7929e8b2354d4",
+      "shard": "0"
+    },
+    {
+      "case": "T7",
+      "data_seed": 1,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "84e391ef32697103e3e2f5d4ab1522ecc75dfa6f6bf166c88842b4b86723aef5",
+      "shard": "1"
+    },
+    {
+      "case": "T7",
+      "data_seed": 2,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "bf0c2717ef603f883ef00d555924478b5135325fc79baae6f1e7c4926775ea87",
+      "shard": "2"
+    },
+    {
+      "case": "T7",
+      "data_seed": 3,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "ed142d30c85bb6f7fca369a007707e0e41afffe8de6f3d155a29e35b8650f1f1",
+      "shard": "3"
+    },
+    {
+      "case": "T7",
+      "data_seed": 4,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "c9871439107e5db5baae48d87d72cfa228496c088726198b85bdaa8f37f4344d",
+      "shard": "0"
+    },
+    {
+      "case": "T7",
+      "data_seed": 0,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "2a057a089c7310e7b5a7c3bf484fdf2df79ea31e10170963ba2efab8cad94ee8",
+      "shard": "1"
+    },
+    {
+      "case": "T7",
+      "data_seed": 1,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "374f94cb9ecd71253bc4caa92bba2d7ba6f83520d8030bf06158e12d95b29155",
+      "shard": "2"
+    },
+    {
+      "case": "T7",
+      "data_seed": 2,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "07051d145a6f1a24d0c8b0688b2953ba19a28b02ecef1248b2f724c586b6442e",
+      "shard": "3"
+    },
+    {
+      "case": "T7",
+      "data_seed": 3,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "0d5cdf3b21a6a4cad3976e66e285898fce7055a0a80dfd890535131539329c7b",
+      "shard": "0"
+    },
+    {
+      "case": "T7",
+      "data_seed": 4,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "39aacf156db01877e82641d86868d540ddaac29145e90c3820da5ffc76b7c683",
+      "shard": "1"
+    },
+    {
+      "case": "T8",
+      "data_seed": 0,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "2bb57b723483edd6434878764f69e9789cbeac8493f5e189da23b7be75efa6c7",
+      "shard": "2"
+    },
+    {
+      "case": "T8",
+      "data_seed": 1,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "4a63132cd64ffe3edcc2679c765f9020476ebc5386a356b6eaf9beccbbb9d0e8",
+      "shard": "3"
+    },
+    {
+      "case": "T8",
+      "data_seed": 2,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "4ba75167f7618b4c71c9bb1fb9915410cbce109c8d6050736e2245a4c1226a76",
+      "shard": "0"
+    },
+    {
+      "case": "T8",
+      "data_seed": 3,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "45323f46851e10e914c57cbf63afa222e6dee4ab7f3e7b4a43742c67ceed081a",
+      "shard": "1"
+    },
+    {
+      "case": "T8",
+      "data_seed": 4,
+      "method": "baseline_ols",
+      "optimizer_seed": 0,
+      "run_id": "dc7e14ad2010519941c30539a72601ea083e1209d0e4cf51f0a9b42733fa24bb",
+      "shard": "2"
+    },
+    {
+      "case": "T8",
+      "data_seed": 0,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "1f7c6c92a114771f0f9efe003e40e6ebd4c385416822b644192d51816387a56d",
+      "shard": "3"
+    },
+    {
+      "case": "T8",
+      "data_seed": 1,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "c5e99301e5dc30464b4d7c8a925ed6142d0876d45dba225d3c108b2bb5aab324",
+      "shard": "0"
+    },
+    {
+      "case": "T8",
+      "data_seed": 2,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "4b7f93d3ac9967e4bd6603cdf0c052291c4465aaf7ce931749b11bb964b0965a",
+      "shard": "1"
+    },
+    {
+      "case": "T8",
+      "data_seed": 3,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "737a30c990af3fde8f20d4bad764640015da760d235c2ee7403db51f6673caef",
+      "shard": "2"
+    },
+    {
+      "case": "T8",
+      "data_seed": 4,
+      "method": "lasso",
+      "optimizer_seed": 0,
+      "run_id": "deb4f291268b3650920c12fc0285221e268ba640edec4b4a1745eb9fb8bf3d67",
+      "shard": "3"
+    },
+    {
+      "case": "T8",
+      "data_seed": 0,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "0def5099c485c299fa8ab824ae8c455cce4c7d24444d3d56c1709a34114a37af",
+      "shard": "0"
+    },
+    {
+      "case": "T8",
+      "data_seed": 1,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "53648cd7755db27e66b4e6c2642408c03b857003f37044a63f8fd63ad37a9e07",
+      "shard": "1"
+    },
+    {
+      "case": "T8",
+      "data_seed": 2,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "9d6eb9055976067887bed20f1111d2c64ed5d7e37d29a7e65f8648850270f002",
+      "shard": "2"
+    },
+    {
+      "case": "T8",
+      "data_seed": 3,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "b9140824ed047eff1144683215aa30428d068d5e0f6990baa26cd1a62972c0f9",
+      "shard": "3"
+    },
+    {
+      "case": "T8",
+      "data_seed": 4,
+      "method": "instability",
+      "optimizer_seed": 0,
+      "run_id": "e26a804b3800688681810a7dcefe35bf2ade4ddafb2cf0851b071e4dcf1a17bf",
+      "shard": "0"
+    },
+    {
+      "case": "T8",
+      "data_seed": 0,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "c76b254f1003e8a1f24a3f806234cb7f105de8a2e09f229111eff0f4441f66f7",
+      "shard": "1"
+    },
+    {
+      "case": "T8",
+      "data_seed": 1,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "6ed870c32a21367f983920ea039942a3d79dedc71a2b6c3ecb51aac6db266534",
+      "shard": "2"
+    },
+    {
+      "case": "T8",
+      "data_seed": 2,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "453be1de2ea8eb4c6c7c842fb4bfd5c2b0a20a8692139125d9cd223f0901c5f6",
+      "shard": "3"
+    },
+    {
+      "case": "T8",
+      "data_seed": 3,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "214f66b66121b267e741bb1c4edc836d78229b6e11d98c33e85dd991c8d0c08b",
+      "shard": "0"
+    },
+    {
+      "case": "T8",
+      "data_seed": 4,
+      "method": "identifiability",
+      "optimizer_seed": 0,
+      "run_id": "4466ed857638e9d0f4526dee2dbd097be1a4b5676787112083e7bcf0b35ab7fe",
+      "shard": "1"
+    },
+    {
+      "case": "T8",
+      "data_seed": 0,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "1e59ac9ed242c6d4f38db0c616e9d4c532fcf088c32ff92dad65dd5e2edba1ef",
+      "shard": "2"
+    },
+    {
+      "case": "T8",
+      "data_seed": 1,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "cbdd76829262c48433281be9a739a336a32ac04979d86754ce84f77536fc3ddb",
+      "shard": "3"
+    },
+    {
+      "case": "T8",
+      "data_seed": 2,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "7c4c146f127a869bacea13d19b954b1893ffac348e8d0fdeb5e8fbfcf240ca27",
+      "shard": "0"
+    },
+    {
+      "case": "T8",
+      "data_seed": 3,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "e8b98df6d02dba410fc64298c9505daa1410ba2e87ff85d0542bc79c467f4ed5",
+      "shard": "1"
+    },
+    {
+      "case": "T8",
+      "data_seed": 4,
+      "method": "hybrid",
+      "optimizer_seed": 0,
+      "run_id": "106a282bd16924c3aa5c0db21d23c43a2d1078a768f973181e18c8a35590b779",
+      "shard": "2"
+    },
+    {
+      "case": "T8",
+      "data_seed": 0,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "4c7248d6c6982016b6b6474205c8813b23459e552b36289d47365de450930b11",
+      "shard": "3"
+    },
+    {
+      "case": "T8",
+      "data_seed": 1,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "e183c0c28bed34dfea01e24ba16032560983448d6d8c70a24d821101755140a9",
+      "shard": "0"
+    },
+    {
+      "case": "T8",
+      "data_seed": 2,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "28bfbdc4c73a0c3beb18efa8cd638c38ff35e141eea20d946058e1e3debd960c",
+      "shard": "1"
+    },
+    {
+      "case": "T8",
+      "data_seed": 3,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "0bee72ea73095fe2e422b3f73a141a75d28c00ab3af2d6a20d1ebcc4610ddd85",
+      "shard": "2"
+    },
+    {
+      "case": "T8",
+      "data_seed": 4,
+      "method": "historical_proxy",
+      "optimizer_seed": 0,
+      "run_id": "d891411bbbf8e9f58102e53614c97b6ac3da9efa61dd174721953fffde9ee934",
+      "shard": "3"
+    }
+  ],
+  "search_overrides": {},
+  "shards": 4,
+  "soft_deadline_minutes": 300,
+  "split_sha": "31c1c22f30e171995c6c65576cd2aec79be031c648686683684193f1070e3e10",
+  "stage": "S0"
+}
