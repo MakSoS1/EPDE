@@ -74,6 +74,7 @@ projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli analyze-s1 \
 
 ## Status and review
 
+- [`REVIEW_RU.md`](REVIEW_RU.md) is the **one-page Russian briefing** for scientific review.
 - [`REVIEW.md`](REVIEW.md) is the entry point for reviewers.
 - [`RESULTS.md`](RESULTS.md) separates method diagnostics from actual full search.
 - [`METHODS.md`](METHODS.md) documents assumptions, heldout gates and caveats.
@@ -84,6 +85,10 @@ projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli analyze-s1 \
   **successful full S0 GitHub Actions replay** (240 IDs, 236 `ok`, 4 recorded
   crashes), its original SHA256-verified shard archives and byte-for-byte
   verified aggregate. [Actions run #38075541420](https://github.com/MakSoS1/EPDE/actions/runs/38075541420).
+- [`reports/actions_s1/README.md`](reports/actions_s1/README.md) preserves the
+  frozen **120-run S1 manifest** and its exact GitHub source SHA. Four full
+  search shards are running; their eventual result artifacts must be checked
+  before asserting any S1 accuracy or speed benefit.
 - `reports/s1_pilot/` and `reports/real_smoke/` retain unaggregated real EPDE
   run records; nine local full searches across `ode`/`vdp` expose negative
   feasibility observations, not a statistically powered method claim.
