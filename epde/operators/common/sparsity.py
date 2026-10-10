@@ -9,6 +9,7 @@ Created on Fri Jun  4 13:35:18 2021
 import numpy as np
 from sklearn.linear_model import Lasso
 import time
+import os
 from sklearn.base import BaseEstimator, RegressorMixin
 
 from functools import partial
@@ -277,7 +278,8 @@ class PhysicsInformedLasso(BaseEstimator, RegressorMixin):
         # supports, including their actual intercept column. The NIR1 metrics
         # are the ONLY clients; production chi2/VWSR remains untouched.
         nir1_full_blocks = None
-        if metric in {'nir1_excess', 'nir1_protected'}:
+        if (metric in {'nir1_excess', 'nir1_protected'}
+                and os.environ.get('NIR1_DISABLE_GRAM_CACHE') != '1'):
             from epde.operators.common.survival import (
                 block_gram_partition, _DEFAULT_N_BLOCKS_HET, _reference_width)
             max_blocks = n_samples // (4 * (_reference_width(total_features) + 1))
