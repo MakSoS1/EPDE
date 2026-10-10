@@ -56,3 +56,5 @@ jobs:
           path: output/
           if-no-files-found: warn
           retention-days: 30
+
+# 2026-10-11: rerun complete development replay with equal-budget native min-loss control.
