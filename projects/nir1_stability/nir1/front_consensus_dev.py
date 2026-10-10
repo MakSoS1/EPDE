@@ -81,7 +81,7 @@ def analyze_dev(manifest, paths):
             "allfront_minus_selected_consensus_pp": 100*float(np.mean(diff)),
             "cluster_exact_signflip_p": float(p),
             "manifest_sha": manifest["manifest_sha"], "source_code_sha": manifest["code_sha"],
-            "science_warning": "S1b was already inspected before formulation; "
+            "science_warning": "S1 and S1b archives were already inspected before formulation; "
                                "development-only, must not tune on S2 and claim confirmation",
             "rows": rows, "ledger": ledger}
 
