@@ -74,11 +74,10 @@ projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli analyze-s1 \
 
 ## Extended scientific materials
 
-- [`S1_VERIFIED_RU.md`](S1_VERIFIED_RU.md) — verified 120/120 full-search results with correct clustered inferential limitations.
 - [`PAPER_DRAFT_RU.md`](PAPER_DRAFT_RU.md) — academic manuscript draft with formulas, preliminary real-search negatives, literature and explicit evidence boundary.
 - [`RESEARCH_COMPLETENESS.md`](RESEARCH_COMPLETENESS.md) — full plan audit: implemented vs scientifically established vs outstanding.
 - [`S2_S3_PREREGISTRATION.md`](S2_S3_PREREGISTRATION.md) — independent-system confirmation/transfer gate, not an automatic launch.
-- **Frozen S1 research data must be reanalyzed after completion:** its original source revision had pooled McNemar p-values over repeated seeds. Current `nir1/metrics.py` and `nir1/s1_aggregate.py` fix the analysis to use independent-system sign flips and Holm. Keep the original S1 aggregate as archival, never as confirmatory p-value evidence.
+- **Frozen S1 research data were reanalyzed after completion:** the original source revision had pooled McNemar p-values over repeated seeds. Current `nir1/metrics.py` and `nir1/s1_aggregate.py` use independent-system sign flips and Holm; the corrected report is under `reports/actions_s1/corrected/`. The original S1 aggregate is archival only, never confirmatory p-value evidence.
 
 ## Status and review
 
@@ -94,10 +93,9 @@ projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli analyze-s1 \
   crashes), its original SHA256-verified shard archives and byte-for-byte
   verified aggregate. [Actions run #38075541420](https://github.com/MakSoS1/EPDE/actions/runs/38075541420).
 - [`reports/actions_s1/README.md`](reports/actions_s1/README.md) preserves the
-  frozen **120-run S1 manifest** and its exact GitHub source SHA. The 120
-  full EPDE searches have completed successfully. The old on-run pooled
-  McNemar p-values are diagnostic only. See [S1_VERIFIED_RU.md](S1_VERIFIED_RU.md)
-  for independent verification and corrected system-level paired inference.
+  frozen **120-run S1 manifest**, verified artifact hashes, archival original
+  aggregate and corrected independent-system analysis. All 120 runs completed;
+  the proposed variants did not improve the frozen baseline in exploratory S1.
 - `reports/s1_pilot/` and `reports/real_smoke/` retain unaggregated real EPDE
   run records; nine local full searches across `ode`/`vdp` expose negative
   feasibility observations, not a statistically powered method claim.
