@@ -767,7 +767,8 @@ def nir1_excess_scores(features, target, sample_weights, grid_shape,
     # is algebraically identical to the full matmul, but a tiny
     # reassociation error could be amplified by near-dependent columns.
     # The protected direct path intentionally trades speed for accuracy.
-    if not np.isfinite(np.linalg.cond(gram)) or np.linalg.cond(gram) > 1e8:
+    gram_condition = np.linalg.cond(gram)
+    if not np.isfinite(gram_condition) or gram_condition > 1e8:
         A = np.column_stack((X, np.ones(n))) if fit_intercept else X
         gram = A.T @ (w[:, None] * A)
         _loop_stats.record('nir1.precision_direct_gram_fallback', 1, 1)
