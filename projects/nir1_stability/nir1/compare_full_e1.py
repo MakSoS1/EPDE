@@ -34,22 +34,30 @@ def compare(cached: dict, reference: dict):
     for field in ("success_selected", "success_front", "hamming_selected", "hamming_min"):
         if ma.get(field) != mb.get(field):
             raise AssertionError(f"Structural metric changed: {field}")
-    # Front score rows may be reordered with EPDE's tie resolution.
-    # Compare each value vector paired with its full printed equation set.
+    # Preserve MULTIPLICITY: distinct candidates can canonicalize to the
+    # same physical structure while carrying different coefficients/scores.
+    # A plain dict keyed by structure would silently discard such candidates.
+    from collections import defaultdict
     def paired_scores(rec):
-        return {repr(canonical_tokens(eq)): val for eq, val in
-                zip(rec["front"], rec["objectives"])}
+        groups = defaultdict(list)
+        for eq, val in zip(rec["front"], rec["objectives"]):
+            groups[repr(canonical_tokens(eq))].append(np.asarray(val, dtype=float))
+        for key in groups:
+            groups[key].sort(key=lambda vec: tuple(vec.tolist()))
+        return groups
     A, B = paired_scores(cached), paired_scores(reference)
     if A.keys() != B.keys():
         raise AssertionError("Objective vectors cannot be matched to structures")
     maximum_error = 0.
     for key in A:
-        va, vb = np.asarray(A[key], dtype=float), np.asarray(B[key], dtype=float)
-        if not np.allclose(va, vb, rtol=1e-5, atol=1e-7):
-            raise AssertionError(f"Objective changed after exact Gram reuse: {key}")
-        maximum_error = max(maximum_error, float(np.max(np.abs(va-vb))))
+        if len(A[key]) != len(B[key]):
+            raise AssertionError("Front contains differing multiplicities of an equation")
+        for va, vb in zip(A[key], B[key]):
+            if not np.allclose(va, vb, rtol=1e-5, atol=1e-7):
+                raise AssertionError(f"Objective changed after exact Gram reuse: {key}")
+            maximum_error = max(maximum_error, float(np.max(np.abs(va-vb))))
     return {
-        "status": "PARITY_PASSED", "samples": len(A),
+        "status": "PARITY_PASSED", "samples": sum(map(len, A.values())),
         "same_candidate_support": True, "same_selected_structure": True,
         "same_structural_success": True, "max_abs_objective_difference": maximum_error,
         "full_budget": cached["search_config"]["evolution"],
