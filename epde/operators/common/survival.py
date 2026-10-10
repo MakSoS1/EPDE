@@ -845,8 +845,13 @@ def nir1_conditional_scores(features, target, sample_weights, grid_shape,
         gy = A.T @ (w * np.asarray(target, dtype=float).reshape(-1))
     else:
         blocks, gyblocks, yyblocks = precomputed_grams
-        gram = np.sum(blocks, axis=0)
-        gy = np.sum(gyblocks, axis=0)
+        # Every block cache carries one bookkeeping intercept in its LAST
+        # slot, even when the estimator is called fit_intercept=False with
+        # only explicitly active columns. The conditional F calculation
+        # must use exactly the fitted columns, not the extra dummy slot.
+        fitted_columns = A.shape[1]
+        gram = np.sum(blocks, axis=0)[:fitted_columns, :fitted_columns]
+        gy = np.sum(gyblocks, axis=0)[:fitted_columns]
         yy = float(np.sum(yyblocks))
     if not np.isfinite(gram).all() or not np.isfinite(gy).all():
         return base
