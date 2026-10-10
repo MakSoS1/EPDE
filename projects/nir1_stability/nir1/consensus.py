@@ -95,3 +95,40 @@ def consensus_decision(records: Sequence[dict], *, min_repetition: int = 2) -> d
         "truth_used_to_select": False,
         "fidelity": "one output per system and data realization; K complete EPDE evolutions",
     }
+
+
+def min_discrepancy_restart(records: Sequence[dict]) -> dict:
+    """Equal-compute K-search control: pick native PIC result with min loss.
+
+    All K full EPDE searches are still paid for. This is a truth-free
+    competing way of deriving ONE output from K restarts; unlike comparing
+    consensus to average per-seed PIC success, this control has the SAME
+    number of searches and same single-decision output unit.
+    """
+    import math
+
+    prior = consensus_decision(records)  # independent-seed / code / config gate
+    scored = []
+    for row in records:
+        index = int(row["metrics"]["selected_index"])
+        if not isinstance(row.get("objectives"), list) or not 0 <= index < len(row["objectives"]):
+            raise ValueError("Cannot compare selected loss across missing fronts")
+        objective = row["objectives"][index]
+        if (not isinstance(objective, list) or not objective or
+                len(objective) != 2 * len(row["front"][index])):
+            raise ValueError("Malformed objective for one equation per axis pair")
+        vals = [float(v) for v in objective]
+        if any(not math.isfinite(v) for v in vals):
+            raise ValueError("Nonfinite objective cannot be used for cross-restart selection")
+        scored.append((sum(vals[::2])/len(row["front"][index]), int(row["seed"]), index, row))
+    loss, seed, index, selected = min(scored, key=lambda item: (item[0], item[1]))
+    eq = selected["front"][index]
+    key = _signature(eq)
+    return {"method": "nir1_equal_compute_lowest_native_discrepancy_v1",
+            "dataset": prior["dataset"], "data_seed": prior["data_seed"],
+            "optimizer_seeds": prior["optimizer_seeds"],
+            "n_full_searches": len(records), "source_revisions": prior["source_revisions"],
+            "chosen_seed": seed, "chosen_equations": eq,
+            "chosen_structure_sha256": hashlib.sha256(key.encode()).hexdigest(),
+            "mean_native_discrepancy": float(loss), "truth_used_to_select": False,
+            "fidelity": "one output from K standard PIC full searches, budget matched to consensus"}
