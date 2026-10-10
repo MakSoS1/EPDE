@@ -621,3 +621,135 @@ def load_darcy(sample: int = 0):
         token_groups=[('nu-tensors', coefficient, False), ('xy-tensor', mixed, True)],
         notes='Stationary: -nu (u_xx + u_yy) - nu_x u_x - nu_y u_y = 1 (the constant is not '
               'scored). The coefficient field and its gradients enter as factor tokens.')
+
+
+# =========================================================================
+# NIR-1 analytic transfer benchmark: FROZEN construction before evaluation.
+#
+# Each family has an independently justified analytic trajectory and a
+# known equation. No precomputed source file and no truth-dependent fitting.
+# The family list, coefficients, grids, and noise are immutable in S2e.
+# Care: linear-family results are correlated in mechanism and should never
+# be treated as eleven unrelated experimental discoveries.
+# =========================================================================
+
+@dataset('nir1_decay', 'Exponential first-order decay', 'ode', 'synthetic',
+         'extended', 'analytic formula')
+def load_nir1_decay():
+    t = np.linspace(0., 7., 320)
+    u = 1.5 * np.exp(-0.7*t)
+    return _problem('nir1_decay', mesh(t), {'u': u}, ('t',),
+                    truth=['-0.7 * u{power: 1.0} = du/dx0{power: 1.0}'],
+                    notes="Analytic u(t)=1.5 exp(-0.7t); 320 uniform samples.")
+
+
+@dataset('nir1_logistic', 'Logistic saturating growth', 'ode', 'synthetic',
+         'extended', 'analytic formula')
+def load_nir1_logistic():
+    t = np.linspace(0., 13., 320)
+    rate, capacity = 0.65, 2.0
+    u = capacity / (1. + 4. * np.exp(-rate*t))
+    return _problem('nir1_logistic', mesh(t), {'u': u}, ('t',),
+                    truth=['0.65 * u{power: 1.0} + -0.325 * u{power: 2.0}'
+                           ' = du/dx0{power: 1.0}'],
+                    notes="Analytic logistic curve: du/dt=0.65u(1-u/2).")
+
+
+@dataset('nir1_quadratic', 'Second-order mass-action loss in one variable',
+         'ode', 'synthetic', 'extended', 'analytic formula')
+def load_nir1_quadratic():
+    t = np.linspace(0., 10., 320)
+    u = 1.0 / (1.0 + .22*t)
+    return _problem('nir1_quadratic', mesh(t), {'u': u}, ('t',),
+                    truth=['-0.22 * u{power: 2.0} = du/dx0{power: 1.0}'],
+                    notes="Exact solution of quadratic rate equation.")
+
+
+@dataset('nir1_cubic', 'Cubic saturating reaction', 'ode', 'synthetic',
+         'extended', 'analytic formula')
+def load_nir1_cubic():
+    t = np.linspace(0., 5., 320)
+    u = 1.0 / np.sqrt(1. + 7. * np.exp(-2.*t))
+    return _problem('nir1_cubic', mesh(t), {'u': u}, ('t',),
+                    truth=['1.0 * u{power: 1.0} + -1.0 * u{power: 3.0}'
+                           ' = du/dx0{power: 1.0}'],
+                    notes="Exact du/dt=u-u^3, nontrivial transient.")
+
+
+@dataset('nir1_harmonic', 'Undamped linear oscillator', 'ode', 'synthetic',
+         'extended', 'analytic formula')
+def load_nir1_harmonic():
+    t = np.linspace(0., 12., 320)
+    u = np.cos(1.3*t) + .35 * np.sin(1.3*t)
+    return _problem('nir1_harmonic', mesh(t), {'u': u}, ('t',),
+                    truth=['-1.69 * u{power: 1.0} = d^2u/dx0^2{power: 1.0}'],
+                    notes="Nonzero position and velocity initial conditions, omega=1.3.")
+
+
+def _nir1_transfer_mesh():
+    t = np.linspace(0., 2., 81)
+    x = np.linspace(-np.pi, np.pi, 96)
+    return mesh(t, x)
+
+
+@dataset('nir1_advection', 'Linear one-dimensional transport', 'pde_1d',
+         'synthetic', 'extended', 'analytic formula')
+def load_nir1_advection():
+    t, x = _nir1_transfer_mesh()
+    phase = x - .7*t
+    u = np.sin(phase) + .35 * np.sin(2.*phase)
+    return _problem('nir1_advection', (t,x), {'u': u}, ('t','x'),
+                    truth=['-0.7 * du/dx1{power: 1.0} = du/dx0{power: 1.0}'],
+                    notes="Two Fourier modes moving with speed 0.7.")
+
+
+@dataset('nir1_heat', 'Two-mode linear heat diffusion', 'pde_1d',
+         'synthetic', 'extended', 'analytic formula')
+def load_nir1_heat():
+    t, x = _nir1_transfer_mesh()
+    alpha = .17
+    u = np.exp(-alpha*t) * np.sin(x) + .45*np.exp(-4*alpha*t)*np.sin(2*x)
+    return _problem('nir1_heat', (t,x), {'u': u}, ('t','x'),
+                    truth=['0.17 * d^2u/dx1^2{power: 1.0}'
+                           ' = du/dx0{power: 1.0}'],
+                    notes="Two independent Fourier modes avoid trivial u/u_xx proportionality.")
+
+
+@dataset('nir1_reactiondiff', 'Linear reaction-diffusion, two modes',
+         'pde_1d', 'synthetic', 'extended', 'analytic formula')
+def load_nir1_reactiondiff():
+    t, x = _nir1_transfer_mesh()
+    alpha, beta = .19, .35
+    u = (np.exp((beta-alpha)*t)*np.sin(x)
+         + .4*np.exp((beta-4*alpha)*t)*np.sin(2*x))
+    return _problem('nir1_reactiondiff', (t,x), {'u': u}, ('t','x'),
+                    truth=['0.19 * d^2u/dx1^2{power: 1.0}'
+                           ' + 0.35 * u{power: 1.0} = du/dx0{power: 1.0}'],
+                    notes="u_t=0.19u_xx+0.35u; two spatial modes.")
+
+
+@dataset('nir1_wave', 'Two-mode undamped wave', 'pde_1d',
+         'synthetic', 'extended', 'analytic formula')
+def load_nir1_wave():
+    t, x = _nir1_transfer_mesh()
+    speed = .8
+    u = np.sin(x)*np.cos(speed*t) + .25*np.sin(2*x)*np.cos(2*speed*t)
+    return _problem('nir1_wave', (t,x), {'u': u}, ('t','x'),
+                    truth=['0.64 * d^2u/dx1^2{power: 1.0}'
+                           ' = d^2u/dx0^2{power: 1.0}'],
+                    notes="Wave equation u_tt=0.64u_xx, two distinct dispersion modes.")
+
+
+@dataset('nir1_advdiff', 'Transport with positive spatial diffusion',
+         'pde_1d', 'synthetic', 'extended', 'analytic formula')
+def load_nir1_advdiff():
+    t, x = _nir1_transfer_mesh()
+    drift, diffusion = .65, .13
+    s = x-drift*t
+    u = (np.exp(-diffusion*t)*np.sin(s)
+         + .35*np.exp(-4*diffusion*t)*np.sin(2*s))
+    return _problem('nir1_advdiff', (t,x), {'u': u}, ('t','x'),
+                    truth=['-0.65 * du/dx1{power: 1.0}'
+                           ' + 0.13 * d^2u/dx1^2{power: 1.0}'
+                           ' = du/dx0{power: 1.0}'],
+                    notes="u_t=-0.65u_x+0.13u_xx, two Fourier modes.")
