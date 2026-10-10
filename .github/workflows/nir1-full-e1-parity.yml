@@ -1,0 +1,57 @@
+name: NIR1 | full EPDE exact E1 parity
+on:
+  push:
+    branches: [nir1]
+    paths:
+      - '.github/workflows/nir1-full-e1-parity.yml'
+      - 'projects/nir1_stability/nir1/compare_full_e1.py'
+permissions:
+  contents: read
+jobs:
+  same-budget-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        dataset: [ode, burgers]
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      UV_CACHE_DIR: /tmp/nir1-parity-uv
+    steps:
+      - name: Checkout identical source revision for BOTH variants
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Install UV
+        uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+      - name: Install locked CPU environment
+        run: |
+          uv sync --project projects/pic --extra cpu --locked
+          mkdir -p artifacts
+      - name: Compute full EPDE WITHOUT RFE block cache
+        env:
+          NIR1_DISABLE_GRAM_CACHE: '1'
+        run: |
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli epde --dataset '${{ matrix.dataset }}' --variant nir1_protected_regulator --seed 0 --data-seed 0 --output artifacts/reference.json
+      - name: Compute full EPDE WITH RFE block cache
+        env:
+          NIR1_DISABLE_GRAM_CACHE: '0'
+        run: |
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli epde --dataset '${{ matrix.dataset }}' --variant nir1_protected_regulator --seed 0 --data-seed 0 --output artifacts/cached.json
+      - name: Compare true full-search fronts, selected structure, and objective vectors
+        run: |
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.compare_full_e1 --reference artifacts/reference.json --cached artifacts/cached.json --output artifacts/e1-full-parity.json
+          git rev-parse HEAD > artifacts/source-sha.txt
+      - name: Preserve both raw full searches even if parity fails
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nir1-full-e1-parity-${{ matrix.dataset }}-${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 30
