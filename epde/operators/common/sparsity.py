@@ -69,7 +69,7 @@ def _minmax_normalize_columns(features: np.ndarray) -> np.ndarray:
 
 def instability_scores(metric, X, y, sw, grid_shape, active_mask, n_features,
                        *, gram_setup=None, cv_reducer=None, weights=None,
-                       nir1_full_blocks=None):
+                       nir1_full_blocks=None, chi2_prefix=None):
     """Per-active-COLUMN instability score for a support mask.
 
     THE SAME estimator the ``Instability`` objective uses, and the single
@@ -94,6 +94,12 @@ def instability_scores(metric, X, y, sw, grid_shape, active_mask, n_features,
         return gram_setup.score(active_mask)
     if metric == 'cv':
         return cv_reducer(weights)
+    if metric == 'chi2' and chi2_prefix is not None:
+        from epde.operators.common.chi2_prefix import scores_from_chi2_prefix
+        cached = scores_from_chi2_prefix(chi2_prefix, active_mask)
+        if cached is not None:
+            return cached
+        _loop_stats.record('nir1.chi2_prefix_numerical_fallback', 1, 1)
     cols = np.where(active_mask)[0]
     feat_cols = cols[cols < n_features]
     Xa = X[:, feat_cols]
@@ -289,6 +295,16 @@ class PhysicsInformedLasso(BaseEstimator, RegressorMixin):
                     Xf, y, sw, grid_shape, nr_blocks, return_yy=True)
                 _loop_stats.record('nir1.block_gram_build_once', 1, 1)
 
+        # Experimental E1 chi2 acceleration. No behavior change unless
+        # explicitly opted into NIR1_CHI2_PREFIX_CACHE=1.
+        chi2_prefix = None
+        if (metric == 'chi2' and
+                os.environ.get('NIR1_CHI2_PREFIX_CACHE') == '1'):
+            from epde.operators.common.chi2_prefix import prepare_chi2_prefix
+            chi2_prefix = prepare_chi2_prefix(Xf, y, sw, grid_shape, G_w, Gy_w)
+            if chi2_prefix is not None:
+                _loop_stats.record('nir1.chi2_prefix_build_once', 1, 1)
+
         is_vcoef = getattr(gram_setup, 'is_vcoef', False)
 
         outer_iteration = 0
@@ -329,7 +345,8 @@ class PhysicsInformedLasso(BaseEstimator, RegressorMixin):
             # the one the Pareto axis reads.
             active_cv = self._keep_rule_scores(metric, gram_setup, weights, Xf, y,
                                             sw, grid_shape, active_mask,
-                                            n_features, nir1_full_blocks=nir1_full_blocks)
+                                            n_features, nir1_full_blocks=nir1_full_blocks,
+                                            chi2_prefix=chi2_prefix)
 
             # Tackle the most physically unstable feature first.
             active_thresholds = active_cv * max_corr
@@ -473,7 +490,7 @@ class PhysicsInformedLasso(BaseEstimator, RegressorMixin):
 
     def _keep_rule_scores(self, metric, gram_setup, weights, X, y, sw,
                        grid_shape, active_mask, n_features,
-                       nir1_full_blocks=None):
+                       nir1_full_blocks=None, chi2_prefix=None):
         """This estimator's view of :func:`instability_scores` -- the L1
         threshold's per-column scale. Kept as a method because the ``'cv'``
         branch reduces the window stack through :meth:`get_cv`, which is
@@ -481,7 +498,8 @@ class PhysicsInformedLasso(BaseEstimator, RegressorMixin):
         return instability_scores(metric, X, y, sw, grid_shape, active_mask,
                                   n_features, gram_setup=gram_setup,
                                   cv_reducer=self.get_cv, weights=weights,
-                                  nir1_full_blocks=nir1_full_blocks)
+                                  nir1_full_blocks=nir1_full_blocks,
+                                  chi2_prefix=chi2_prefix)
 
     def predict(self, X):
         return X @ self.coef_ + self.intercept_
