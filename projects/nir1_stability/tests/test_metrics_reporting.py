@@ -113,6 +113,28 @@ def test_lossless_compressed_raw_s0_evidence_can_be_reported(tmp_path):
     assert "1/1" in (tmp_path / "out/RESULTS.md").read_text()
 
 
+def test_cli_report_marks_full_epde_as_pilot_only_when_raw_pilot_exists(tmp_path):
+    path = tmp_path / "s0.jsonl"
+    row = {"case": "T1", "seed": 0, "method": "lasso", "candidate": "truth",
+           "status": "ok", "selected_support_exact": True, "truth_candidate_rank": 1,
+           "false_deleted": 0, "false_included": 0, "code_sha": "test",
+           "score_status": "scored"}
+    path.write_text(json.dumps(row) + "\n")
+    pilot = tmp_path / "pilot"
+    pilot.mkdir()
+    (pilot / "ode.json").write_text(json.dumps({"dataset": "ode", "seed": 0,
+        "status": "ok", "research_variant": "default", "metrics": {"success_selected": True},
+        "fit_seconds": 1, "total_seconds": 2, "environment": {"epde_commit": "test"},
+        "nir1_smoke_only": False}))
+    out = tmp_path / "report"
+    proc = subprocess.run([sys.executable, "-m", "projects.nir1_stability.nir1.cli",
+                           "report", "--s0-results", str(path), "--output", str(out),
+                           "--epde-runs", str(pilot)], capture_output=True, text=True)
+    assert proc.returncode == 0, proc.stderr
+    assert json.loads(proc.stdout)["full_epde"] == "S1 PILOT ONLY"
+    assert "S1 PILOT ONLY" in (out / "REVIEW.md").read_text()
+
+
 def test_full_epde_pilot_addendum_never_hides_failure_or_counts_smoke(tmp_path):
     render_review({"stage": "S0", "planned": 2, "ok": 2, "methods": {},
                    "full_epde_status": "S1 PILOT ONLY", "code_sha": "abc"}, tmp_path)
@@ -134,3 +156,8 @@ def test_full_epde_pilot_addendum_never_hides_failure_or_counts_smoke(tmp_path):
     assert "SMOKE EXCLUDED" in txt
     assert "NO JOBS" in txt
     assert "INSUFFICIENT" in txt
+    assert "PIC predefined compromise selector" in txt
+    render_pilot_addendum(tmp_path, [], None,
+                          actions_runs=[{"run_id": 2, "conclusion": "success",
+                                         "job_count": 6, "artifacts_verified": True}])
+    assert "raw records independently reconciled" in (tmp_path / "PILOT.md").read_text()

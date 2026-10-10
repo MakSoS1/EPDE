@@ -144,6 +144,9 @@ jobs:
       - name: Reconcile all planned statuses without silent omissions
         run: |
           projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli summarize --manifest prepared/planned.json --records downloaded/ --output aggregated/summary.json
+      - name: Analyze paired full EPDE S1 without dropping failed experiments
+        run: |
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli analyze-s1 --manifest prepared/planned.json --records downloaded/ --output aggregated/
       - name: Preserve reconciled results even if a shard failed
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

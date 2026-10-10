@@ -251,7 +251,13 @@ def render_pilot_addendum(output_dir: Path, full_search_records: Sequence[Mappin
                       f"{counts['unsupported']} unsupported, {counts['incomplete']} incomplete.",
                       "- Every planned identity is counted, including invalid/singular solver cases.", ""])
     lines.extend(["## Measured full-search records", "",
-                  "| Dataset | Variant | Optimizer seed | Source revision | Status | Selected exact | Full fit (s) | Wall (s) |",
+                  "The success column uses the **PIC predefined compromise selector** "
+                  "(`metrics.success_selected`, truth-free min-max normalized objective sum). "
+                  "A separate Euclidean research selector is recorded in the raw JSON, "
+                  "but is not substituted after seeing truth. Source hashes here are "
+                  "local Git revisions used at execution; GitHub-hosted mirrored commits "
+                  "can have different commit IDs and must be matched by source contents.", "",
+                  "| Dataset | Variant | Optimizer seed | Source revision | Status | PIC selected exact | Full fit (s) | Wall (s) |",
                   "|---|---|---:|---|---|---|---:|---:|"])
     for r in sorted(full, key=lambda x: (str(x.get("dataset")), int(x.get("seed", -1)),
                                          str(x.get("research_variant", "")))):
@@ -273,13 +279,16 @@ def render_pilot_addendum(output_dir: Path, full_search_records: Sequence[Mappin
     lines.extend(["", "## GitHub Actions evidence", ""])
     for run in actions_runs:
         zero_jobs = int(run.get("job_count", -1)) == 0
-        verdict = "NO JOBS; no VM experiment executed" if zero_jobs else "jobs recorded"
+        verdict = ("NO JOBS; no VM experiment executed" if zero_jobs else
+                   f"{run['job_count']} jobs; raw records independently reconciled"
+                   if run.get("artifacts_verified") else
+                   f"{run.get('job_count', '?')} job(s) observed; raw artifact verification required")
         lines.append(f"- [Run {run['run_id']}](https://github.com/MakSoS1/EPDE/actions/runs/{run['run_id']}): "
                      f"{run.get('conclusion', 'unknown')} — **{verdict}**.")
     if not actions_runs:
         lines.append("- No independently verified workflow results available.")
     lines.extend(["", "## Interpretation and next gate", "",
-                  "A single paired system/seed is an engineering smoke/pilot, not proof of a method effect. "
+                  "This small, mostly one-seed multi-system engineering pilot is not proof of a method effect. "
                   "A slower or incorrect equation is a negative observation, not removed from statistics.",
                   "S2 heldout and S3 transfer cannot be advertised until the S1 finalist/budget are "
                   "frozen and Actions (or another authorized isolated runner) executes all planned IDs.",

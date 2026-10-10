@@ -94,6 +94,10 @@ def main(argv: list[str] | None = None) -> int:
     summary.add_argument("--manifest", type=Path, required=True)
     summary.add_argument("--records", type=Path, required=True)
     summary.add_argument("--output", type=Path, required=True)
+    analyze = commands.add_parser("analyze-s1", help="Failure-aware S1 method and paired analysis")
+    analyze.add_argument("--manifest", type=Path, required=True)
+    analyze.add_argument("--records", type=Path, required=True)
+    analyze.add_argument("--output", type=Path, required=True)
     report = commands.add_parser("report", help="Build honest S0 reviewer package")
     report.add_argument("--s0-results", type=Path, required=True)
     report.add_argument("--output", type=Path, required=True)
@@ -152,20 +156,37 @@ def main(argv: list[str] | None = None) -> int:
         atomic_json(options.output, body)
         print(json.dumps({"planned": body["planned"], "status_counts": body["status_counts"]}))
         return 0
+    if options.command == "analyze-s1":
+        from .s1_aggregate import analyze_s1, write_s1_report
+        manifest = json.loads(options.manifest.read_text(encoding="utf-8"))
+        if manifest["stage"] != "S1":
+            print(json.dumps({"status": "NOT APPLICABLE", "stage": manifest["stage"]}))
+            return 0
+        files = (sorted(options.records.rglob("*.json"))
+                 if options.records.exists() else [])
+        files = [p for p in files if len(p.stem) == 64 and
+                 all(char in "0123456789abcdef" for char in p.stem)]
+        result = analyze_s1(manifest, files)
+        write_s1_report(options.output, result)
+        print(json.dumps({"planned": result["planned"],
+                          "inference_gate": result["inference_gate"]}))
+        return 0
     if options.command == "report":
         open_rows = gzip.open if options.s0_results.suffix == ".gz" else open
         with open_rows(options.s0_results, "rt", encoding="utf-8") as source:
             records = [json.loads(line) for line in source if line.strip()]
         result = summarize_s0_rows(records)
+        full = ([json.loads(p.read_text(encoding="utf-8")) for p in
+                 sorted(options.epde_runs.rglob("*.json"))
+                 if "-precommit" not in p.stem]
+                if options.epde_runs and options.epde_runs.exists() else [])
+        if any(not record.get("nir1_smoke_only", False) for record in full):
+            result["full_epde_status"] = "S1 PILOT ONLY"
         written = render_review(result, options.output)
         written.extend(render_s0_figures(records, options.output / "figures"))
         if options.ledger_summary or options.epde_runs or options.smoke_runs or options.actions_status:
             ledger = (json.loads(options.ledger_summary.read_text(encoding="utf-8"))
                       if options.ledger_summary else None)
-            full = ([json.loads(p.read_text(encoding="utf-8")) for p in
-                     sorted(options.epde_runs.rglob("*.json"))
-                     if "-precommit" not in p.stem]
-                    if options.epde_runs and options.epde_runs.exists() else [])
             if options.smoke_runs and options.smoke_runs.exists():
                 full.extend(json.loads(p.read_text(encoding="utf-8")) for p in
                             sorted(options.smoke_runs.rglob("*.json")))

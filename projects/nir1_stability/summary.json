@@ -56,7 +56,7 @@
   },
   "code_sha": "93b3edd39e5d373b76c7b975c0605aaac9633a9c",
   "provisional": true,
-  "full_epde_status": "NOT RUN",
+  "full_epde_status": "S1 PILOT ONLY",
   "historical_vclog_status": "ARCHIVAL; NOT REPRODUCED",
   "raw_data_status": "fixed candidates constructed from explicit simulator truth (S0 only)"
 }

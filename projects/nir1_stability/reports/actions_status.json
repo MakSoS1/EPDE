@@ -5,7 +5,7 @@
     "commit_sha": "b5fbd9732258f5a9be2298cbad4e139df4f8e47a",
     "conclusion": "failure",
     "job_count": 0,
-    "observation": "GitHub public Actions REST shows completed/failure; jobs API lists zero jobs"
+    "observation": "GitHub public Actions REST shows completed/failure; jobs API lists zero jobs. Invalid job-level runner.temp expression fixed in later commit."
   },
   {
     "run_id": 38073552119,
@@ -13,6 +13,26 @@
     "commit_sha": "b5fbd9732258f5a9be2298cbad4e139df4f8e47a",
     "conclusion": "failure",
     "job_count": 0,
-    "observation": "GitHub public Actions REST shows completed/failure; jobs API lists zero jobs"
+    "observation": "GitHub public Actions REST shows completed/failure; jobs API lists zero jobs. Invalid job-level runner.temp expression fixed in later commit."
+  },
+  {
+    "run_id": 38075279279,
+    "workflow": "nir1-smoke.yml",
+    "commit_sha": "2b4dcf27d79595d44342bdb2b1e29b72a447afac",
+    "conclusion": "success",
+    "job_count": 1,
+    "observation": "All steps completed successfully on a GitHub Actions VM; smoke must not be counted as full EPDE scientific evidence"
+  },
+  {
+    "run_id": 38075541420,
+    "workflow": "nir1-research.yml",
+    "commit_sha": "ada3f84c801d6e257d08f042f0c7300b01e81f63",
+    "conclusion": "success",
+    "job_count": 6,
+    "artifacts_verified": true,
+    "manifest_sha": "f50e663f9f0717e8a4354119643c2131196caac74fde974b0cfe8f3b06c9c249",
+    "planned": 240,
+    "status_counts": {"ok": 236, "crash": 4, "timeout": 0, "unsupported": 0, "incomplete": 0},
+    "observation": "Downloaded four original artifacts, verified their GitHub SHA256 digests and byte-for-byte recomputed the aggregate from 240 checksummed records"
   }
 ]

@@ -4,7 +4,7 @@
 **Branch:** [`nir1`](https://github.com/MakSoS1/EPDE/tree/nir1)  
 **Recorded local commit:** `93b3edd39e5d373b76c7b975c0605aaac9633a9c`  
 **S0 coverage:** 240/240 S0 method-trials recorded  
-**Full EPDE search:** **NOT RUN**
+**Full EPDE search:** **S1 PILOT ONLY**
 
 ## Verified from available evidence
 
@@ -21,7 +21,7 @@ S0 is a **fixed-candidate regression/ranking test** on controlled, synthetically
 
 ## What these results cannot establish
 
-- No S1/S2 heldout full-search conclusion is available: **NOT RUN**.
+- No S1/S2 heldout full-search conclusion is available: **S1 PILOT ONLY**.
 - Method counts share the same synthetic fixtures; they are not independent systems.
 - `historical_proxy` does not reproduce the archive's 58/76 result.
 - Ill-conditioned/weak-term failures must remain visible, not removed from the denominator.

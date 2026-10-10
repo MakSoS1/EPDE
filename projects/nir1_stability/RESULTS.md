@@ -2,7 +2,7 @@
 
 - **S0 candidate-level:** 240/240 S0 method-trials recorded; raw candidate rows: 930.
 - **Invalid/unscorable candidate scores:** 80.
-- **S1 full EPDE, S2 heldout, S3 transfer:** **NOT RUN**.
+- **S1 full EPDE, S2 heldout, S3 transfer:** **S1 PILOT ONLY**.
 - **Historical vclog+swap (58/76 vs 45/76):** archival, **not reproduced**.
 - **Numerical improvement over EPDE baseline:** **NOT ESTABLISHED**.
 

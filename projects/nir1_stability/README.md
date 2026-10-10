@@ -56,6 +56,22 @@ using a directory that contains all per-shard JSON records. The output
 enumerates every planned `ok`, `crash`, `timeout`, `unsupported` and
 `incomplete` identity; infrastructure retries are bounded and preserved.
 
+For **S1 real full EPDE**, `manifests/s1-pilot-proposed.yaml` freezes the
+six systems × four factorial methods × five paired optimizer seeds (120 IDs),
+the unchanged standard PIC evolution budget, and a four-VM limit. Move a
+reviewed snapshot to `manifests/launch/*.yaml` **once** to trigger the
+research workflow. A job that hits its soft deadline exits as retryable,
+uploads its checksummed raw progress, and can be rerun; the final aggregate
+labels all missing/failed identities. `analyze-s1` generates an optional
+paired, whole-system clustered CI and Holm correction **only** when the
+preregistered full cohort is sufficiently complete:
+
+```bash
+projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli analyze-s1 \
+  --manifest /path/to/planned.json --records /path/to/all-shards/ \
+  --output /path/to/aggregated/
+```
+
 ## Status and review
 
 - [`REVIEW.md`](REVIEW.md) is the entry point for reviewers.
@@ -64,11 +80,16 @@ enumerates every planned `ok`, `crash`, `timeout`, `unsupported` and
 - `reports/s0/fixtures.jsonl.gz` is complete raw fixed-candidate evidence.
 - `reports/s0/ledger-records-local.tar.gz` retains the checksummed S0 ledger
   checkpoints, with `ledger-summary-local.json` for reconciliation.
+- [`reports/actions_s0/README.md`](reports/actions_s0/README.md) documents the
+  **successful full S0 GitHub Actions replay** (240 IDs, 236 `ok`, 4 recorded
+  crashes), its original SHA256-verified shard archives and byte-for-byte
+  verified aggregate. [Actions run #38075541420](https://github.com/MakSoS1/EPDE/actions/runs/38075541420).
 - `reports/s1_pilot/` and `reports/real_smoke/` retain unaggregated real EPDE
-  run records; never use one pair as a significant method comparison.
+  run records; nine local full searches across `ode`/`vdp` expose negative
+  feasibility observations, not a statistically powered method claim.
 
 GitHub Actions workflows are restricted to this fork's `nir1` branch. The
 inherited ITMO GitLab mirroring workflow has also been restricted on `nir1`:
-research pushes do not trigger it. If GitHub reports a failed workflow run
-with **zero created jobs**, no VM benchmarks ran; inspect repository Actions
-settings/eligibility before claiming results from the branch workflow.
+research pushes do not trigger it. Early zero-job failures were caused by
+using unavailable `runner.temp` in job-level `env`; that syntax was fixed and
+both smoke and sharded S0 now execute successfully on real GitHub VMs.
