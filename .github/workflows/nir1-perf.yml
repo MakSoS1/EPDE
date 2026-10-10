@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/nir1-perf.yml'
       - 'projects/nir1_stability/nir1/benchmark_e1.py'
+      - 'projects/nir1_stability/nir1/benchmark_rfe_e1.py'
       - 'projects/nir1_stability/tests/test_exact_gram_reuse.py'
       - 'epde/operators/common/survival.py'
 permissions:
@@ -39,6 +40,8 @@ jobs:
           mkdir -p artifacts
           projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.benchmark_e1 --samples 12000 --features 7 --repetitions 5 --output artifacts/e1-12000.json
           projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.benchmark_e1 --samples 60000 --features 7 --repetitions 5 --output artifacts/e1-60000.json
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.benchmark_rfe_e1 --samples 24000 --features 8 --repetitions 3 --output artifacts/e1-rfe-24000.json
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.benchmark_rfe_e1 --samples 60000 --features 8 --repetitions 3 --output artifacts/e1-rfe-60000.json
           git rev-parse HEAD > artifacts/source-sha.txt
       - name: Preserve measured timings AND numerical mismatch failures
         if: always()
