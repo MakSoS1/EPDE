@@ -716,8 +716,8 @@ class Nir1AdaptiveSparsity(VWSRSparsity):
     key = 'NIR1AdaptiveSparsity'
 
     def apply(self, objective: Equation, arguments: dict):
-        if active_config().objectives.regularizer_metric != 'nir1_excess':
-            raise ValueError("Nir1AdaptiveSparsity requires research_regularizer_metric=nir1_excess")
+        if active_config().objectives.regularizer_metric not in {'nir1_excess', 'nir1_protected'}:
+            raise ValueError("Nir1AdaptiveSparsity requires nir1_excess or nir1_protected research metric")
         return super().apply(objective, arguments)
 
 
