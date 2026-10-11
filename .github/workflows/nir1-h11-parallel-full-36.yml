@@ -1,0 +1,89 @@
+name: NIR1 | H11 equal-budget parallel 36-law EPDE
+on:
+  push:
+    branches: [nir1]
+    paths:
+      - '.github/workflows/nir1-h11-parallel-full-36.yml'
+permissions:
+  contents: read
+jobs:
+  one-full-evolution-per-frozen-physical-system:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 105
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        dataset:
+          # Previously viewed: 6 historical S1 systems.
+          - ac
+          - burgers
+          - duffing
+          - lv
+          - ode
+          - vdp
+          # Previously viewed: 10 analytical S2e systems.
+          - nir1_decay
+          - nir1_harmonic
+          - nir1_logistic
+          - nir1_quadratic
+          - nir1_cubic
+          - nir1_advection
+          - nir1_heat
+          - nir1_reactiondiff
+          - nir1_wave
+          - nir1_advdiff
+          # Previously viewed: 9 H11 physical systems.
+          - nir1_h11_gaussian_heat
+          - nir1_h11_advection_decay
+          - nir1_h11_viscous_burgers
+          - nir1_h11_klein_gordon
+          - nir1_h11_biharmonic
+          - nir1_h11_airy
+          - nir1_h11_shear
+          - nir1_h11_logistic_field
+          - nir1_h11_gauss_reactdiff
+          # 11 frozen H14 cases; H11 logic is older than this corpus.
+          - nir1_h14_damped_wave
+          - nir1_h14_cole_hopf
+          - nir1_h14_kpp_front
+          - nir1_h14_linear_ks
+          - nir1_h14_beam
+          - nir1_h14_airy_transport
+          - nir1_h14_cubic_saturation
+          - nir1_h14_driven_advection
+          - nir1_h14_variable_diffusivity
+          - nir1_h14_liouville_growth
+          - nir1_h14_hyperdiffusion_growth
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      UV_CACHE_DIR: /tmp/nir1-h11-36
+      NIR1_DISABLE_GRAM_CACHE: '1'
+      NIR1_CHI2_PREFIX_CACHE: '0'
+    steps:
+      - name: Checkout exactly one source SHA for all 36 jobs
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: uv
+        uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+      - name: Frozen original CPU dependencies
+        run: uv sync --project projects/pic --extra cpu --locked
+      - name: Actual native EPDE full 16x5 H11, single trajectory, optimizer/data seed 0
+        run: |
+          mkdir -p output
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli epde --dataset '${{ matrix.dataset }}' --variant nir1_dynamic_mdl_select --seed 0 --data-seed 0 --output output/native-full.json
+          git rev-parse HEAD > output/source-sha.txt
+          printf '%s\n' 'H11 is the frozen OLD temporal target+MDL+argmin algorithm, NOT H12 repair and NOT H14 causal closure. Paired compare to 72-run baseline/H12 suite with same one physical trajectory, exact dataset/seed 0, library and 16x5. Search errors count as wrong; no selective retry. S1/S2e/H11 cohort previously viewed; 11 H14 cases prospective only for original H14 pre-registration, not a preregistered H11 third arm. H13 is a rank diagnostic, not a discovery method. E1 is frozen/off.' > output/SCIENTIFIC_SCOPE.txt
+      - name: Preserve raw full-search Pareto, errors, timing and exact commit
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nir1-h11-parallel-${{ matrix.dataset }}-${{ github.sha }}
+          path: output/
+          if-no-files-found: warn
+          retention-days: 30
