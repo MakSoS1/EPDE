@@ -33,7 +33,7 @@ def run_native(case: str, *, arm: str, seed: int,
                smoke: bool = True, initial_seed: int = 11):
     from epde import EpdeSearch
     from projects.pic.epde_bench import env, metrics
-    from projects.pic.epde_bench.config import load_config, resolve_for_problem
+    from projects.pic.epde_bench.config import load_config, resolve_for_problem, split_bench_tokens
     from projects.pic.epde_bench.datasets import load
     from projects.pic.epde_bench.runner import pareto_front
     from projects.pic.epde_bench.preprocessing import make_preprocessor
@@ -52,6 +52,10 @@ def run_native(case: str, *, arm: str, seed: int,
           sc["evolution"]["training_epochs"] != 5):
         raise ValueError("Scientific full-search budget unexpectedly changed")
 
+    # The benchmark may declare token families requiring externally instantiated
+    # tensors/callables; normal PIC always separates them before EpdeSearch.
+    sc, benchmark_families = split_bench_tokens(sc)
+
     # Simulator knows physical law; estimator sees only noisy-free raw
     # trajectory observations on a common grid and matching time axes.
     trajectories=make_observations(SUPPORTED[case],initial_seed)[:(1 if arm=="single" else 3)]
@@ -69,7 +73,7 @@ def run_native(case: str, *, arm: str, seed: int,
         _,tr=search.createTrajectory(arrays,domain,cache_id=i+100,
                                      preprocessor=make_preprocessor(sc))
         samples.append(tr)
-    families=stored_groups(original)
+    families=benchmark_families + stored_groups(original)
     if original.extra_tokens is not None:
         families+=original.extra_tokens(original)
     record={"dataset":case,"arm":arm,"seed":seed,"initial_seed":initial_seed,
