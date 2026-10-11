@@ -1,10 +1,9 @@
 """H14: causal closure in the FINAL Pareto decision, no additional searches.
 
-For an explicit scalar evolution law, its normalized temporal derivative
-(target) must be algebraically isolated: RHS after rearrangement may only
-contain state, space/time-independent coordinates, and SPATIAL derivatives.
-An extra temporal derivative anywhere on the candidate RHS makes the law
-an implicit/higher-differential-order consequence, not an explicit closure
+For an explicit scalar evolution law, exactly one bare time derivative
+can be algebraically isolated from EITHER equation side. All remaining
+monomials may contain fields, exogenous coordinates or spatial derivatives,
+but no second temporal derivative. Printed target placement is immaterial
 in this hypothesis class. This is a strong PHYSICS PRIOR, not a universal
 validity test. Damped waves u_tt = c²u_xx - gamma u_t genuinely violate
 the assumed closure; challenge them in the prospective heldout suite.
@@ -23,7 +22,7 @@ from .causal_mdl_selector import select_min_causal_description
 _TIME_FACTOR=re.compile(r"d(?:\^\d+)?[A-Za-z][A-Za-z0-9_]*/dx0(?:\^\d+)?\{[^{}]*\}")
 _TARGET=re.compile(
     r"\s*(?:[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?\s*\*\s*)?"
-    r"d(?:\^\d+)?[A-Za-z][A-Za-z0-9_]*/dx0(?:\^\d+)?\{[^{}]*\}\s*"
+    r"d(?:\^\d+)?[A-Za-z][A-Za-z0-9_]*/dx0(?:\^\d+)?\{power:\s*1(?:\.0+)?\}\s*"
 )
 
 
@@ -31,8 +30,14 @@ def is_closed_evolution_equation(equation: str) -> bool:
     """Full target is ONE bare temporal derivative; LHS has none."""
     if not isinstance(equation,str) or equation.count("=")!=1:
         return False
-    lhs,target=(x.strip() for x in equation.split("=",1))
-    return bool(_TARGET.fullmatch(target) and not _TIME_FACTOR.search(lhs))
+    lhs,rhs=(x.strip() for x in equation.split("=",1))
+    # EPDE right-part normalization is NOT a physical causal distinction.
+    # Correct u_t may be on the left, so use a symmetric algebraic test.
+    if len(_TIME_FACTOR.findall(equation)) != 1:
+        return False
+    lhs_monomials=[m.strip() for m in re.split(r"(?<![eE])[+]",lhs)]
+    return any(_TARGET.fullmatch(m) is not None
+               for m in (*lhs_monomials,rhs))
 
 
 def choose_causal_closed_front(front: Sequence[Sequence[str]],
