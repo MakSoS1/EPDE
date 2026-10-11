@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/nir1-h8-identifiability.yml'
       - 'projects/nir1_stability/nir1/multitrajectory_identifiability.py'
+      - 'projects/nir1_stability/nir1/identifiability_certificate.py'
       - 'projects/nir1_stability/tests/test_multitrajectory_identifiability.py'
 permissions:
   contents: read
@@ -36,6 +37,7 @@ jobs:
         run: |
           mkdir -p output
           projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.multitrajectory_identifiability --seeds 5 --output output/H8_FIXED_TARGET_RESULTS.json
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.identifiability_certificate --seed 0 --output output/H8_GRAM_CERTIFICATE.json
           git rev-parse HEAD > output/research-code-sha.txt
           printf '%s\n' 'This study assumes known time-derivative order and a smaller fixed library. Do NOT compare as an equal-information improvement of unrestricted EPDE.' > output/NO_UNRESTRICTED_EPDE_CLAIM.txt
       - name: Preserve all raw cases and failures
