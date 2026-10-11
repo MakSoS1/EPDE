@@ -4,6 +4,9 @@ on:
     branches: [nir1]
     paths:
       - '.github/workflows/nir1-h9-offline-audit.yml'
+      - 'projects/nir1_stability/nir1/dynamic_postfilter.py'
+      - 'projects/nir1_stability/tests/test_dynamic_postfilter.py'
+      - 'projects/nir1_stability/nir1/analyze_h9.py'
 permissions:
   contents: read
   actions: read
