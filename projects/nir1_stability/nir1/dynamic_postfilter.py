@@ -19,8 +19,15 @@ _TEMPORAL_TARGET = re.compile(
 def is_explicit_temporal_equation(text: str) -> bool:
     if "=" not in text:
         return False
-    right = text.split("=", 1)[1].strip()
-    return _TEMPORAL_TARGET.fullmatch(right) is not None
+    left, right = text.split("=", 1)
+    # PIC canonicalizes target-side independently: an algebraically
+    # equivalent law such as "c*u_t + d*u = u_xx" must pass the SAME
+    # physics prior as "u_xx - d*u = c*u_t". Filtering only the printed
+    # RHS was a confounded control and lowered baseline success on
+    # reaction-diffusion for no physical reason.
+    expressions = [right.strip(), *re.split(r"(?<![eE])\\+", left)]
+    return any(_TEMPORAL_TARGET.fullmatch(expr.strip()) is not None
+               for expr in expressions)
 
 
 def select_temporal_postfilter(front: Sequence[Sequence[str]],
