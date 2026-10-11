@@ -334,9 +334,23 @@ class EqRightPartSelector(CompoundOperator):
         # is only valid for the structure observed during the sweep.
         objective._gram_super = None
         if dynamic_anchor and not any(eligible(t) for t in objective.structure):
-            # No correct temporal equation could survive the simplifier;
-            # fail visibly instead of silently accepting a spatial identity.
-            raise RuntimeError("NIR1 H9: no time derivative survived the equation search")
+            if os.environ.get("NIR1_DYNAMIC_REPAIR") != "1":
+                # H9/H10/H11 historical behavior: preserve exactly for audit.
+                raise RuntimeError("NIR1 H9: no time derivative survived the equation search")
+            # H12 research-only recovery: the capped simplify/regeneration
+            # sequence destroyed every causal target. Replace/create ONE
+            # eligible target within the existing max-terms cap; do not
+            # randomize an entire equation, increase population, or let an
+            # algebraic spatial identity slip through as a governing law.
+            if not ensure_temporal_target(objective):
+                raise RuntimeError("H12 repair invariant: temporal target absent")
+            objective.reset_state(True)
+            eligible_indexes = [i for i, term in enumerate(objective.structure)
+                                if eligible(term)]
+            if not eligible_indexes:
+                raise RuntimeError("H12 repair failed to restore a causal target")
+            objective.target_idx = eligible_indexes[0]
+            _loop_stats.record('nir1.h12_terminal_target_repair', 1, 1)
         objective.right_part_selected = True
         # Exit guarantee: a valid target MUST leave RPS. The cap-break path
         # (outer loop exhausted) or a structural reroll inside the loop
@@ -352,7 +366,8 @@ class EqRightPartSelector(CompoundOperator):
         # declined, the first deriv-carrying term is installed anyway (a
         # target must leave RPS) and the in-place fitness backstop condemns
         # the amplified fit to LOSS_NAN_VAL (SolverFreeFitness.apply).
-        if objective.target is None and objective.structure:
+        if (objective.target is None or
+            (dynamic_anchor and not eligible(objective.target))) and objective.structure:
             deriv_idxs = [i for i, term in enumerate(objective.structure)
                           if eligible(term)]
             # This is the one place the operator can install a leak without
