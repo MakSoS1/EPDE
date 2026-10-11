@@ -718,7 +718,17 @@ class Trajectory(object): # Pass around in evo. operators or init in globals. Us
         # ValueError in the manager's assertion for second trajectories.
         # Compare complete integer shapes, not a single element or an
         # ambiguous truth value.
-        return tuple(int(dim) for dim in domain.inner_shape) == tuple(int(dim) for dim in sample_tensor.shape)
+        domain_shape = tuple(int(dim) for dim in domain.inner_shape)
+        cached_shape = tuple(int(dim) for dim in sample_tensor.shape)
+        # Cached inner-domain values are stored either in grid geometry
+        # or flattened to a 1-D point vector after trajectory.build().
+        # A second sample on the same Domain legitimately follows the latter
+        # convention. Verify the total number of points strictly; rejecting
+        # flattened observations makes multi-trajectory EPDE impossible.
+        if cached_shape == domain_shape:
+            return True
+        return (len(cached_shape) == 1 and
+                cached_shape[0] == int(np.prod(domain_shape)))
 
     @property
     def ID(self) -> int:
