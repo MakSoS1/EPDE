@@ -30,6 +30,7 @@ _VARIANTS = {
     # Evolution-law assumption x0=time is an EXPLICIT prior; no coefficients
     # or ground-truth supports are consulted during target selection.
     "nir1_dynamic_anchor": {"instability_metric": "chi2", "sparsity_cls": "vwsr"},
+    "nir1_dynamic_postfilter": {"instability_metric": "chi2", "sparsity_cls": "vwsr"},
     # Baseline EPDE evolution/regularization, new truth-free front selector ONLY.
     # Frozen after S1 development; evaluation MUST use distinct systems.
     "nir1_sparsefront": {"instability_metric": "chi2", "sparsity_cls": "vwsr"},
@@ -106,5 +107,29 @@ def run_nir1_epde(dataset: str, variant: str, seed: int, noise: float = 0.,
                 score["success_selected"] = bool(distance == 0)
                 score["hamming_selected"] = int(distance)
             record["selection_strategy"] = "nir1_sparsefront_v1_s1_tuned"
+        if variant == "nir1_dynamic_postfilter":
+            # Baseline evolution is unchanged; only apply the very same
+            # temporal-law requirement after the regular Pareto search.
+            from .dynamic_postfilter import select_temporal_postfilter
+            from projects.pic.epde_bench.datasets import load
+            from projects.pic.epde_bench.metrics import canonical_tokens, hamming_best
+            chosen = select_temporal_postfilter(
+                record.get("front") or [], record.get("objectives") or [])
+            record["metrics_pic_original"] = copy.deepcopy(record.get("metrics", {}))
+            record["research_selected_index"] = chosen
+            record["research_selected"] = (record["front"][chosen] if chosen is not None else None)
+            record["selected"] = record["research_selected"]
+            score = record["metrics"]
+            score["selected_index"] = chosen
+            truth_systems = load(dataset, **record.get("config", {}).get("loader", {})).truth_systems
+            if truth_systems:
+                truth = [canonical_tokens(s) for s in truth_systems]
+                hd = hamming_best(canonical_tokens(record["front"][chosen]), truth) if chosen is not None else None
+                score["success_selected"] = bool(hd == 0) if hd is not None else False
+                score["hamming_selected"] = hd
+            record["selection_strategy"] = "nir1_dynamic_temporal_postfilter"
+            record["research_physical_prior"] = (
+                "Evolution-law target must contain bare time derivative, applied "
+                "only after the original baseline has built its Pareto front.")
         # Ground truth is accessed ONLY after a fixed truth-free selection.
     return record
