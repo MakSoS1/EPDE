@@ -1,0 +1,50 @@
+name: NIR1 | H14 prospective causal closure physical holdout
+on:
+  push:
+    branches: [nir1]
+    paths:
+      - '.github/workflows/nir1-h14-physical-holdout.yml'
+permissions:
+  contents: read
+jobs:
+  exactly-one-full-search-per-arm-per-physical-law:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 80
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        dataset: [nir1_h14_damped_wave, nir1_h14_cole_hopf, nir1_h14_kpp_front, nir1_h14_linear_ks, nir1_h14_beam, nir1_h14_airy_transport, nir1_h14_cubic_saturation, nir1_h14_driven_advection, nir1_h14_variable_diffusivity, nir1_h14_liouville_growth, nir1_h14_hyperdiffusion_growth]
+        variant: [default, nir1_dynamic_mdl_repair]
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      NIR1_DISABLE_GRAM_CACHE: '1'
+      NIR1_CHI2_PREFIX_CACHE: '0'
+      UV_CACHE_DIR: /tmp/nir1-h14-prospective
+    steps:
+      - name: Immutable source includes frozen physics and truth-blind H14 choice
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: UV
+        uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+      - name: Frozen EPDE PIC CPU deps
+        run: uv sync --project projects/pic --extra cpu --locked
+      - name: Run native EPDE search with SAME one trajectory and 16x5 budget
+        run: |
+          mkdir -p output
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli epde --dataset '${{ matrix.dataset }}' --variant '${{ matrix.variant }}' --seed 0 --data-seed 0 --output output/native-full.json
+          git rev-parse HEAD > output/source-sha.txt
+          printf '%s\n' 'PHYSICAL-HOLDOUT: 11 laws, 1 optimizer seed, exactly identical per-arm observations and full EPDE 16x5. H14 causal closure applied OFFLINE to the H12 Pareto front; does not add search cost. Damped wave is a predeclared counterexample. Any search crash remains incorrect. Reuse only original artifacts.' > output/SCIENTIFIC_SCOPE.txt
+      - name: Preserve all results, including errors
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nir1-h14-physical-${{ matrix.dataset }}-${{ matrix.variant }}-${{ github.sha }}
+          path: output/
+          if-no-files-found: warn
+          retention-days: 30
