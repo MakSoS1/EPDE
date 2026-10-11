@@ -753,3 +753,140 @@ def load_nir1_advdiff():
                            ' + 0.13 * d^2u/dx1^2{power: 1.0}'
                            ' = du/dx0{power: 1.0}'],
                     notes="u_t=-0.65u_x+0.13u_xx, two Fourier modes.")
+
+
+# =========================================================================
+# NIR1 H11 prospective DIFFERENT-PHYSICS study (frozen before validation).
+# Designed after seeing H10 development outcomes; these are new analytical
+# solutions, NOT the old H10 Fourier benchmark with additional optimizer
+# seeds. Models have equal spatial/time grid, token library, optimizer budget.
+# Challenging higher-order truths (Airy, biharmonic) deliberately test whether
+# the new minimality prior wrongly penalizes real high derivatives.
+# ========================================================================
+
+def _nir1_h11_new_mesh():
+    time = np.linspace(0., 1.8, 81)
+    space = np.linspace(-np.pi, np.pi, 96, endpoint=False)
+    return mesh(time, space)
+
+
+@dataset("nir1_h11_gaussian_heat", "Gaussian pulse heat equation (non-Fourier)",
+         "pde_1d", "synthetic", "extended", "new analytic heldout")
+def load_nir1_h11_gaussian_heat():
+    t, x = _nir1_h11_new_mesh()
+    alpha = .12
+    width = 1.0 + 4*alpha*t
+    u = np.exp(-((x-.2)**2)/width) / np.sqrt(width)
+    return _problem("nir1_h11_gaussian_heat", (t, x), {"u": u}, ("t","x"),
+                    truth=["0.12 * d^2u/dx1^2{power: 1.0} = du/dx0{power: 1.0}"],
+                    notes="True u_t=0.12 u_xx. Non-Fourier, Gaussian broadening.")
+
+
+@dataset("nir1_h11_advection_decay", "Three-mode advective reaction decay",
+         "pde_1d", "synthetic", "extended", "new analytic heldout")
+def load_nir1_h11_advection_decay():
+    t, x = _nir1_h11_new_mesh()
+    speed, decay = .57, .24
+    q = x-speed*t
+    u = np.exp(-decay*t)*(np.sin(q+.2)+.37*np.sin(2*q-.3)+.19*np.cos(3*q+.1))
+    return _problem("nir1_h11_advection_decay", (t,x), {"u":u}, ("t","x"),
+                    truth=["-0.57 * du/dx1{power: 1.0} + -0.24 * u{power: 1.0}"
+                           " = du/dx0{power: 1.0}"],
+                    notes="Transport plus decay, 3 modes, distinct from transport-only S2e.")
+
+
+@dataset("nir1_h11_viscous_burgers", "Exact nonlinear viscous Burgers traveling shock",
+         "pde_1d", "synthetic", "extended", "new analytic heldout")
+def load_nir1_h11_viscous_burgers():
+    t, x = _nir1_h11_new_mesh()
+    speed, amp, viscosity = .6, .5, .08
+    k = amp/(2*viscosity)
+    u = speed-amp*np.tanh(k*(x-speed*t))
+    return _problem("nir1_h11_viscous_burgers", (t,x), {"u":u}, ("t","x"),
+                    truth=["-1.0 * u{power: 1.0} * du/dx1{power: 1.0}"
+                           " + 0.08 * d^2u/dx1^2{power: 1.0}"
+                           " = du/dx0{power: 1.0}"],
+                    notes="Exact Burgers viscosity u_t=-u u_x+0.08u_xx, nonlinear shock.")
+
+
+@dataset("nir1_h11_klein_gordon", "Klein-Gordon second-order wave plus mass",
+         "pde_1d", "synthetic", "extended", "new analytic heldout")
+def load_nir1_h11_klein_gordon():
+    t, x = _nir1_h11_new_mesh()
+    c, mass = .7, .35
+    u = np.zeros_like(t)
+    for k, amp, phase in ((1,1.,.25),(2,.39,-.1),(3,.21,.31)):
+        omega=np.sqrt(c*c*k*k+mass*mass)
+        u += amp*np.sin(k*x+phase)*np.cos(omega*t)
+    return _problem("nir1_h11_klein_gordon", (t,x), {"u":u}, ("t","x"),
+                    truth=["0.49 * d^2u/dx1^2{power: 1.0}"
+                           " + -0.1225 * u{power: 1.0}"
+                           " = d^2u/dx0^2{power: 1.0}"],
+                    notes="True u_tt=0.49u_xx-0.1225u, three eigenmodes.")
+
+
+@dataset("nir1_h11_biharmonic", "Fourth-order diffusion, deliberate H10 challenge",
+         "pde_1d", "synthetic", "extended", "new analytic heldout")
+def load_nir1_h11_biharmonic():
+    t, x = _nir1_h11_new_mesh()
+    nu = .018
+    u = np.zeros_like(t)
+    for k,amp,phase in ((1,1.,.1),(2,.43,-.16),(3,.17,.27)):
+        u += amp*np.exp(-nu*k**4*t)*np.sin(k*x+phase)
+    return _problem("nir1_h11_biharmonic", (t,x), {"u":u}, ("t","x"),
+                    truth=["-0.018 * d^4u/dx1^4{power: 1.0}"
+                           " = du/dx0{power: 1.0}"],
+                    notes="True fourth-spatial-derivative law to challenge MDL penalty.")
+
+
+@dataset("nir1_h11_airy", "Dispersive third-derivative Airy PDE",
+         "pde_1d", "synthetic", "extended", "new analytic heldout")
+def load_nir1_h11_airy():
+    t, x = _nir1_h11_new_mesh()
+    mu = .047
+    u = np.zeros_like(t)
+    for k,amp,phase in ((1,1.,.2),(2,.38,-.1),(3,.16,.33)):
+        u += amp*np.sin(k*x + mu*k**3*t + phase)
+    return _problem("nir1_h11_airy", (t,x), {"u":u}, ("t","x"),
+                    truth=["-0.047 * d^3u/dx1^3{power: 1.0}"
+                           " = du/dx0{power: 1.0}"],
+                    notes="True third-spatial derivative u_t=-0.047u_xxx.")
+
+
+@dataset("nir1_h11_shear", "Variable coefficient shear transport",
+         "pde_1d", "synthetic", "extended", "new analytic heldout")
+def load_nir1_h11_shear():
+    t, x = _nir1_h11_new_mesh()
+    q = x*np.exp(-t)
+    u = np.sin(1.6*q+.1)+.25*np.cos(2.3*q-.15)
+    return _problem("nir1_h11_shear", (t,x), {"u":u}, ("t","x"),
+                    truth=["-1.0 * x{power: 1.0, dim: 1.0}"
+                           " * du/dx1{power: 1.0} = du/dx0{power: 1.0}"],
+                    notes="True u_t=-x*u_x, variable coefficient not constant drift.")
+
+
+@dataset("nir1_h11_logistic_field", "Spatially inhomogeneous logistic ODE field",
+         "pde_1d", "synthetic", "extended", "new analytic heldout")
+def load_nir1_h11_logistic_field():
+    t, x = _nir1_h11_new_mesh()
+    a = .5+.2*np.sin(x)+.09*np.cos(2*x)
+    u = 1./(1.+a*np.exp(-.8*t))
+    return _problem("nir1_h11_logistic_field", (t,x), {"u":u}, ("t","x"),
+                    truth=["0.8 * u{power: 1.0} + -0.8 * u{power: 2.0}"
+                           " = du/dx0{power: 1.0}"],
+                    notes="PDE-shaped field with genuine reaction law u_t=0.8u(1-u).")
+
+
+@dataset("nir1_h11_gauss_reactdiff", "Gaussian reaction-diffusion with two widths",
+         "pde_1d", "synthetic", "extended", "new analytic heldout")
+def load_nir1_h11_gauss_reactdiff():
+    t, x = _nir1_h11_new_mesh()
+    nu, beta = .13, .27
+    widths = [(1.+4*nu*t, .42, 1.), (.49+4*nu*t, -.7, .35)]
+    field = sum(amp*np.exp(-((x-center)**2)/width)/np.sqrt(width)
+                for width,center,amp in widths)
+    u = np.exp(beta*t)*field
+    return _problem("nir1_h11_gauss_reactdiff", (t,x), {"u":u}, ("t","x"),
+                    truth=["0.13 * d^2u/dx1^2{power: 1.0}"
+                           " + 0.27 * u{power: 1.0} = du/dx0{power: 1.0}"],
+                    notes="True u_t=0.13u_xx+0.27u, Gaussian mixture not Fourier eigenmodes.")
