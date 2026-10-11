@@ -32,6 +32,8 @@ _VARIANTS = {
     "nir1_dynamic_anchor": {"instability_metric": "chi2", "sparsity_cls": "vwsr"},
     "nir1_dynamic_mdl": {"instability_metric": "chi2", "sparsity_cls": "vwsr"},
     "nir1_dynamic_mdl_select": {"instability_metric": "chi2", "sparsity_cls": "vwsr"},
+    # H12 changes ONLY capped temporal target recovery; H11 remains immutable.
+    "nir1_dynamic_mdl_repair": {"instability_metric": "chi2", "sparsity_cls": "vwsr"},
     "nir1_dynamic_postfilter": {"instability_metric": "chi2", "sparsity_cls": "vwsr"},
     # Baseline EPDE evolution/regularization, new truth-free front selector ONLY.
     # Frozen after S1 development; evaluation MUST use distinct systems.
@@ -66,20 +68,26 @@ def run_nir1_epde(dataset: str, variant: str, seed: int, noise: float = 0.,
     # method in an independent process to prevent state/seed contamination.
     previous_dynamic = os.environ.get("NIR1_DYNAMIC_TARGET")
     previous_mdl = os.environ.get("NIR1_DYNAMIC_MDL")
+    previous_repair = os.environ.get("NIR1_DYNAMIC_REPAIR")
     try:
-        if variant in {"nir1_dynamic_anchor", "nir1_dynamic_mdl", "nir1_dynamic_mdl_select"}:
+        if variant in {"nir1_dynamic_anchor", "nir1_dynamic_mdl", "nir1_dynamic_mdl_select", "nir1_dynamic_mdl_repair"}:
             os.environ["NIR1_DYNAMIC_TARGET"] = "1"
         else:
             os.environ.pop("NIR1_DYNAMIC_TARGET", None)
-        if variant in {"nir1_dynamic_mdl", "nir1_dynamic_mdl_select"}:
+        if variant in {"nir1_dynamic_mdl", "nir1_dynamic_mdl_select", "nir1_dynamic_mdl_repair"}:
             os.environ["NIR1_DYNAMIC_MDL"] = "1"
         else:
             os.environ.pop("NIR1_DYNAMIC_MDL", None)
+        if variant == "nir1_dynamic_mdl_repair":
+            os.environ["NIR1_DYNAMIC_REPAIR"] = "1"
+        else:
+            os.environ.pop("NIR1_DYNAMIC_REPAIR", None)
         record = run_one(dataset, "default", noise, seed, overrides=effective)
     finally:
         for name, previous in (
             ("NIR1_DYNAMIC_TARGET", previous_dynamic),
             ("NIR1_DYNAMIC_MDL", previous_mdl),
+            ("NIR1_DYNAMIC_REPAIR", previous_repair),
         ):
             if previous is None:
                 os.environ.pop(name, None)
@@ -147,7 +155,7 @@ def run_nir1_epde(dataset: str, variant: str, seed: int, noise: float = 0.,
             record["research_physical_prior"] = (
                 "Evolution-law target must contain bare time derivative, applied "
                 "only after the original baseline has built its Pareto front.")
-        if variant == "nir1_dynamic_mdl_select":
+        if variant in {"nir1_dynamic_mdl_select", "nir1_dynamic_mdl_repair"}:
             from .causal_mdl_selector import select_min_causal_description
             # Selection is COMPLETED before loading simulator truth.
             selected = select_min_causal_description(record.get("objectives") or [])
@@ -167,6 +175,9 @@ def run_nir1_epde(dataset: str, variant: str, seed: int, noise: float = 0.,
                         if selected is not None else None)
                 score["success_selected"] = bool(dist == 0) if dist is not None else False
                 score["hamming_selected"] = dist
-            record["selection_strategy"] = "nir1_minimum_dynamic_description_v1"
+            record["selection_strategy"] = (
+                "nir1_minimum_dynamic_description_h12_repair"
+                if variant == "nir1_dynamic_mdl_repair"
+                else "nir1_minimum_dynamic_description_v1")
         # Ground truth is accessed ONLY after a fixed truth-free selection.
     return record
