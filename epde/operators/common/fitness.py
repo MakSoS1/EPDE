@@ -28,6 +28,7 @@ The metric logic lives in the fillers (single responsibility); the hosts
 only build the scoring context and write each filler's value to its attribute.
 """
 import warnings
+import os
 from copy import deepcopy
 
 import numpy as np
@@ -145,6 +146,9 @@ class SolverFreeFitness(CompoundOperator):
 
         if force_out_of_place:
             val = primary.compute(objective, ctx)
+            if os.environ.get("NIR1_DYNAMIC_MDL") == "1":
+                from epde.operators.common.causal_mdl import dynamical_description_length
+                val += dynamical_description_length(objective, data_shapes)
             objective.fitness_value = val
             # Post-fit degeneracy: decline a candidate target that still fits
             # poorly (discrepancy above the filler's degenerate_threshold) OR
@@ -176,7 +180,12 @@ class SolverFreeFitness(CompoundOperator):
         # arriving without them is a bug to report -- not a degenerate form to
         # quietly bury on the front with no indication of why.
         for filler in self.objectives:
-            setattr(objective, filler.value_attr, filler.compute(objective, ctx))
+            value = filler.compute(objective, ctx)
+            if (os.environ.get("NIR1_DYNAMIC_MDL") == "1"
+                    and filler.value_attr == "fitness_value"):
+                from epde.operators.common.causal_mdl import dynamical_description_length
+                value += dynamical_description_length(objective, data_shapes)
+            setattr(objective, filler.value_attr, value)
             setattr(objective, filler.flag_attr, True)
         # The RPS-time is_degenerate check (fitness.py force_out_of_place branch)
         # only declines candidate TARGETS; it cannot evict an already-fitted form
