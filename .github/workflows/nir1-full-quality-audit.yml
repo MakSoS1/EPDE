@@ -1,0 +1,88 @@
+name: NIR1 | Full 72-search quality audit
+on:
+  push:
+    branches: [nir1]
+    paths:
+      - '.github/workflows/nir1-full-quality-audit.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  reconcile-entire-evidence-matrix:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      UV_CACHE_DIR: /tmp/nir1-full-72-audit
+    steps:
+      - name: Audit scripts without altering the original run SHAs
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Install uv
+        uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+      - name: Install exact locked PIC CPU dependencies for scoring
+        run: uv sync --project projects/pic --extra cpu --locked
+      - name: Verify both immutable Actions runs are finished with 72 artifact records
+        shell: bash
+        run: |
+          set -euo pipefail
+          # This job was scheduled before the separate full evolutions
+          # finished. Wait on their ORIGINAL runs, never rerun evolution.
+          # If GitHub fails to preserve all results, abort the audit.
+          for attempt in $(seq 1 300); do
+            ready=1
+            for entry in "38137822492:22" "38139042448:50"; do
+              run_id="${entry%%:*}"
+              expected="${entry##*:}"
+              jobs=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100")
+              artifacts=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts?per_page=100")
+              total=$(printf '%s' "$jobs" | jq -r '.total_count')
+              complete=$(printf '%s' "$jobs" | jq '[.jobs[]|select(.status=="completed")]|length')
+              archive_count=$(printf '%s' "$artifacts" | jq -r '.total_count')
+              printf 'Run %s jobs complete %s/%s, artifacts %s/%s\n' "$run_id" "$complete" "$total" "$archive_count" "$expected"
+              if [ "$total" -ne "$expected" ] || [ "$complete" -ne "$expected" ] || [ "$archive_count" -ne "$expected" ]; then
+                ready=0
+              fi
+            done
+            if [ "$ready" -eq 1 ]; then
+              echo 'All 72 original search attempts have ended and retained their ZIP records.'
+              exit 0
+            fi
+            sleep 60
+          done
+          echo 'Timed out waiting for the complete immutable 72-result evidence set' >&2
+          exit 2
+      - name: Download 22 frozen prospective H14 search results
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: 38137822492
+          pattern: nir1-h14-physical-*
+          path: source-h14/
+      - name: Download 50 frozen retrospective full quality searches
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: 38139042448
+          pattern: nir1-full-quality-*
+          path: source-retrospective/
+      - name: Reconcile all 72 search identities and score H14 truth-blind
+        run: |
+          mkdir -p verified
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.analyze_full_quality --h14-original source-h14/ --retrospective-original source-retrospective/ --output verified/NIR1_FULL_72_VERIFIED.json
+          git rev-parse HEAD > verified/auditor-source-sha.txt
+          printf '%s\n' 'Primary prospective physical-system effect MUST use only prospective_H14 11 cases; 25 older physical systems are already viewed development sets and must not be pooled into confirmatory p-value. Same PIC 16x5, seed 0, data seed 0; no E1. No cherry-picking or extra evolution.' > verified/SCIENTIFIC_FAIRNESS.txt
+      - name: Upload verified meta-analysis even with error rows
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: NIR1-FULL-72-INDEPENDENT-AUDIT-${{ github.sha }}
+          path: verified/
+          if-no-files-found: warn
+          retention-days: 30
