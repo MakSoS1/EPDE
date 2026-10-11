@@ -30,6 +30,7 @@ _VARIANTS = {
     # Evolution-law assumption x0=time is an EXPLICIT prior; no coefficients
     # or ground-truth supports are consulted during target selection.
     "nir1_dynamic_anchor": {"instability_metric": "chi2", "sparsity_cls": "vwsr"},
+    "nir1_dynamic_mdl": {"instability_metric": "chi2", "sparsity_cls": "vwsr"},
     "nir1_dynamic_postfilter": {"instability_metric": "chi2", "sparsity_cls": "vwsr"},
     # Baseline EPDE evolution/regularization, new truth-free front selector ONLY.
     # Frozen after S1 development; evaluation MUST use distinct systems.
@@ -63,23 +64,37 @@ def run_nir1_epde(dataset: str, variant: str, seed: int, noise: float = 0.,
     # scoped to this call and restored even on failures; CI executes each
     # method in an independent process to prevent state/seed contamination.
     previous_dynamic = os.environ.get("NIR1_DYNAMIC_TARGET")
+    previous_mdl = os.environ.get("NIR1_DYNAMIC_MDL")
     try:
-        if variant == "nir1_dynamic_anchor":
+        if variant in {"nir1_dynamic_anchor", "nir1_dynamic_mdl"}:
             os.environ["NIR1_DYNAMIC_TARGET"] = "1"
         else:
             os.environ.pop("NIR1_DYNAMIC_TARGET", None)
+        if variant == "nir1_dynamic_mdl":
+            os.environ["NIR1_DYNAMIC_MDL"] = "1"
+        else:
+            os.environ.pop("NIR1_DYNAMIC_MDL", None)
         record = run_one(dataset, "default", noise, seed, overrides=effective)
     finally:
-        if previous_dynamic is None:
-            os.environ.pop("NIR1_DYNAMIC_TARGET", None)
-        else:
-            os.environ["NIR1_DYNAMIC_TARGET"] = previous_dynamic
+        for name, previous in (
+            ("NIR1_DYNAMIC_TARGET", previous_dynamic),
+            ("NIR1_DYNAMIC_MDL", previous_mdl),
+        ):
+            if previous is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = previous
     record["research_variant"] = variant
     if variant == "nir1_dynamic_anchor":
         record["research_physical_prior"] = (
             "Evolution equation: bare temporal derivative of explained variable "
             "is required as implicit RPS target; x0 is time. No true RHS, "
             "coefficients, or true derivative order is supplied.")
+    if variant == "nir1_dynamic_mdl":
+        record["research_physical_prior"] = (
+            "Same time-derivative-only target as H9 PLUS data-budget-aware BIC "
+            "penalty on active RHS terms and excess high derivatives, evaluated "
+            "during every RPS comparison and the MOEA/D fitness. No truth used.")
     record["research_overrides"] = effective
     if record.get("status") == "ok":
         chosen = (select_sparsefront(record.get("front") or [], record.get("objectives") or [])
