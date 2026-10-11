@@ -34,6 +34,7 @@ _VARIANTS = {
     "nir1_dynamic_mdl_select": {"instability_metric": "chi2", "sparsity_cls": "vwsr"},
     # H12 changes ONLY capped temporal target recovery; H11 remains immutable.
     "nir1_dynamic_mdl_repair": {"instability_metric": "chi2", "sparsity_cls": "vwsr"},
+    "nir1_dynamic_mdl_closed": {"instability_metric": "chi2", "sparsity_cls": "vwsr"},
     "nir1_dynamic_postfilter": {"instability_metric": "chi2", "sparsity_cls": "vwsr"},
     # Baseline EPDE evolution/regularization, new truth-free front selector ONLY.
     # Frozen after S1 development; evaluation MUST use distinct systems.
@@ -70,15 +71,15 @@ def run_nir1_epde(dataset: str, variant: str, seed: int, noise: float = 0.,
     previous_mdl = os.environ.get("NIR1_DYNAMIC_MDL")
     previous_repair = os.environ.get("NIR1_DYNAMIC_REPAIR")
     try:
-        if variant in {"nir1_dynamic_anchor", "nir1_dynamic_mdl", "nir1_dynamic_mdl_select", "nir1_dynamic_mdl_repair"}:
+        if variant in {"nir1_dynamic_anchor", "nir1_dynamic_mdl", "nir1_dynamic_mdl_select", "nir1_dynamic_mdl_repair", "nir1_dynamic_mdl_closed"}:
             os.environ["NIR1_DYNAMIC_TARGET"] = "1"
         else:
             os.environ.pop("NIR1_DYNAMIC_TARGET", None)
-        if variant in {"nir1_dynamic_mdl", "nir1_dynamic_mdl_select", "nir1_dynamic_mdl_repair"}:
+        if variant in {"nir1_dynamic_mdl", "nir1_dynamic_mdl_select", "nir1_dynamic_mdl_repair", "nir1_dynamic_mdl_closed"}:
             os.environ["NIR1_DYNAMIC_MDL"] = "1"
         else:
             os.environ.pop("NIR1_DYNAMIC_MDL", None)
-        if variant == "nir1_dynamic_mdl_repair":
+        if variant in {"nir1_dynamic_mdl_repair", "nir1_dynamic_mdl_closed"}:
             os.environ["NIR1_DYNAMIC_REPAIR"] = "1"
         else:
             os.environ.pop("NIR1_DYNAMIC_REPAIR", None)
@@ -155,10 +156,15 @@ def run_nir1_epde(dataset: str, variant: str, seed: int, noise: float = 0.,
             record["research_physical_prior"] = (
                 "Evolution-law target must contain bare time derivative, applied "
                 "only after the original baseline has built its Pareto front.")
-        if variant in {"nir1_dynamic_mdl_select", "nir1_dynamic_mdl_repair"}:
+        if variant in {"nir1_dynamic_mdl_select", "nir1_dynamic_mdl_repair",
+                       "nir1_dynamic_mdl_closed"}:
             from .causal_mdl_selector import select_min_causal_description
+            from .closed_evolution_selector import choose_causal_closed_front
             # Selection is COMPLETED before loading simulator truth.
-            selected = select_min_causal_description(record.get("objectives") or [])
+            selected = (choose_causal_closed_front(
+                            record.get("front") or [], record.get("objectives") or [])
+                        if variant == "nir1_dynamic_mdl_closed" else
+                        select_min_causal_description(record.get("objectives") or []))
             record["metrics_pic_original"] = copy.deepcopy(record.get("metrics", {}))
             record["research_selected_index"] = selected
             record["research_selected"] = (record["front"][selected]
@@ -176,8 +182,16 @@ def run_nir1_epde(dataset: str, variant: str, seed: int, noise: float = 0.,
                 score["success_selected"] = bool(dist == 0) if dist is not None else False
                 score["hamming_selected"] = dist
             record["selection_strategy"] = (
+                "nir1_h14_causal_normal_form_v1"
+                if variant == "nir1_dynamic_mdl_closed" else
                 "nir1_minimum_dynamic_description_h12_repair"
                 if variant == "nir1_dynamic_mdl_repair"
                 else "nir1_minimum_dynamic_description_v1")
+            if variant == "nir1_dynamic_mdl_closed":
+                record["research_physical_prior"] = (
+                    "Explicit causal-normal-form evolution: exactly one bare "
+                    "temporal derivative can be isolated on EITHER side; all "
+                    "other terms lack time derivatives. Damped equations with "
+                    "RHS u_t are excluded; if none fit, abstain and count error.")
         # Ground truth is accessed ONLY after a fixed truth-free selection.
     return record
