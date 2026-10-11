@@ -36,7 +36,12 @@ jobs:
       - name: Validate ALL 36 source identities and causal postselection
         run: |
           mkdir -p output
-          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.analyze_h11 --records original/ --source-sha eaae9063e625c93a43dc724b2070c0e4b3c9bb4d --output output/H11_VERIFIED.json
+          # Preserve a complete scientific record even when some predeclared
+          # H11 methods fail. Exit status 2 means COMPLETE_WITH_FAILURES,
+          # not missing/corrupt evidence. Other statuses remain fatal.
+          rc=0
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.analyze_h11 --records original/ --source-sha eaae9063e625c93a43dc724b2070c0e4b3c9bb4d --output output/H11_VERIFIED.json || rc=$?
+          if [ "$rc" != 0 ] && [ "$rc" != 2 ]; then exit "$rc"; fi
           git rev-parse HEAD > output/analysis-source-sha.txt
           printf '%s\n' 'Validation is synthetic, nine physically different but not random iid physical systems. Report native baseline, equal-physics-prior postfilter, H11; cluster by physical system. No class-based omission, no post-hoc tuning.' > output/SCIENTIFIC_LIMITS.txt
       - name: Preserve verified summary and explicit failures
