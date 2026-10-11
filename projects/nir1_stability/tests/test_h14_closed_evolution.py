@@ -14,6 +14,9 @@ DAMPED="0.49 * d^2u/dx1^2{power: 1.0} + -0.25 * du/dx0{power: 1.0} = d^2u/dx0^2{
 def test_explicit_single_evolution_forms():
     assert is_closed_evolution_equation(FIRST)
     assert is_closed_evolution_equation(SECOND)
+    # Algebraic orientation of right-part in EPDE is not causal evidence:
+    flipped="-0.24 * u{power: 1.0} + 1.0 * du/dx0{power: 1.0} = du/dx1{power: 1.0}"
+    assert is_closed_evolution_equation(flipped)
     assert not is_closed_evolution_equation(FALSE)
     assert not is_closed_evolution_equation(DAMPED)
     assert not is_closed_evolution_equation("u = u")
