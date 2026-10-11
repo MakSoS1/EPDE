@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/nir1-h8-epde-pilot.yml'
       - 'projects/nir1_stability/nir1/epde_multi_initial.py'
+      - 'epde/structure/domain.py'
 permissions:
   contents: read
 jobs:
