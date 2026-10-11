@@ -1,0 +1,50 @@
+name: NIR1 | H10 minimum dynamic description full EPDE
+on:
+  push:
+    branches: [nir1]
+    paths:
+      - '.github/workflows/nir1-h10-full.yml'
+permissions:
+  contents: read
+jobs:
+  equal-budget-h10:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        dataset: [nir1_heat, nir1_advdiff, nir1_reactiondiff, nir1_wave]
+        seed: [0, 1]
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      UV_CACHE_DIR: /tmp/nir1-h10-full-uv
+      NIR1_DISABLE_GRAM_CACHE: '1'
+      NIR1_CHI2_PREFIX_CACHE: '0'
+    steps:
+      - name: Checkout frozen code and identical datasets
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Set Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Set uv
+        uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+      - name: Lock PIC dependencies
+        run: uv sync --project projects/pic --extra cpu --locked
+      - name: Complete full EPDE 16x5 with temporal target and predeclared MDL
+        run: |
+          mkdir -p output
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli epde --dataset '${{ matrix.dataset }}' --variant nir1_dynamic_mdl --seed '${{ matrix.seed }}' --data-seed 0 --output output/native-full.json
+          git rev-parse HEAD > output/source-sha.txt
+          printf '%s\n' 'H10 adds 1) H9 evolution-law temporal target prior and 2) log(time levels)/time levels BIC-style description cost inside evolutionary objective. No more data, no extra populations, no more generations; same single trajectory, 16x5, VWSR. Development tasks were already viewed in S2e; this cannot be presented as independent S3 evidence. Compare to frozen H9 full run 38132216572 and its baseline; postfilter control via analysis. Abort scientific claim on missing or failed run.' > output/SCIENTIFIC_SCOPE.txt
+      - name: Keep original full-Pareto objective vectors and all failures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nir1-h10-full-${{ matrix.dataset }}-seed${{ matrix.seed }}-${{ github.sha }}
+          path: output/
+          if-no-files-found: warn
+          retention-days: 30
