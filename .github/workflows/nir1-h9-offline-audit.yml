@@ -1,0 +1,49 @@
+name: NIR1 | H9 verified three-way equal-data analysis
+on:
+  push:
+    branches: [nir1]
+    paths:
+      - '.github/workflows/nir1-h9-offline-audit.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit-completed-h9:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      UV_CACHE_DIR: /tmp/nir1-h9-audit
+    steps:
+      - name: Read analysis code without rerunning evolution
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: uv
+        uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+      - name: Install locked PIC CPU dependencies
+        run: uv sync --project projects/pic --extra cpu --locked
+      - name: Retrieve all 16 raw original EPDE records, not a subset
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: 38132216572
+          pattern: nir1-h9-full-*
+          path: original/
+      - name: Verify entire 4x2x2 matrix and compute baseline, equal-prior postfilter, H9
+        run: |
+          mkdir -p output
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.analyze_h9 --records original/ --source-sha 58e55c5b1f8536bc92502e9ce04175b46cc6cb33 --output output/H9_VERIFIED.json
+          git rev-parse HEAD > output/analysis-code-sha.txt
+          printf '%s\n' 'Original search SHA 58e55c5b1f8536bc92502e9ce04175b46cc6cb33; four physical systems; two optimizer seeds; H9 time-axis prior added, same data and 16x5, exploratory not S3.' > output/SCIENTIFIC_SCOPE.txt
+      - name: Upload verified and failure evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nir1-h9-scientific-audit-${{ github.sha }}
+          path: output/
+          if-no-files-found: warn
+          retention-days: 30
