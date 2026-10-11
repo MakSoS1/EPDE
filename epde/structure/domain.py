@@ -713,8 +713,12 @@ class Trajectory(object): # Pass around in evo. operators or init in globals. Us
 
     def checkShapes(self, domain: Domain) -> bool:
         sample_tensor = self._cache.get(subcache_ID = self._cache_id)
-        print('In check shapes: ', domain.inner_shape, type(domain.inner_shape), sample_tensor.shape, type(sample_tensor.shape))
-        return (domain.inner_shape == sample_tensor.shape)
+        # inner_shape is a NumPy array, whereas ndarray.shape is a tuple.
+        # Array equality returns a *vector* of booleans, which raises
+        # ValueError in the manager's assertion for second trajectories.
+        # Compare complete integer shapes, not a single element or an
+        # ambiguous truth value.
+        return tuple(int(dim) for dim in domain.inner_shape) == tuple(int(dim) for dim in sample_tensor.shape)
 
     @property
     def ID(self) -> int:
