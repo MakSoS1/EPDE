@@ -25,7 +25,7 @@ def is_explicit_temporal_equation(text: str) -> bool:
     # physics prior as "u_xx - d*u = c*u_t". Filtering only the printed
     # RHS was a confounded control and lowered baseline success on
     # reaction-diffusion for no physical reason.
-    expressions = [right.strip(), *re.split(r"(?<![eE])\\+", left)]
+    expressions = [right.strip(), *re.split(r"(?<![eE])[+]", left)]
     return any(_TEMPORAL_TARGET.fullmatch(expr.strip()) is not None
                for expr in expressions)
 
