@@ -166,3 +166,63 @@ new-method evidence. The new hypotheses are independent:
 the new score nor its Gram cache. Numerical parity must pass on full EPDE
 before declaring the optimization quality-preserving. No workflow silently
 shortens the 16×5 PIC budget.
+
+
+## H9–H11: innovation in the evolutionary logic (not extra restarts/data)
+
+The original instability penalties and multi-initial-condition H8 did not
+improve structural accuracy of unrestricted EPDE. In H8 full EPDE selected
+0/4 exact for both one and three initial conditions. The original search
+could prefer purely spatial identities over governing time evolution.
+
+H9 **temporal anchoring**:
+`epde/operators/common/dynamic_target.py` restricts the candidate
+right-part target *during evolution* to a bare temporal derivative. No
+true physical equation, coefficient or exact derivative order is supplied.
+On 4 development PDE ×2 optimizer seeds, H9 selected 2/8 exact vs native
+2/8, and an equal-prior postfilter of the original Pareto fronts 2/8.
+Corrected [H9 scientific audit](https://github.com/MakSoS1/EPDE/actions/runs/38133407889).
+H9 is therefore not a quality improvement, though it prevents spatial
+identities from becoming the explanatory time-evolution law.
+
+H10 **minimum dynamical description**:
+`epde/operators/common/causal_mdl.py` adds
+`log(N_time)/N_time` per active RHS term and extra high-derivative order
+to *both* RPS and evolutionary first objective, with original VWSR and
+full token library unchanged. In 8 **previously viewed development**
+full EPDE searches, the true structure appeared on the Pareto front
+**8/8**, compared with **2/8** under original EPDE and H9.
+[H10 raw run](https://github.com/MakSoS1/EPDE/actions/runs/38132787691).
+The native two-axis PIC selector chose truth only 2/8.
+
+H11 **fitness-consistent final decision**:
+`nir1/causal_mdl_selector.py` chooses the complete finite Pareto
+candidate minimizing the *first, MDL-adjusted objective*. On the already
+inspected 8 development searches this would choose 8/8 correctly,
+**post-hoc**, so it cannot be treated as scientific validation.
+The variant `nir1_dynamic_mdl_select` now applies exactly this
+predeclared truth-blind rule. [Frozen prospective study
+protocol](H11_PROSPECTIVE_MINIMUM_CAUSAL_DESCRIPTION_RU.md) tests 9
+different-physics analytic PDEs (including real nonlinear Burgers, variable
+advection and true 3rd/4th spatial derivatives) against unchanged native
+EPDE and an equal-physics-prior Pareto postfilter.
+
+[H11 new-physics experiment](https://github.com/MakSoS1/EPDE/actions/runs/38133505561)
+runs 36 *comparison* searches: 9 physical PDE ×2 paired seeds ×2 variants,
+with the **same** one trajectory, 81×96 observations, 16 individuals,
+5 epochs, preprocessing, token pool and original optimization disabled.
+No result from these heldout laws may be used to retune the model.
+The experiments compare scientific approaches, NOT increasing seeds,
+training epochs or trajectories per selected equation.
+
+Independent scientific audit code: `nir1/analyze_h11.py` and
+`.github/workflows/nir1-h11-audit.yml`. Always audit 36/36 original
+identity/status records; the GitHub Actions API requires `per_page=100`
+to retrieve the full job and artifact matrix (default first page only 30).
+
+**Important scope:** H9 and H10/H11 impose an explicit prior that x0 is
+time and governing laws should contain a bare temporal derivative. This
+does not disclose the true RHS or order, but is a different hypothesis class
+from fully unrestricted EPDE. The equal-prior postfilter control is
+essential to isolate the *in-evolution* learning effect. Work remains
+exclusive to `MakSoS1/EPDE:nir1`; E1 speed work is frozen.
