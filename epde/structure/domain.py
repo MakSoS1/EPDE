@@ -813,7 +813,14 @@ class TrajectoriesManager(object):
         if domain._ID not in self._domains.keys():
             self._domains[domain._ID] = domain
         else:
-            assert trajectory.checkShapes(self._domains[domain._ID])
+            if not trajectory.checkShapes(self._domains[domain._ID]):
+                prior = tuple(map(int, self._domains[domain._ID].inner_shape))
+                actual = tuple(trajectory._cache.get(
+                    subcache_ID=trajectory._cache_id).shape)
+                raise ValueError(
+                    f"Multiple trajectories must match the registered domain: "
+                    f"domain inner_shape={prior}, cached trajectory {trajectory.ID} "
+                    f"shape={actual}. Distinct sample IDs must not alias cache state.")
 
     @property
     def inner_shapes(self):
