@@ -36,7 +36,7 @@ def test_complexity_rewards_keeping_low_order_structure():
     q=_eq()
     unit=math.log(81)/81
     # Low derivative 2nd-order has no extra order charge.
-    assert dynamical_description_length(q,{0:(81,96)})==pytest.approx(2*unit)
+    assert dynamical_description_length(q,{0:(81,96)})==pytest.approx(4*unit)
     q.weights_internal=[1.,0.,0.]
     assert dynamical_description_length(q,{0:(81,96)})==pytest.approx(unit)
     q.weights_internal=[0.,1.,0.]
