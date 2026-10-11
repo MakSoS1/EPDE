@@ -13,7 +13,7 @@ def test_temporal_target_distinguishes_physical_law_from_spatial_identity():
     assert is_explicit_temporal_equation(TEMP)
     assert is_explicit_temporal_equation(SECOND)
     assert not is_explicit_temporal_equation(SPATIAL)
-    assert not is_explicit_temporal_equation("0.1 * du/dx0{power: 1.0} = u{power: 1.0}")
+    assert is_explicit_temporal_equation("0.1 * du/dx0{power: 1.0} = u{power: 1.0}")
     assert not is_explicit_temporal_equation("u{power: 1.0} = du/dx1{power: 1.0}")
 
 
@@ -36,3 +36,11 @@ def test_filter_requires_every_equation_dynamic_in_coupled_system():
 def test_front_objective_mismatch_cannot_silently_vote():
     with pytest.raises(ValueError,match="paired"):
         select_temporal_postfilter([[TEMP]],[])
+
+
+def test_equivalent_target_orientation_cannot_bias_equal_prior_control():
+    right = "0.35 * u{power: 1.0} + 0.19 * d^2u/dx1^2{power: 1.0} = du/dx0{power: 1.0}"
+    flipped = "-1.834 * u{power: 1.0} + 5.225 * du/dx0{power: 1.0} = d^2u/dx1^2{power: 1.0}"
+    assert is_explicit_temporal_equation(right)
+    assert is_explicit_temporal_equation(flipped)
+    assert select_temporal_postfilter([[flipped]],[[.01,.05]])==0
