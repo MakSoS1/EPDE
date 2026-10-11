@@ -53,3 +53,16 @@ def test_unmatched_library_is_rejected():
     bad=(("u","u2"),np.ones((100,2)),np.ones(100))
     with pytest.raises(ValueError,match="Dictionary"):
         choose_support([common],[bad])
+
+
+def test_diverse_initial_conditions_break_gram_aliasing():
+    from projects.nir1_stability.nir1.identifiability_certificate import study
+    result=study(seed=0)
+    assert len(result["rows"])==5
+    for row in result["rows"]:
+        assert abs(row["single"]["samples"] - row["multi"]["samples"])<=3
+        assert row["multi"]["unique_energy"] >= row["single"]["unique_energy"]-1e-6
+    for row in result["rows"]:
+        if row["case"] in {"heat","reactiondiff","advdiff"}:
+            assert row["single"]["unique_energy"] < 1e-6
+            assert row["multi"]["unique_energy"] > 1e-4
