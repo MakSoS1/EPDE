@@ -1,0 +1,47 @@
+name: NIR1 | H8 two-mode falsification
+on:
+  push:
+    branches: [nir1]
+    paths:
+      - '.github/workflows/nir1-h8-two-mode-control.yml'
+      - 'projects/nir1_stability/nir1/h8_two_mode_audit.py'
+      - 'projects/nir1_stability/tests/test_h8_two_mode_audit.py'
+permissions:
+  contents: read
+jobs:
+  falsification-on-physical-excitations:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      UV_CACHE_DIR: /tmp/uv-h8-two-mode
+    steps:
+      - name: Checkout unmodified decision procedure
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Configure Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Setup uv
+        uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+      - name: Install locked test environment
+        run: |
+          uv sync --project projects/pic --extra cpu --locked
+          uv pip install --python projects/pic/.venv/bin/python pytest
+      - name: Validate exact spatial identity and equal-budget experiment
+        run: projects/pic/.venv/bin/python -m pytest -q projects/nir1_stability/tests/test_h8_two_mode_audit.py
+      - name: Three PDEs times five seed repeats, two modes in EACH trajectory
+        run: |
+          mkdir -p artifacts
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.h8_two_mode_audit --seeds 5 --output artifacts/two-mode-falsification.json
+          git rev-parse HEAD > artifacts/experiment-code-sha.txt
+      - name: Preserve completed or failed evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nir1-h8-two-mode-control-${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 30
