@@ -31,6 +31,7 @@ _VARIANTS = {
     # or ground-truth supports are consulted during target selection.
     "nir1_dynamic_anchor": {"instability_metric": "chi2", "sparsity_cls": "vwsr"},
     "nir1_dynamic_mdl": {"instability_metric": "chi2", "sparsity_cls": "vwsr"},
+    "nir1_dynamic_mdl_select": {"instability_metric": "chi2", "sparsity_cls": "vwsr"},
     "nir1_dynamic_postfilter": {"instability_metric": "chi2", "sparsity_cls": "vwsr"},
     # Baseline EPDE evolution/regularization, new truth-free front selector ONLY.
     # Frozen after S1 development; evaluation MUST use distinct systems.
@@ -66,11 +67,11 @@ def run_nir1_epde(dataset: str, variant: str, seed: int, noise: float = 0.,
     previous_dynamic = os.environ.get("NIR1_DYNAMIC_TARGET")
     previous_mdl = os.environ.get("NIR1_DYNAMIC_MDL")
     try:
-        if variant in {"nir1_dynamic_anchor", "nir1_dynamic_mdl"}:
+        if variant in {"nir1_dynamic_anchor", "nir1_dynamic_mdl", "nir1_dynamic_mdl_select"}:
             os.environ["NIR1_DYNAMIC_TARGET"] = "1"
         else:
             os.environ.pop("NIR1_DYNAMIC_TARGET", None)
-        if variant == "nir1_dynamic_mdl":
+        if variant in {"nir1_dynamic_mdl", "nir1_dynamic_mdl_select"}:
             os.environ["NIR1_DYNAMIC_MDL"] = "1"
         else:
             os.environ.pop("NIR1_DYNAMIC_MDL", None)
@@ -90,7 +91,7 @@ def run_nir1_epde(dataset: str, variant: str, seed: int, noise: float = 0.,
             "Evolution equation: bare temporal derivative of explained variable "
             "is required as implicit RPS target; x0 is time. No true RHS, "
             "coefficients, or true derivative order is supplied.")
-    if variant == "nir1_dynamic_mdl":
+    if variant in {"nir1_dynamic_mdl", "nir1_dynamic_mdl_select"}:
         record["research_physical_prior"] = (
             "Same time-derivative-only target as H9 PLUS data-budget-aware BIC "
             "penalty on active RHS terms and excess high derivatives, evaluated "
@@ -146,5 +147,26 @@ def run_nir1_epde(dataset: str, variant: str, seed: int, noise: float = 0.,
             record["research_physical_prior"] = (
                 "Evolution-law target must contain bare time derivative, applied "
                 "only after the original baseline has built its Pareto front.")
+        if variant == "nir1_dynamic_mdl_select":
+            from .causal_mdl_selector import select_min_causal_description
+            # Selection is COMPLETED before loading simulator truth.
+            selected = select_min_causal_description(record.get("objectives") or [])
+            record["metrics_pic_original"] = copy.deepcopy(record.get("metrics", {}))
+            record["research_selected_index"] = selected
+            record["research_selected"] = (record["front"][selected]
+                                           if selected is not None else None)
+            record["selected"] = record["research_selected"]
+            score = record["metrics"]
+            score["selected_index"] = selected
+            from projects.pic.epde_bench.datasets import load
+            from projects.pic.epde_bench.metrics import canonical_tokens, hamming_best
+            accepted = load(dataset, **record.get("config", {}).get("loader", {})).truth_systems
+            if accepted:
+                truth = [canonical_tokens(s) for s in accepted]
+                dist = (hamming_best(canonical_tokens(record["front"][selected]), truth)
+                        if selected is not None else None)
+                score["success_selected"] = bool(dist == 0) if dist is not None else False
+                score["hamming_selected"] = dist
+            record["selection_strategy"] = "nir1_minimum_dynamic_description_v1"
         # Ground truth is accessed ONLY after a fixed truth-free selection.
     return record
