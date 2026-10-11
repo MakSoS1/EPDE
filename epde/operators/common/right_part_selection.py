@@ -6,6 +6,7 @@ Created on Wed Jun 16 20:50:55 2021
 @author: mike_ubuntu
 """
 import time
+import os
 from typing import List, Dict, Tuple, Any
 
 import numpy as np
@@ -25,6 +26,7 @@ from epde.structure.main_structures import Term, Equation
 from epde.evaluators import simple_function_evaluator
 
 from epde.operators.common.stability import (GramSetup, VaryingCoefSetup)
+from epde.operators.common.dynamic_target import is_temporal_target, ensure_temporal_target
 
 from epde import _loop_stats
 
@@ -195,6 +197,10 @@ class EqRightPartSelector(CompoundOperator):
         equation reroll and floods the EA when many candidates fail.
         """
         self_args, subop_args = self.parse_suboperator_args(arguments = arguments)
+        dynamic_anchor = os.environ.get('NIR1_DYNAMIC_TARGET') == '1'
+        def eligible(term):
+            return (is_temporal_target(term, objective.main_var_to_explain)
+                    if dynamic_anchor else term.contains_deriv(objective.main_var_to_explain))
 
         # Duplicate-term detection: a frozenset of per-term factor signatures
         # has the same length as ``structure`` iff every term is distinct.
@@ -264,6 +270,14 @@ class EqRightPartSelector(CompoundOperator):
                     banned_sigs)
             _loop_stats.record('EqRPS.inner_derivative', inner_attempts, inner_max_iter)
 
+            # H9: do not let any purely spatial identity become the target
+            # of a governing *time-evolution* equation. Missing temporal
+            # terms are drawn from the EXISTING library before its Gram is
+            # frozen, without changing the evolutionary search budget.
+            if dynamic_anchor:
+                if ensure_temporal_target(objective):
+                    _loop_stats.record('nir1.dynamic_target_injected', 1, 1)
+
             # Tier 3: precompute the super-Gram over all terms ONCE per
             # outer iter so the term-sweep below derives per-target
             # GramSetup views via pure slicing instead of rebuilding the
@@ -272,7 +286,7 @@ class EqRightPartSelector(CompoundOperator):
 
             with _loop_stats.timer('EqRPS.term_sweep'):
                 for target_idx, target_term in enumerate(objective.structure):
-                    if not objective.structure[target_idx].contains_deriv(objective.main_var_to_explain):
+                    if not eligible(objective.structure[target_idx]):
                         continue
                     objective.target_idx = target_idx
                     fitness = self._fit_and_score(objective, subop_args)
@@ -310,7 +324,7 @@ class EqRightPartSelector(CompoundOperator):
 
             if not self.simplify_equation(objective, banned_sigs):
                 simplified = True
-            if objective.target is not None and objective.target.contains_deriv(objective.main_var_to_explain):
+            if objective.target is not None and eligible(objective.target):
                 correct_right_part = True
 
         _loop_stats.record('EqRPS.outer', outer_attempts, outer_max_iter)
@@ -319,6 +333,10 @@ class EqRightPartSelector(CompoundOperator):
         # per-target ``GramSetup.__init__`` path; the cached super-Gram
         # is only valid for the structure observed during the sweep.
         objective._gram_super = None
+        if dynamic_anchor and not any(eligible(t) for t in objective.structure):
+            # No correct temporal equation could survive the simplifier;
+            # fail visibly instead of silently accepting a spatial identity.
+            raise RuntimeError("NIR1 H9: no time derivative survived the equation search")
         objective.right_part_selected = True
         # Exit guarantee: a valid target MUST leave RPS. The cap-break path
         # (outer loop exhausted) or a structural reroll inside the loop
@@ -336,7 +354,7 @@ class EqRightPartSelector(CompoundOperator):
         # the amplified fit to LOSS_NAN_VAL (SolverFreeFitness.apply).
         if objective.target is None and objective.structure:
             deriv_idxs = [i for i, term in enumerate(objective.structure)
-                          if term.contains_deriv(objective.main_var_to_explain)]
+                          if eligible(term)]
             # This is the one place the operator can install a leak without
             # drawing anything: the term it promotes may be what another
             # equation's target reserves. Order the candidates so unreserved
@@ -392,6 +410,9 @@ class EqRightPartSelector(CompoundOperator):
         _final_sigs = {term.factors_labels for term in objective.structure}
         assert len(_final_sigs) == len(objective.structure), \
             'EqRightPartSelector.apply: duplicate terms survived RPS.'
+        if dynamic_anchor and (objective.target is None or not eligible(objective.target)):
+            raise RuntimeError("NIR1 H9 temporal-target invariant was violated after RPS")
+
 
     def simplify_equation(self, objective: Equation, banned_sigs=frozenset()):
         # Get nonzero terms
