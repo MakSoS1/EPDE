@@ -79,16 +79,6 @@ def graph(selected):
     return '\n'.join(lines)
 
 
-st.graphviz_chart(graph(chosen))
-title, text, link = STAGES[chosen]
-st.subheader(title)
-st.write(text)
-if link:
-    page_link(link, label='Try it in the app', icon='👉')
-
-from support.interfaces import stage_interfaces
-stage_interfaces(chosen)
-
 # Each stage opens the matching view of the architecture model.
 STAGE_VIEWS = {
     'settings': ('stageSettings', False), 'domain': ('stageData', False), 'trajectory': ('stageData', False),
@@ -106,13 +96,31 @@ MODEL_VIEWS = {
     'Data-set and benchmark layer': ('picView', False),
     'One benchmark run (sequence)': ('benchmarkRun', True),
 }
-if diagrams.available():
+# The architecture model is the detailed picture, so it comes first; the simple
+# stage graph follows as an overview (or stands alone when the model is unavailable).
+has_model = diagrams.available()
+if has_model:
     view, sequence = STAGE_VIEWS[chosen]
     st.markdown('**Inside this stage** · click the diagram to explore the whole model')
     diagrams.likec4_view(view, height=380, sequence=sequence)
     with st.expander('Explore the whole architecture'):
-        title = st.selectbox('view', list(MODEL_VIEWS), key='model_view')
-        diagrams.likec4_view(*MODEL_VIEWS[title][:1], height=600, sequence=MODEL_VIEWS[title][1])
+        model_title = st.selectbox('view', list(MODEL_VIEWS), key='model_view')
+        diagrams.likec4_view(*MODEL_VIEWS[model_title][:1], height=600, sequence=MODEL_VIEWS[model_title][1])
+else:
+    st.graphviz_chart(graph(chosen))
+
+title, text, link = STAGES[chosen]
+st.subheader(title)
+st.write(text)
+if link:
+    page_link(link, label='Try it in the app', icon='👉')
+
+from support.interfaces import stage_interfaces
+stage_interfaces(chosen)
+
+if has_model:
+    st.markdown('**All stages at a glance** · the selected stage is highlighted')
+    st.graphviz_chart(graph(chosen))
 
 with st.expander('Watch a short evolution', expanded=False):
     st.markdown('Run a small example to observe the actual candidate front after each epoch. '
