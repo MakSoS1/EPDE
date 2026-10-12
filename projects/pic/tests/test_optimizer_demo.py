@@ -35,5 +35,29 @@ class OptimizerDemoTests(unittest.TestCase):
         self.assertLess(coefficient_error_best(result['equations'], [truth]), 1e-10)
 
 
+try:
+    from streamlit.testing.v1 import AppTest
+except ImportError:
+    AppTest = None
+
+
+@unittest.skipIf(AppTest is None, 'streamlit is not installed')
+class OptimizerLessonTests(unittest.TestCase):
+    def test_button_runs_and_displays_observed_history_and_equation(self):
+        app = AppTest.from_file(str(APP / 'views/9_How_EPDE_works.py'), default_timeout=60)
+        app.run()
+        self.assertFalse(app.exception, [e.value for e in app.exception])
+        button = next((b for b in app.button if b.label == 'Run short evolution'), None)
+        self.assertIsNotNone(button, 'the lesson must offer a real short run')
+        button.click().run()
+        self.assertFalse(app.exception, [e.value for e in app.exception])
+        self.assertTrue(app.dataframe)
+        self.assertEqual(list(app.dataframe[0].value['Epoch']), [1, 2, 3])
+        self.assertTrue(app.latex)
+        self.assertIn('u_{tt}', app.latex[-1].value)
+        self.assertIn('0.5', app.latex[-1].value)
+        self.assertEqual(len(app.radio), 1, 'the existing stage navigation stays available')
+
+
 if __name__ == '__main__':
     unittest.main()

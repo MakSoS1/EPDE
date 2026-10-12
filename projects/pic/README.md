@@ -3,7 +3,8 @@
 This project collects the data sets of the repository in one place and gives one way
 to work with all of them: load a record, check that its known law is visible in the
 data, run the search, score and inspect the result, compare methods. It works the same
-on Windows, Linux and macOS, from the command line and the notebooks.
+on Windows, Linux and macOS, from the command line, from the notebooks and from a
+visual app.
 
 What it consists of:
 
@@ -14,7 +15,7 @@ What it consists of:
 - **layered settings**: one shared protocol with a single broad token pool for every
   problem, a short file per record with only what that problem needs, method variants
   for comparisons, and changes given at run time;
-- **a command line, short scripts per data folder and notebooks**, all on top
+- **a command line, short scripts per data folder, notebooks and an app**, all on top
   of the same code;
 - **a benchmark**: series of runs in parallel processes that resume after an
   interruption, with reports and confidence intervals.
@@ -182,6 +183,33 @@ The notebooks run missing searches themselves and reuse a saved result only when
 settings, data, code and dependencies match exactly. Long searches are not run inside
 the notebooks.
 
+## Visual app
+
+A front end to the same code, grouped by step. Every page starts with a minimal set of
+controls and its defaults are the stored settings of the record; further choices are under
+*More options*, and every page explains itself under *About this page*.
+
+| group | page | what it does |
+|---|---|---|
+| Start | How EPDE works | the stages of the algorithm and a short live evolution |
+| Explore data | Data sets | browse the records, plot them, read the known laws |
+| | Signal check | is the known law visible at a given noise level; contribution of every term |
+| | Derivatives | derivative methods compared on noisy data, with their error |
+| Find equations | Run a search | choose a record and press Start; the result shows the found equation, whether it is the known law, and the equation against the data |
+| | Your data | upload a table, a matrix or an archive and search for its equation |
+| Review | Results | every saved search: from the app, the notebooks and the campaigns |
+| | Benchmark | start a campaign, follow it, read the comparison |
+
+```bash
+uv sync --locked --extra cpu --extra app
+uv run --locked --extra cpu --extra app streamlit run app/Home.py
+```
+
+Ordinary dataset and uploaded-data searches run in separate processes and save the
+common benchmark record, so their results can be inspected in a notebook. The short
+optimizer and chronological forecasting lessons have their own evidence records;
+their computations are isolated from Streamlit sessions as well.
+
 ## Checks
 
 ```bash
@@ -189,6 +217,23 @@ python -m unittest discover -s projects/pic/tests -v
 ```
 
 Tests cover data, term parsing, metrics, run identity, process lifecycle and small
-executable optimizer lessons. Full dataset campaigns run separately. Checks that
+executable optimizer/API lessons. Full dataset campaigns run separately. Checks that
 need files missing from the repository are skipped and reported as such.
 
+### Reading and running in the visual app
+
+The existing Streamlit pages also serve as interactive documentation. Each page includes expandable reading notes explaining the question it answers, how to interpret its output and a small exercise using its existing controls. The algorithm page runs a short real evolutionary search and displays observed epoch fronts. No separate website is required.
+
+From `projects/pic`, start the local application with:
+
+```bash
+uv run --locked --extra cpu --extra app streamlit run app/Home.py --server.address 127.0.0.1
+```
+
+GitHub Pages cannot serve the Python Streamlit application. Local execution uses the
+application above; Community Cloud runs Python on its server. Published experiment
+folders retain raw run records, settings, source identities and validation evidence.
+Notebook outputs distinguish discovery, reconstruction and unseen-data forecasting;
+optional extended comparisons must be enabled explicitly before running them.
+
+The architecture sources are included in `architecture/`; they describe framework packages and the benchmark workflow.

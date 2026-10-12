@@ -36,6 +36,7 @@ dependencies = [
 [project.optional-dependencies]
 cpu = ["torch>=2.4"]
 cu128 = ["torch>=2.4"]
+app = ["streamlit>=1.50"]
 
 [tool.uv]
 package = false

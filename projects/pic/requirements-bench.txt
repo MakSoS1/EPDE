@@ -6,3 +6,4 @@ pysindy>=2.0          # baseline; needs numpy >= 2
 nbformat>=5.9         # notebooks: generation
 nbclient>=0.10        # notebooks: execution
 ipykernel>=6.29
+streamlit>=1.50        # optional: the visual app in app/ (streamlit run projects/pic/app/Home.py)
