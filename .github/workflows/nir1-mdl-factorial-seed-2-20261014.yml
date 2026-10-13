@@ -1,0 +1,123 @@
+name: NIR1 MDL causal full 36x7 seed 2
+on:
+  push:
+    branches: [research/nir1-mdl-factorial-2026-10-14]
+    paths:
+      - '.github/workflows/nir1-mdl-factorial-seed-2-20261014.yml'
+permissions:
+  contents: read
+concurrency:
+  group: mdl-causal-2-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      NIR1_DISABLE_GRAM_CACHE: '1'
+      NIR1_CHI2_PREFIX_CACHE: '0'
+      UV_CACHE_DIR: /tmp/nir1-mdl-preflight-2
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+      - run: uv sync --project projects/pic --extra cpu --locked
+      - name: Test syntax and scientific variants
+        run: |
+          projects/pic/.venv/bin/python -m py_compile projects/nir1_stability/nir1/mdl_factorial_runner.py
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.mdl_factorial_runner --dataset ode --arm anchor_min --seed 2 --data-seed 0 --smoke --output /tmp/anchor-min-smoke.json
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.mdl_factorial_runner --dataset ode --arm no_mdl_min_repair --seed 2 --data-seed 0 --smoke --output /tmp/no-mdl-repair-smoke.json
+  full-epde:
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 105
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        dataset:
+          - ac
+          - burgers
+          - duffing
+          - lv
+          - ode
+          - vdp
+          - nir1_decay
+          - nir1_harmonic
+          - nir1_logistic
+          - nir1_quadratic
+          - nir1_cubic
+          - nir1_advection
+          - nir1_heat
+          - nir1_reactiondiff
+          - nir1_wave
+          - nir1_advdiff
+          - nir1_h11_gaussian_heat
+          - nir1_h11_advection_decay
+          - nir1_h11_viscous_burgers
+          - nir1_h11_klein_gordon
+          - nir1_h11_biharmonic
+          - nir1_h11_airy
+          - nir1_h11_shear
+          - nir1_h11_logistic_field
+          - nir1_h11_gauss_reactdiff
+          - nir1_h14_damped_wave
+          - nir1_h14_cole_hopf
+          - nir1_h14_kpp_front
+          - nir1_h14_linear_ks
+          - nir1_h14_beam
+          - nir1_h14_airy_transport
+          - nir1_h14_cubic_saturation
+          - nir1_h14_driven_advection
+          - nir1_h14_variable_diffusivity
+          - nir1_h14_liouville_growth
+          - nir1_h14_hyperdiffusion_growth
+        arm:
+          - native
+          - anchor_utopia
+          - anchor_min
+          - mdl_utopia
+          - mdl_min
+          - mdl_min_repair
+          - no_mdl_min_repair
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      NIR1_DISABLE_GRAM_CACHE: '1'
+      NIR1_CHI2_PREFIX_CACHE: '0'
+      UV_CACHE_DIR: /tmp/nir1-mdl-full-2
+    steps:
+      - name: Checkout research branch only
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: uv
+        uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+      - name: Exact lockfile CPU dependencies
+        run: uv sync --project projects/pic --extra cpu --locked
+      - name: Full EPDE (native dataset-specific budget, never smoke)
+        run: |
+          mkdir -p output
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.mdl_factorial_runner --dataset '${{ matrix.dataset }}' --arm '${{ matrix.arm }}' --seed 2 --data-seed 0 --noise 0 --output output/native-full.json
+      - name: Immutable provenance
+        if: always()
+        run: |
+          mkdir -p output
+          git rev-parse HEAD > output/source-sha.txt
+          printf 'Frozen 2026-10-14 H10 factorial. Cohort: 36 previously used laws; 7 controlled arms; 3 optimizer seeds. This shard: seed 2. No E1, same data seed=0, full native EPDE budgets (LV=32x5). ALL errors count failures. No test leakage; truth evaluated only after final front selection. No new independent heldout laws.\n' > output/SCIENTIFIC_SCOPE.txt
+      - name: Upload raw results even when failed
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: mdl-factorial-s2-${{ matrix.dataset }}-${{ matrix.arm }}-${{ github.sha }}
+          path: output/
+          if-no-files-found: warn
+          retention-days: 60
