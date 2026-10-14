@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Equation discovery on your own computer: real PySINDy in WebAssembly, no installation or paid compute server.">
+  <meta name="theme-color" content="#172434">
+  <title>Equation Discovery — Browser Lab</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand"><span class="brandmark">∂</span><div><strong>Equation Lab</strong><small>Browser edition · experimental</small></div></div>
+      <nav class="nav" aria-label="Main navigation">
+        <button class="nav-btn active" data-page="lab" aria-current="page">◈ &nbsp; Lab</button>
+        <button class="nav-btn" data-page="results">▤ &nbsp; Results <span id="count" class="count">0</span></button>
+        <button class="nav-btn" data-page="compare">⇄ &nbsp; Compare</button>
+        <button class="nav-btn" data-page="learn">◉ &nbsp; How it works</button>
+      </nav>
+      <div class="side-note">
+        <span class="dot"></span> Runs on your CPU<br>
+        <small>Python in WebAssembly. No installation, account or server-side compute.</small>
+      </div>
+      <div class="side-links">
+        <a href="https://github.com/MakSoS1/EPDE" target="_blank" rel="noopener noreferrer">GitHub source ↗</a>
+        <a href="https://epde-explorer-demo.streamlit.app/" target="_blank" rel="noopener noreferrer">Full native EPDE demo ↗</a>
+      </div>
+    </aside>
+
+    <main id="main">
+      <section class="page active" data-view="lab">
+        <div class="page-head">
+          <div><span class="eyebrow">Scientific workspace</span><h1>Discover equations from data</h1>
+            <p class="muted">Everything runs inside this browser. Pick a system, choose methods and run.</p>
+          </div>
+          <span class="privacy">◌ &nbsp; Compute: this device</span>
+        </div>
+        <div class="notice" role="note"><strong>Method transparency.</strong>
+          <b>PySINDy</b> below loads the genuine PySINDy 2.1.0 library. <b>EvoSparse</b> is an independently written learning example,
+          <strong>not EPDE</strong>. Full native EPDE cannot currently run without an installed worker or server.</div>
+        <div class="panel">
+          <div class="panel-head"><span class="step">01</span><div><h2>Data</h2><p>Use a known dynamical system or upload measurements.</p></div></div>
+          <div class="choice" role="group" aria-label="Data source">
+            <button type="button" class="chip selected" data-source="builtin" aria-pressed="true">Built-in equation</button>
+            <button type="button" class="chip" data-source="csv" aria-pressed="false">My CSV file</button>
+          </div>
+          <div id="builtin-options" class="form-row">
+            <label class="field grow">Equation
+              <select id="dataset">
+                <option value="decay">Exponential decay — 1 ODE</option>
+                <option value="logistic">Logistic growth — 1 ODE</option>
+                <option value="oscillator">Damped harmonic oscillator — 2 ODEs</option>
+                <option value="lotka">Lotka–Volterra — 2 ODEs</option>
+                <option value="vdp">Van der Pol — nonlinear system</option>
+              </select>
+            </label>
+            <label class="field">Noise (%)
+              <input id="noise" type="number" min="0" max="20" value="0" step="0.5">
+            </label>
+            <label class="field">Seed
+              <input id="seed" type="number" min="0" max="100000" value="0" step="1">
+            </label>
+          </div>
+          <div id="csv-options" class="hidden">
+            <p class="muted">CSV: first column = time, remaining columns = state variables. Numeric rows, increasing time, 80–10,000 samples, up to 1 MB.</p>
+            <label class="upload">Choose CSV <input id="csv" type="file" accept=".csv,text/csv"></label>
+            <p id="file-status" class="small muted">No file chosen</p>
+          </div>
+          <p id="known-law" class="law">Reference: du/dt = −0.7u</p>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><span class="step">02</span><div><h2>Methods</h2><p>Select one or both. The same numerical input and derivative estimator are used.</p></div></div>
+          <div class="method-cards">
+            <label class="method-card"><input type="checkbox" id="method-sindy" checked>
+              <span><b>PySINDy</b><small>Official library · STLSQ sparse regression</small></span>
+              <span class="tag">Genuine</span>
+            </label>
+            <label class="method-card"><input type="checkbox" id="method-evo" checked>
+              <span><b>EvoSparse demo</b><small>Educational evolutionary subset selector</small></span>
+              <span class="tag neutral">Not EPDE</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><span class="step">03</span><div><h2>Search settings</h2><p>Small, visible controls. Advanced parameters are optional.</p></div></div>
+          <div class="form-row">
+            <label class="field grow">Differentiation
+              <div class="choice" role="group" aria-label="Derivative estimator">
+                <button type="button" class="chip selected" data-deriv="finite" aria-pressed="true">Finite differences</button>
+                <button type="button" class="chip" data-deriv="savgol" aria-pressed="false">Savitzky–Golay</button>
+              </div>
+            </label>
+            <label class="field">Feature polynomial degree
+              <div class="choice compact" role="group" aria-label="Polynomial degree">
+                <button type="button" class="chip" data-degree="1" aria-pressed="false">1</button>
+                <button type="button" class="chip selected" data-degree="2" aria-pressed="true">2</button>
+                <button type="button" class="chip" data-degree="3" aria-pressed="false">3</button>
+                <button type="button" class="chip" data-degree="4" aria-pressed="false">4</button>
+              </div>
+            </label>
+          </div>
+          <details id="advanced" class="advanced">
+            <summary>Advanced algorithm settings</summary>
+            <div class="form-row spaced">
+              <label class="field">STLSQ threshold
+                <input id="threshold" type="number" value="0.05" step="0.01" min="0.001" max="2">
+              </label>
+              <label class="field">Evolution population
+                <input id="population" type="number" value="20" step="4" min="4" max="80">
+              </label>
+              <label class="field">Evolution epochs
+                <input id="epochs" type="number" value="8" step="1" min="1" max="40">
+              </label>
+            </div>
+            <p class="small muted">The last two settings apply only to the educational EvoSparse demo, not PySINDy.</p>
+          </details>
+          <div class="run-footer">
+            <button id="run" class="primary">▶ &nbsp; Run on my computer</button>
+            <button id="cancel" class="secondary" disabled>Stop calculation</button>
+            <span id="status" role="status" aria-live="polite">Ready. First run downloads the Python runtime.</span>
+          </div>
+          <div id="progress" class="progress hidden" role="progressbar" aria-label="Preparing Python runtime"><div></div></div>
+        </div>
+        <div class="footnote">Pyodide downloads packages from the internet on first use. Results and uploaded data remain in this browser (they are not uploaded to our server). Historical records are stored in IndexedDB.</div>
+      </section>
+
+      <section class="page" data-view="results">
+        <div class="page-head"><div><span class="eyebrow">Saved locally</span><h1>Results</h1>
+          <p class="muted">The history remains on this browser and device. Export important records.</p></div>
+          <button class="secondary" id="export">Export JSON</button>
+        </div>
+        <div class="two-col">
+          <div class="panel"><h2>Experiments</h2><div id="result-list" class="items"></div>
+            <button id="clear" class="danger-quiet">Clear local history</button></div>
+          <div class="panel"><div id="result-detail" class="detail-empty">Select a completed run to inspect its equations and plots.</div></div>
+        </div>
+      </section>
+
+      <section class="page" data-view="compare">
+        <div class="page-head"><div><span class="eyebrow">Matched data</span><h1>Compare methods</h1>
+          <p class="muted">Only searches with identical input data, noise and seed are compared.</p></div></div>
+        <div class="panel"><div id="compare-list" class="items"></div>
+          <div id="compare-detail"></div></div>
+      </section>
+
+      <section class="page" data-view="learn">
+        <div class="page-head"><div><span class="eyebrow">Methods & architecture</span><h1>How equation discovery works</h1>
+          <p class="muted">Scientific methods, their limits, and the original EPDE architecture.</p></div></div>
+        <div class="panel">
+          <h2>EPDE vs SINDy</h2>
+          <div class="learn-grid">
+            <div><h3>EPDE — original Python framework</h3>
+              <p>Constructs candidate equations from tokens and derivative terms, uses sparsity fitting,
+              and evolves systems under multiple objectives. The official code depends on native Python
+              packages including PyTorch, so this browser edition does <strong>not</strong> run EPDE itself.</p>
+            </div>
+            <div><h3>PySINDy — runs here in the browser</h3>
+              <p>Builds a fixed library of candidate features, then uses sparse regression to select
+              a few non-zero terms. We load the official 2.1.0 library directly into Pyodide.</p>
+            </div>
+          </div>
+          <h3>Original EPDE LikeC4 architecture</h3>
+          <p class="muted">Interactive architecture model bundled from the EPDE project. Click nodes to explore, or
+          <a href="https://github.com/MakSoS1/EPDE/tree/demo/streamlit-community-cloud/projects/pic/architecture" target="_blank" rel="noopener">open its sources ↗</a>.</p>
+          <button id="load-diagram" class="secondary">Load interactive LikeC4 diagrams</button>
+          <div id="diagram" class="diagram-zone"><p class="muted">The architecture loads on request to keep the Lab fast.</p></div>
+          <h3>Understanding the results</h3>
+          <p>Derivative R² compares predicted and numerically estimated derivatives on the recorded trajectory.
+          The validation tail contains the last 20% of time levels. This is <strong>not</strong>
+          an independent trajectory forecast or proof that the recovered equation is physically correct.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="./app.js" defer></script>
+</body>
+</html>
