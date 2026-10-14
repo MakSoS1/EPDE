@@ -205,7 +205,7 @@ function nativeWorker() {
     ? URL.createObjectURL(new Blob([inline], {type:"text/javascript"}))
     : "./science_worker.js";
   const worker = new Worker(workerURL);
-  if (typeof inline === "string") URL.revokeObjectURL(workerURL);
+  if (typeof inline === "string") store.workerURL = workerURL;
   worker.onmessage = message => {
     const data = message.data;
     if (data.type === "status") {
@@ -244,6 +244,8 @@ function cancelRun() {
   store.cancelled = true;
   if (store.worker) store.worker.terminate();
   store.worker = null;
+  if (store.workerURL) URL.revokeObjectURL(store.workerURL);
+  store.workerURL = null;
   if (store.awaiting) {
     store.awaiting.reject(new Error("Stopped by user"));
     store.awaiting = null;
