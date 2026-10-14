@@ -55,6 +55,10 @@ Then visit `http://127.0.0.1:8501`. The Compose port is bound only to localhost.
 | `app/support/discovery_lab/manager.py` | CPU process supervisor with timeouts |
 | `app/support/discovery_lab/worker.py` | EPDE, PySINDy and LLM adapters; evaluation of the selected equation |
 | `app/Dockerfile.demo` and `app/compose.demo.yaml` | Local container configuration |
+| `app/local_worker_service.py` | Optional native execution on visitor CPU |
+| `app/support/discovery_lab/local_browser.py` | Bidirectional browser bridge to loopback |
+| `app/support/discovery_lab/local_browser_assets/local_bridge.js` | Local browser fetch + native scientific result transport |
+| `tests/test_demo_local_cpu.py` | Loopback authentication and local protocol smoke checks |
 | `tests/test_discovery_lab.py` | Contract, generator, queue, real PySINDy runs through the worker, page rendering |
 
 ## Using the Lab
@@ -124,9 +128,13 @@ Community Cloud demonstration. The full resolved scientific settings travel
 with the job manifest to the worker and are checked again there, rather than
 being displayed but ignored; the stored run record contains their identity.
 
-**Execution location:** the current website still computes on Streamlit Cloud.
-The planned opt-in local Python worker is specified in LOCAL_EXECUTION_DESIGN.md,
-but no browser-to-OS execution mechanism has been installed.
+**Execution location:** Lab defaults to My computer, which connects
+to an explicitly user-installed native EPDE/PySINDy loopback worker through
+a Streamlit v2 browser component. A Demo server fallback still computes
+on the free Streamlit Cloud VM. The native worker needs one-time setup
+and an access code (see LOCAL_WORKER_README.md), and the live desktop-browser
+integration remains to be verified. It is not installation-free and does not
+enable arbitrary OS commands from the website.
 
 ## Scientific principles
 
