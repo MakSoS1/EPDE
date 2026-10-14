@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import streamlit as st
 from support import diagrams
+from support.common import link as page_link
 
 STAGES = {
     "Input and derivatives": (
@@ -154,6 +155,6 @@ def render_sindy_guide():
                "the same baseline through Lab and saves the result under Results.")
     col1, col2 = st.columns(2)
     with col1:
-        st.page_link("views/10_Discovery_lab.py", label="Run PySINDy in Lab", icon="🧪")
+        page_link("views/10_Discovery_lab.py", "Run PySINDy in Lab", "🧪")
     with col2:
-        st.page_link("views/12_Discovery_compare.py", label="Compare methods", icon="⚖️")
+        page_link("views/12_Discovery_compare.py", "Compare methods", "⚖️")
