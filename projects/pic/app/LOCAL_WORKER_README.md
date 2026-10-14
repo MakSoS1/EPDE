@@ -5,7 +5,30 @@ using free Streamlit Community Cloud. For native computation, visitors start a
 small Python worker on their own computer. The browser talks directly to its
 loopback endpoint. There is no paid compute hosting and no second website.
 
-## One-time installation
+## Simplest Windows x64 setup (one user-approved download)
+
+A native launcher is provided at
+[EPDE-Start.cmd](../native_launcher/EPDE-Start.cmd). A GitHub Actions
+Windows runner separately tests its bootstrap before it is offered as a
+release asset. Use the public
+[release page](https://github.com/MakSoS1/EPDE/releases/tag/epde-native-launcher-v1)
+**only after that release exists and the verification reports success**.
+
+Download the launcher and explicitly open it. It downloads verified uv
+0.13.0, automatically installs Python 3.12, fetches a fixed repository
+source revision, then installs the locked EPDE/PySINDy scientific
+dependencies into your own user-profile directory. The code used for
+equation search is the original EpdeSearch pipeline, not EvoSparse.
+Initial setup downloads a large Python/PyTorch/data environment and can
+take some time. The launcher opens the existing website and displays
+its random local worker access code in the console.
+
+It does **not** bypass a browser's security model or silently execute
+a program from the website. It targets Windows x64, not macOS or Linux,
+and requires the user's informed approval to run downloaded code.
+An unsigned batch file may be restricted by enterprise policies.
+
+## Alternative developer installation (Windows, macOS, Linux)
 
 Install Git and uv (https://docs.astral.sh/uv/getting-started/installation/).
 Open Windows PowerShell, macOS Terminal, or a Linux shell, then run:
