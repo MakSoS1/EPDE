@@ -49,17 +49,18 @@ class HostedResourcePolicyTests(unittest.TestCase):
         ast.parse(worker); ast.parse(local)
         self.assertIn("def _run_record(req, *, hosted=False):", worker)
         self.assertIn("def _run_upload(req, folder, *, hosted=False):", worker)
-        self.assertIn("_run_record(job, hosted=True)", worker)
-        self.assertIn("_run_upload(job, folder, hosted=True)", worker)
+        self.assertIn("_run_record(job, hosted=hosted)", worker)
+        self.assertIn("_run_upload(job, folder, hosted=hosted)", worker)
         self.assertIn("worker._run_record(runreq)", local)
         self.assertIn("worker._run_upload(runreq, target)", local)
+        self.assertIn("EPDE_LOCAL_FULL_RUN", worker)
 
     def test_browser_sindy_route_has_no_server_cpu_run(self):
         browser = (APP / "views/13_Browser_sindy.py").read_text()
         lab = (APP / "views/10_Discovery_lab.py").read_text()
         self.assertIn("st.iframe(build_browser_html(embedded=True)", browser)
         self.assertNotIn("queue.submit", browser)
-        self.assertIn("if record_name in HEAVY_RECORDS", lab)
+        self.assertIn("if is_local_only(record_name) and not local_full:", lab)
         self.assertIn("if location == \"Demo server\" and \"epde\" in methods:", lab)
 
 
