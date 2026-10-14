@@ -163,6 +163,7 @@ jobs:
           import json, os, datetime
           report = {
               "revision": os.environ["GITHUB_SHA"],
+              "run_id": int(os.environ["GITHUB_RUN_ID"]),
               "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
               "validation": os.environ["VALIDATE_STATE"],
               "github_pages": os.environ["PUBLISH_STATE"],
