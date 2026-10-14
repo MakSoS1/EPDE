@@ -73,6 +73,15 @@ jobs:
           python -m http.server 8767 --directory /tmp/epde-inline-site > /tmp/inline-http.log 2>&1 &
           sleep 2
           curl --fail http://127.0.0.1:8767/ > /dev/null
+      - id: matrix
+        name: All five PySINDy built-in datasets, actual browser numeric regression
+        timeout-minutes: 10
+        working-directory: projects/pic/browser_demo
+        env:
+          BROWSER_INLINE_BASE: http://127.0.0.1:8767
+        run: |
+          set -o pipefail
+          node smoke_matrix.mjs 2>&1 | tee /tmp/epde-browser-matrix.log
       - id: inline
         name: REAL PySINDy WASM from first-party Streamlit HTML
         timeout-minutes: 10
@@ -91,6 +100,7 @@ jobs:
           SERVER: ${{ steps.serve.outcome }}
           BROWSER: ${{ steps.browser.outcome }}
           INLINE: ${{ steps.inline.outcome }}
+          MATRIX: ${{ steps.matrix.outcome }}
         run: |
           python - <<'PY'
           import json,os,datetime
@@ -103,9 +113,10 @@ jobs:
               "server":os.environ.get("SERVER"),
               "chromium_wasm":os.environ.get("BROWSER"),
               "streamlit_inline_wasm":os.environ.get("INLINE"),
+              "browser_matrix":os.environ.get("MATRIX"),
           }
           values["verified"] = all(values[k]=="success" for k in
-                                   ("numerical","javascript","chromium_wasm","streamlit_inline_wasm"))
+                                   ("numerical","javascript","chromium_wasm","streamlit_inline_wasm","browser_matrix"))
           from pathlib import Path
           numeric_log = Path("/tmp/epde-numerical.log")
           values["numerical_log_tail"] = numeric_log.read_text(errors="replace")[-12000:] if numeric_log.exists() else ""
@@ -115,6 +126,8 @@ jobs:
           values["setup_log_tail"] = setup_log.read_text(errors="replace")[-10000:] if setup_log.exists() else ""
           server_log = Path("/tmp/browser-demo-http.log")
           values["server_log_tail"] = server_log.read_text(errors="replace")[-2000:] if server_log.exists() else ""
+          matrix_log=Path("/tmp/epde-browser-matrix.log")
+          values["matrix_log_tail"]=matrix_log.read_text(errors="replace")[-12000:] if matrix_log.exists() else ""
           inline_log=Path("/tmp/epde-inline.log")
           values["inline_log_tail"] = inline_log.read_text(errors="replace")[-12000:] if inline_log.exists() else ""
           with open("/tmp/epde-browser-verification.json","w") as f:
