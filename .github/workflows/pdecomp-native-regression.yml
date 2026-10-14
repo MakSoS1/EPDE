@@ -71,6 +71,7 @@ jobs:
         env:
           SETUP: ${{ steps.setup.outcome }}
           NATIVE: ${{ steps.actual.outcome }}
+          EXTENDED: ${{ steps.extended.outcome }}
           FIXED: ${{ steps.fixed.outcome }}
         run: |
           python - <<'PY'
@@ -108,7 +109,7 @@ jobs:
       matrix:
         framework: [deepmod, discover]
     runs-on: ubuntu-24.04
-    timeout-minutes: 42
+    timeout-minutes: 55
     env:
       FRAMEWORK: ${{ matrix.framework }}
       OPENBLAS_NUM_THREADS: '1'
@@ -155,6 +156,30 @@ jobs:
               raise RuntimeError(f"Native scientific benchmark failed: {rows}")
           print("NATIVE_SCIENTIFIC_SUCCESS",os.environ["FRAMEWORK"],len(rows))
           PY
+      - id: extended
+        name: Medium-budget original native search (scientific diagnostic)
+        timeout-minutes: 14
+        run: |
+          set -o pipefail
+          cd pdecomp
+          if [ "$FRAMEWORK" = discover ]; then
+            # Four complete RL batches; the historic clean default is 20,000
+            # samples. This is a reproducibility diagnostic, not that default.
+            docker compose run --rm discover python clean_run_metrics.py discover --protocol native --datasets burgers_data.mat --algorithm-seed 0 --native-max-iterations 1000 --output /app/results/discover/native/medium.csv 2>&1 | tee /tmp/pdecomp-extended.log
+          else
+            # Same DeePyMoD native NN, training, autograd and sparse fitting.
+            # 1000 steps, versus 5000 in the original full default.
+            docker compose run --rm deepmod python clean_run_metrics.py deepmod --protocol native --datasets burgers_data.mat --algorithm-seed 0 --native-max-iterations 1000 --native-max-samples 2048 --output /app/results/deepmod/native/medium.csv 2>&1 | tee /tmp/pdecomp-extended.log
+          fi
+          test -s "results/$FRAMEWORK/native/medium.csv"
+          python3 - <<'PY'
+          import csv,os
+          with open(f"results/{os.environ['FRAMEWORK']}/native/medium.csv") as f:
+              rows=list(csv.DictReader(f))
+          if not rows or not any(r["status"]=="ok" for r in rows) or any(r["status"]=="error" for r in rows):
+              raise RuntimeError(f"Scientific medium-budget result failed: {rows}")
+          print("EXTENDED_SCIENCE_SUCCESS", os.environ["FRAMEWORK"],len(rows))
+          PY
       - name: Persist exact native container findings, including failures
         if: always()
         env:
@@ -166,14 +191,16 @@ jobs:
           import json,os,pathlib
           parts={}
           for n,p in [('submodule','/tmp/pdecomp-submodule.log'),
-                      ('build','/tmp/pdecomp-build.log'),('scientific','/tmp/pdecomp-run.log')]:
+                      ('build','/tmp/pdecomp-build.log'),('scientific','/tmp/pdecomp-run.log'),
+                      ('extended','/tmp/pdecomp-extended.log')]:
               f=pathlib.Path(p);parts[n]=f.read_text(errors="replace")[-7500:] if f.exists() else ""
           data={"framework":os.environ["FRAMEWORK"],"pdecomp_sha":os.environ["PDECOMP_REV"],
                 "site_sha":os.environ["GITHUB_SHA"],"run_id":os.environ["GITHUB_RUN_ID"],
                 "submodule":os.environ.get("SUBMODULE"),
                 "docker_build":os.environ.get("CONTAINER"),
                 "native_science":os.environ.get("NATIVE"),
-                "verified":all(os.environ.get(k)=="success" for k in ("SUBMODULE","CONTAINER","NATIVE")),
+                "extended_science":os.environ.get("EXTENDED"),
+                "verified":all(os.environ.get(k)=="success" for k in ("SUBMODULE","CONTAINER","NATIVE","EXTENDED")),
                 "logs":parts}
           pathlib.Path("/tmp/report.json").write_text(json.dumps(data,indent=2))
           PY
