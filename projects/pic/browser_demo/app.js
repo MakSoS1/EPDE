@@ -102,7 +102,14 @@ function configureUI() {
     });
   }
   el("dataset").addEventListener("change", () => {
-    el("known-law").textContent = "Reference: " + CASES[el("dataset").value];
+    const dataset = el("dataset").value;
+    el("known-law").textContent = "Reference: " + CASES[dataset];
+    // The true Van der Pol RHS contains u²v, a cubic product. A quadratic
+    // library cannot represent it even when optimization runs successfully.
+    // This only configures feature capacity; the target coefficients are not
+    // passed to PySINDy's fit.
+    store.degree = dataset === "vdp" ? 3 : 2;
+    switchChoice("data-degree", store.degree);
   });
   el("csv").addEventListener("change", () => {
     const file = el("csv").files?.[0];
