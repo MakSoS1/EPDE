@@ -45,7 +45,6 @@ class CompleteCatalogTests(TestCase):
         laws = declared_equations("ode")
         self.assertTrue(laws)
         self.assertIn("du/dx0", " ".join(laws))
-        self.assertEqual(declared_equations("nonexistent") if False else [], [])
         with self.assertRaises(KeyError):
             declared_equations("nonexistent")
 
