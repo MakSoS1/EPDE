@@ -219,6 +219,11 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
         "Exact values": (original_pop, original_epochs),
     }
     dpop, dep = derived_budget[preset]
+    if not 4 <= int(dpop) <= 96 or not 1 <= int(dep) <= 50:
+        st.warning("The stored budget exceeds public Cloud limits (up to 96 candidates "
+                   "and 50 epochs). The displayed selection is capped for safety; "
+                   "use the trusted local research runner for the unmodified full profile.")
+        dpop, dep = max(4, min(96, int(dpop))), max(1, min(50, int(dep)))
     a, b, c = st.columns(3)
     pop = a.number_input("Population / candidates", min_value=4, max_value=96,
                          value=dpop, step=4, key=f"lab_pop_{source}_{record_name}_{variant}_{preset}")
@@ -289,11 +294,16 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
         else:
             domain["boundary_width"] = "auto"
         a, b, c = st.columns(3)
+        native_dp = int(sp.get("data_fun_pow", 3))
+        native_derp = int(sp.get("deriv_fun_pow", 2))
+        if native_dp > 4 or native_derp > 4:
+            st.warning("Native field/derivative powers exceed this public demo's "
+                       "limit of 4; the controls show their safely capped values.")
         sp["data_fun_pow"] = int(a.slider(
-            "Maximum field power", 1, 4, int(sp.get("data_fun_pow", 3)),
+            "Maximum field power", 1, 4, min(4, max(1, native_dp)),
             key=f"lab_data_power_{source}_{record_name}_{variant}"))
         sp["deriv_fun_pow"] = int(b.slider(
-            "Maximum derivative power", 1, 4, int(sp.get("deriv_fun_pow", 2)),
+            "Maximum derivative power", 1, 4, min(4, max(1, native_derp)),
             key=f"lab_deriv_power_{source}_{record_name}_{variant}"))
         old_factors = sp.get("equation_factors_max_number", 1)
         allow_products = (max(old_factors.get("factors_num", [1])) >= 2 if
@@ -345,9 +355,12 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
         objectives["sparsity_cls"] = b.selectbox(
             "Sparsity operator", values, index=values.index(current),
             key=f"lab_sparsity_{source}_{record_name}_{variant}")
+        cache_pct = float(resource.get("memory_for_cache", 2))
+        if not 1 <= cache_pct <= 4:
+            st.warning("Native cache percentage was capped to the public 1–4% range.")
         resource["memory_for_cache"] = float(st.number_input(
             "EPDE tensor cache: % of host RAM", 1.0, 4.0,
-            value=float(resource.get("memory_for_cache", 2)),
+            value=max(1.0, min(4.0, cache_pct)),
             step=1.0, key=f"lab_cache_{source}_{record_name}_{variant}"))
         st.info("Solver-based fitness and user-defined Python/operator implementations "
                 "are disabled for this hosted CPU-only demo. Advanced operator "
