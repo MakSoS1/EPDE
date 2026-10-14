@@ -27,9 +27,9 @@ from support.equations import equation_latex, system_latex
 page("Equation Discovery Lab", "🧪")
 st.caption("Choose data, run one or several equation-discovery methods on exactly the same input, "
            "then compare what each one found. Methods are compared side by side, not ranked.")
-st.page_link("views/9_How_EPDE_works.py",
-             label="New to equation discovery? See EPDE and SINDy step by step",
-             icon="🧭")
+from support.common import link as safe_page_link
+safe_page_link("views/9_How_EPDE_works.py",
+               "New to equation discovery? See EPDE and SINDy step by step", "🧭")
 
 # Shared saved session across the three application pages.
 from support.discovery_lab.session import current_owner
