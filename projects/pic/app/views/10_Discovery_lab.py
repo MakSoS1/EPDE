@@ -27,6 +27,9 @@ from support.discovery_lab.ode import compile_rhs, generate, reference_law, uses
 from support.discovery_lab.uploads import parse_upload
 from support.equations import equation_latex, system_latex
 
+# Internal safety flag; never exposed as a mode picker to visitors.
+LOCAL_FULL = os.environ.get("EPDE_LOCAL_FULL_RUN") == "1"
+
 page("Run a search", "🚀")
 st.caption("Choose one input, select EPDE, PySINDy or both, and compare their "
            "equations from the same data, noise and random seed.")
