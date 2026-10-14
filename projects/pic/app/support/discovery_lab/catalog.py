@@ -109,7 +109,18 @@ def source_file_status(name):
         else:
             dynamic = True
     unique = list(dict.fromkeys(paths))
-    missing = [str(p.relative_to(DATA_DIR)) for p in unique if not p.is_file()]
+    def has_data(path):
+        if path.is_file():
+            return True
+        if path.is_dir():
+            # E.g. the sea-surface-temperature loader expects a directory
+            # containing daily NetCDF files, not a regular file.
+            if path.name == "sst_l4_files":
+                return any(path.glob("*.nc"))
+            return any(item.is_file() for item in path.iterdir())
+        return False
+
+    missing = [str(p.relative_to(DATA_DIR)) for p in unique if not has_data(p)]
     if dynamic or not unique:
         status = "unknown"
     elif missing:
