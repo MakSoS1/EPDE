@@ -52,3 +52,51 @@ Official documentation:
 
 - https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/deploy
 - https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/app-dependencies
+
+## 2026-10-12 supervisor-review update — deploy after CI
+
+The scientific and UI changes developed on **research/nir1-mdl-factorial-2026-10-14**
+are separate from the original review deployment. Do not deploy from `main`,
+`nir1`, or the older `demo/streamlit-community-cloud` unless you deliberately
+merge/cherry-pick the reviewed changes there.
+
+To test the amended version yourself in Streamlit Community Cloud:
+
+1. In your Streamlit deployment settings select repository `MakSoS1/EPDE`,
+   branch `research/nir1-mdl-factorial-2026-10-14` and entrypoint
+   `projects/pic/app/Home.py`.
+2. Confirm the GitHub Actions workflow `nir1-streamlit-postcall-qa.yml` passes
+   before switching the production deployment branch. Do not claim that GitHub
+   page tests establish actual hosted behaviour.
+3. Exercise the five scientific flows: Signal check with intercept OFF and ON;
+   Derivatives with polynomial degree >= requested derivative order and valid odd
+   window; Run a search with 1/x on a **nonzero** spatial coordinate domain;
+   SINDy against EPDE on the same record; and YAML import/export roundtrip.
+4. Open Results for both methods and save the exported JSON. Test with public,
+   non-sensitive data only and compare hosted run settings with those in GitHub.
+
+### Important scope and security warnings
+
+- The `pysindy` adapter is functional and has its own page; there is no LLM
+  provider integration, secret key, cost quota, or arbitrary user-submitted
+  Python expression in this release. Those require a joint security/service
+  design with the LLM and benchmark owners.
+- The additional `1/x` term is explicitly allowlisted and is rejected at
+  x=0. Do not attempt to work around a singular grid by dividing by an
+  arbitrary epsilon without including that modelling assumption in the law.
+- Import accepts declarative, size-bounded YAML and known token-family names;
+  it does not run source code. Configuration may still request expensive
+  calculations. Do not expose open-ended concurrent heavy searches to anonymous
+  users on Community Cloud.
+- The existing Streamlit Community Cloud demo **does not isolate per-user uploads,
+  process control and result files**. This update does NOT magically provide
+  authentication, paid-API metering, user identity, multi-tenant isolation,
+  or durable storage. Hosting as a public production service requires those
+  architectural changes. For now, use a controlled scientific demo only.
+- Spectral and ANN differentiation were explicitly deferred in the 12 Oct
+  supervisor meeting; neither is advertised as repaired here.
+- The `projects/pic` directory name remains for historical import/API
+  compatibility; visible product labels use EPDE Explorer. Renaming it would
+  break the reproducible benchmark paths and is deliberately deferred.
+
+Regression source: `projects/pic/tests/test_streamlit_supervisor_20261012.py`.
