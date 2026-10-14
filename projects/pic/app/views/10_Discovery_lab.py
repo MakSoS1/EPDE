@@ -146,7 +146,9 @@ if source == "Built-in equation":
     groups = lab_records()
     group = st.selectbox("Group", list(groups))
     record_name = st.selectbox("Equation", groups[group], format_func=dataset_label)
-    problem = load_problem(record_name)
+    from epde_bench.config import load_config
+    original_profile = load_config(record_name, "default")
+    problem = load_problem(record_name, json.dumps(original_profile.get("loader", {}), sort_keys=True))
     label = dataset_label(record_name)
     st.markdown("**Known law** — used only to check the result, the methods do not see it")
     st.latex(system_latex(problem.truth, problem.axis_names))
