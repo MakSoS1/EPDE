@@ -1,10 +1,23 @@
 import streamlit as st
 
 from support import diagrams
-from support.common import link as page_link, page
+from support.common import link as page_link
 
-page('How EPDE works', '🧭')
-st.caption('Choose a stage to see what it does and where to try it in the app.')
+st.title('🧭 How EPDE and SINDy work')
+choice = st.segmented_control('Method', ['EPDE', 'PySINDy'], default='EPDE')
+if choice == 'PySINDy':
+    from support.sindy_guide import render_sindy_guide
+    render_sindy_guide()
+    st.stop()
+
+# Keep every original EPDE lesson, API example and interactive LikeC4 view.
+# They are now reachable on the public site alongside the new PySINDy guide.
+from support.guide import reading_notes
+from support.interfaces import page_interfaces
+reading_notes('How EPDE works')
+page_interfaces('How EPDE works')
+st.subheader('EPDE — evolutionary equation discovery')
+st.caption('Choose a stage to see its internals and the original interactive LikeC4 architecture.')
 
 STAGES = {
     'settings': ('Search settings',
@@ -113,7 +126,13 @@ title, text, link = STAGES[chosen]
 st.subheader(title)
 st.write(text)
 if link:
-    page_link(link, label='Try it in the app', icon='👉')
+    # The public site's one launcher is Lab; legacy research pages are not
+    # registered in public navigation and must not be linked from this guide.
+    import os
+    if os.environ.get('EPDE_SHOW_RESEARCH_PAGES') == '1' and os.environ.get('EPDE_PUBLIC_DEMO') != '1':
+        page_link(link, label='Open the research tool', icon='👉')
+    else:
+        page_link('views/10_Discovery_lab.py', label='Run an experiment in Lab', icon='🧪')
 
 from support.interfaces import stage_interfaces
 stage_interfaces(chosen)
