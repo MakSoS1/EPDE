@@ -31,7 +31,7 @@ st.warning(
     "network or try the separately installed native execution. "
     "No VPN bypass or disabled browser security is necessary."
 )
-CDN_REVISION = "dd4ecbafbc17f084cf09f4680a7a2b1d43416b15"
+CDN_REVISION = "2f70d520f8c5da1726dfeb210d81bd454302268a"
 BROWSER_URL = (
     "https://raw.githack.com/MakSoS1/EPDE/"
     + CDN_REVISION
