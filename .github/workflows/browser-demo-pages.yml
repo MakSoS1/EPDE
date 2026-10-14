@@ -176,8 +176,6 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
           blob=$(git hash-object -w /tmp/browser-page-published.json)
-          tree=$(printf '100644 blob %s	deployment.json
-' "$blob" | git mktree)
-          commit=$(printf 'Browser Pages deployment for %s
-' "$GITHUB_SHA" | git commit-tree "$tree")
+          tree=$(printf '100644 blob %s\tdeployment.json\n' "$blob" | git mktree)
+          commit=$(printf 'Browser Pages deployment for %s\n' "$GITHUB_SHA" | git commit-tree "$tree")
           git push --force origin "$commit:refs/heads/ci/browser-demo-deployment"
