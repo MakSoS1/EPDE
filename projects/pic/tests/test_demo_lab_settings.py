@@ -58,6 +58,18 @@ class LabScientificPresets(unittest.TestCase):
                 with self.assertRaises((ValueError, KeyError, TypeError)):
                     validate_public_search(deep_merge(cfg, patch), (301,))
 
+    def test_trusted_local_computation_has_larger_but_validated_budgets(self):
+        cfg = _custom_base(0, generated=True)
+        bigger = deep_merge(cfg, {"evolution": {
+            "population_size": 128, "training_epochs": 75},
+            "runtime": {"memory_for_cache": 8}})
+        with self.assertRaises(ValueError):
+            validate_public_search(bigger, (301,))
+        validate_public_search(bigger, (301,), override=True)
+        bad = deep_merge(bigger, {"evolution": {"population_size": 600}})
+        with self.assertRaises(ValueError):
+            validate_public_search(bad, (301,), override=True)
+
     def test_epde_variants_are_method_separated(self):
         self.assertIn("default", EPDE_VARIANTS)
         self.assertIn("poly", EPDE_VARIANTS)
@@ -72,7 +84,7 @@ class LabScientificPresets(unittest.TestCase):
         self.assertIn('"overrides": overrides if m != "llm" else {}', lab)
         self.assertIn('if "overrides" in req:', worker)
         self.assertIn("validate_public_search(resolve_for_problem(cfg, problem), problem.shape, override=not hosted)", worker)
-        self.assertIn("validate_public_search(search_cfg, problem.shape)", worker)
+        self.assertIn("validate_public_search(search_cfg, problem.shape, override=not hosted)", worker)
 
     def test_advanced_fields_and_yaml_transport_exist(self):
         app = Path(__file__).resolve().parents[1] / "app"
