@@ -8,6 +8,9 @@ on:
       - 'projects/pic/app/views/10_Discovery_lab.py'
       - 'projects/pic/app/views/11_Discovery_results.py'
       - 'projects/pic/app/views/12_Discovery_compare.py'
+      - 'projects/pic/app/views/9_How_EPDE_works.py'
+      - 'projects/pic/app/support/sindy_guide.py'
+      - 'projects/pic/app/static/likec4-views.js'
       - 'projects/pic/app/support/discovery_lab/**'
       - 'projects/pic/tests/test_demo_workspace_navigation.py'
       - '.github/workflows/demo-workspace-qa.yml'
@@ -27,7 +30,7 @@ jobs:
           python-version: '3.12'
       - name: Check all public demo page syntax
         run: |
-          python -m compileall -q projects/pic/app/Home.py projects/pic/app/views/10_Discovery_lab.py projects/pic/app/views/11_Discovery_results.py projects/pic/app/views/12_Discovery_compare.py projects/pic/app/support/discovery_lab
+          python -m compileall -q projects/pic/app/Home.py projects/pic/app/views/10_Discovery_lab.py projects/pic/app/views/11_Discovery_results.py projects/pic/app/views/12_Discovery_compare.py projects/pic/app/support/discovery_lab projects/pic/app/views/9_How_EPDE_works.py projects/pic/app/support/sindy_guide.py
       - name: Verify minimal sidebar navigation and shared owner
         run: |
           python -m unittest discover -s projects/pic/tests -p 'test_demo_workspace_navigation.py' -v
