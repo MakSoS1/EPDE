@@ -187,7 +187,8 @@ def search_options(name):
                 st.error(f"Invalid final settings: {exc}")
                 st.stop()
             st.caption("Reproducibility: effective overrides (applied to stored defaults)")
-            st.code(yaml.safe_dump(overrides, sort_keys=False), language="yaml")
+            st.code(yaml.safe_dump(overrides, sort_keys=False) if combined else "# none",
+                    language="yaml")
             st.download_button("Export settings YAML", dump_search_yaml(overrides),
                                file_name=f"{name}_{variant}_search.yaml",
                                mime="application/x-yaml", key=f"export_{key}")
