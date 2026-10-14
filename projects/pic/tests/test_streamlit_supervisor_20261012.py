@@ -52,6 +52,21 @@ class PolynomialSafety(unittest.TestCase):
 
 
 class PhysicalLawDiagnostic(unittest.TestCase):
+    def test_constant_bias_is_not_hidden_without_intercept(self):
+        import numpy as np
+        from epde_bench.truthcheck import check_equation
+        from epde_bench.metrics import _parse_factor
+        x = np.linspace(-1.0, 1.0, 41)
+        arrays = {_parse_factor("u{power: 1.0}"): x,
+                  _parse_factor("du/dx0{power: 1.0}"): 2.0*x + 10.0}
+        equation = "2.0 * u{power: 1.0} = du/dx0{power: 1.0}"
+        no_intercept = check_equation(equation, arrays, (slice(None),),
+                                      include_intercept=False)
+        with_intercept = check_equation(equation, arrays, (slice(None),),
+                                        include_intercept=True)
+        self.assertLess(no_intercept["r2"], 0.5)
+        self.assertAlmostEqual(with_intercept["r2"], 1.0, places=10)
+
     def test_intercept_opt_in_only(self):
         from epde_bench.truthcheck import check
         _, x = check("ode", noise_levels=(0.0,), series=True)
