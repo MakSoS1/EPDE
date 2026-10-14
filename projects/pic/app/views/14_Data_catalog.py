@@ -42,7 +42,7 @@ table = pd.DataFrame([{
     "Collection": row["suite_label"],
     "Reference law": "Declared" if row["law_known"] else "May be unavailable",
     "Source files": source_file_status(row["id"])["status"],
-    "Execution": "Local EPDE" if is_local_only(row["id"]) else "Server or local (budget permitting)",
+    "Run availability": "High-compute example" if is_local_only(row["id"]) else "Available within demo budget",
 } for row in filtered])
 st.dataframe(table, use_container_width=True, hide_index=True)
 if filtered:
@@ -77,9 +77,9 @@ if filtered:
         st.info("No static governing-law literal can be extracted from this loader. "
                 "This is not evidence that the method has no mathematical model.")
     if is_local_only(selected):
-        st.warning("This dataset needs the full local scientific environment. "
-                   "It remains visible in the catalog and can be opened in a local "
-                   "copy of the same Streamlit interface; a shared free VM will not load it.")
+        st.warning("This dataset requires substantial scientific computing resources. "
+                   "It remains visible in the catalog and can be explored in a complete "
+                   "installation of the same Streamlit interface.")
     elif row["suite"] in ("real", "other"):
         st.info("Measured or supplementary records may not have an exact known law, "
                 "and some original data files must be downloaded separately.")
