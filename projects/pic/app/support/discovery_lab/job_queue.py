@@ -248,3 +248,62 @@ def ensure_manager():
             time.sleep(0.1)
     finally:
         launcher.unlink(missing_ok=True)
+
+
+def save_client_result(owner: str, request: dict, record: dict):
+    """Store a *validated* completed local run for the existing Results/Compare.
+
+    The browser is not authoritative about method, input identity or storage path.
+    It cannot submit arbitrary server commands or create a running server-side job.
+    """
+    from .contract import normalize
+    from epde_bench.datasets import REGISTRY
+    if not isinstance(request, dict) or not isinstance(record, dict):
+        raise ValueError("Invalid local result")
+    method = request.get("method")
+    if method not in ("epde", "pysindy"):
+        raise ValueError("Invalid local method")
+    if record.get("execution_location") != "user_computer":
+        raise ValueError("Result was not marked as a local run")
+    payload = dict(record)
+    if len(json.dumps(payload, default=str)) > 1_800_000:
+        raise ValueError("Result exceeds browser transport limit")
+    payload = normalize(payload, method)
+    if payload.get("dataset") != request.get("dataset") or payload["method"] != method:
+        raise ValueError("Local worker returned a different dataset or method")
+    if request.get("source") == "record":
+        if request.get("dataset") not in REGISTRY:
+            raise ValueError("Invalid built-in dataset")
+    elif request.get("source") != "upload" or request.get("dataset") != "custom":
+        raise ValueError("Invalid data source")
+    # A local user can provide forged candidate values (a capability they
+    # already have through data uploads). Results are *not* used as training
+    # ground truth or automatically published benchmark leaderboards.
+    if len(list_jobs(owner)) >= MAX_OWNER_JOBS:
+        raise ValueError("The private session's stored-result limit was reached")
+    job_id = secrets.token_hex(16)
+    folder = job_path(owner, job_id)
+    folder.mkdir(parents=True, exist_ok=False)
+    created = time.time()
+    display = request.get("display") if isinstance(request.get("display"), dict) else {}
+    state = "finished" if payload.get("status") in ("ok", "unsupported") else "error"
+    _write(folder / "request.json", {
+        "method": method, "source": request["source"],
+        "dataset": request["dataset"], "variant": request.get("variant"),
+        "noise": request.get("noise", 0), "seed": request.get("seed", 0),
+        "effort": request.get("effort", "standard"),
+        "execution_location": "user_computer",
+    })
+    _write(folder / "result.json", payload)
+    _write(folder / "job.json", {
+        "id": job_id, "created": created, "started": created, "ended": created,
+        "state": state, "method": method, "source": request["source"],
+        "dataset": request["dataset"],
+        "label": str(display.get("label", request["dataset"]))[:160],
+        "input_key": str(display.get("input_key", ""))[:200],
+        "noise": float(request.get("noise", 0)),
+        "seed": int(request.get("seed", 0)),
+        "effort": str(request.get("effort", "standard"))[:60],
+        "execution_location": "user_computer",
+    })
+    return job_id
