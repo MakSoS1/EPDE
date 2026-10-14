@@ -18,6 +18,9 @@ noise = c2.multiselect('noise, % of the standard deviation', [0, 0.5, 1, 2, 5, 1
 variant = c3.selectbox('derivatives', [v for v in variants() if v in ('default', 'poly')],
                        format_func=lambda v: {'default': 'finite differences', 'poly': 'polynomial fits'}[v])
 seed = c4.number_input('seed', 0, 999, 0)
+include_intercept = st.toggle('Diagnostic intercept (not part of the known law)', value=False,
+                              help='Only when enabled, add an independent constant column to the least-squares diagnostic. The physical law is unchanged.')
+st.caption('Signal check tests the **known terms** and their identifiability; Derivatives compares **numerical differentiation methods**. No evolutionary search happens here.')
 if name == 'jhtdb_plane' and any(noise):
     st.warning('This record ships noise-free derivatives; only 0 % is allowed.')
     noise = [0]
@@ -32,8 +35,9 @@ if st.button('Run the check', type='primary') and noise:
     overrides = {'search': {'preprocessing': {'preprocessor_kwargs': {'mp_poolsize': 1}}}} if variant == 'poly' else None
     with st.spinner('evaluating terms…'):
         _, report = check(name, noise_levels=sorted(noise), seed=int(seed), variant=variant,
-                          overrides=overrides, series=True)
-    st.session_state['signal_check'] = ((name, variant, int(seed)), report)
+                          overrides=overrides, series=True,
+                          include_intercept=include_intercept)
+    st.session_state['signal_check'] = ((name, variant, int(seed), include_intercept), report)
 
 WEAK = 1e-3          # R² lost when a term is dropped below which the term is practically invisible
 
@@ -84,7 +88,7 @@ def plot_equation(eq, times):
 
 
 state = st.session_state.get('signal_check')
-if state and state[0] == (name, variant, int(seed)):
+if state and state[0] == (name, variant, int(seed), include_intercept):
     _, report = state
     st.markdown('**Result for each noise level**')
     tabs = st.tabs([f"noise {block['noise']:g} %" for block in report])
@@ -96,7 +100,9 @@ if state and state[0] == (name, variant, int(seed)):
                 left, right = st.columns(2)
                 left.markdown('Known law')
                 left.latex(equation_latex(eq['equation'], axes))
-                right.markdown('Same terms, coefficients fitted to these data')
+                right.markdown('Same physical terms, diagnostic coefficients fitted to these data')
+                if eq.get('intercept_fitted'):
+                    right.caption('The appended constant below is a diagnostic regression intercept, not an EPDE-discovered physical term.')
                 right.latex(equation_latex(fitted_equation(eq), axes))
                 plot_equation(eq, block.get('times'))
                 st.dataframe(pd.DataFrame([{
