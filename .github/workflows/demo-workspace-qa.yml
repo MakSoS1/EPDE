@@ -1,0 +1,33 @@
+name: Demo workspace smoke tests
+on:
+  push:
+    branches:
+      - demo/streamlit-community-cloud
+    paths:
+      - 'projects/pic/app/Home.py'
+      - 'projects/pic/app/views/10_Discovery_lab.py'
+      - 'projects/pic/app/views/11_Discovery_results.py'
+      - 'projects/pic/app/views/12_Discovery_compare.py'
+      - 'projects/pic/app/support/discovery_lab/**'
+      - 'projects/pic/tests/test_demo_workspace_navigation.py'
+      - '.github/workflows/demo-workspace-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  navigation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check all public demo page syntax
+        run: |
+          python -m compileall -q projects/pic/app/Home.py projects/pic/app/views/10_Discovery_lab.py projects/pic/app/views/11_Discovery_results.py projects/pic/app/views/12_Discovery_compare.py projects/pic/app/support/discovery_lab
+      - name: Verify minimal sidebar navigation and shared owner
+        run: |
+          python -m unittest discover -s projects/pic/tests -p 'test_demo_workspace_navigation.py' -v
