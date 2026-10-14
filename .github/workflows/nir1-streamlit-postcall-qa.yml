@@ -35,6 +35,9 @@ jobs:
       - name: Original Streamlit page smoke and equation-comparison tests
         run: |
           projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_app.py' -v
+      - name: Original interface and benchmark presentation tests
+        run: |
+          projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_app_interfaces.py' -v
       - name: Original input validation tests
         run: |
           projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_app_inputs.py' -v
