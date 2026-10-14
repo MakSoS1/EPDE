@@ -14,6 +14,7 @@ import secrets
 import json
 import os
 import time
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -27,8 +28,11 @@ from support.discovery_lab.uploads import parse_upload
 from support.equations import equation_latex, system_latex
 
 page("Equation Discovery Lab", "🧪")
-st.caption("Choose data, run one or several equation-discovery methods on exactly the same input, "
-           "then compare what each one found. Methods are compared side by side, not ranked.")
+st.caption("Real EPDE on the free demo server for light experiments; "
+           "full EPDE locally for heavy problems. PySINDy runs on your "
+           "computer in a separate browser tab without an installer.")
+st.page_link("views/13_Browser_sindy.py", label="⚡ Open PySINDy — compute on my CPU", icon=None)
+
 from support.common import link as safe_page_link
 safe_page_link("views/9_How_EPDE_works.py",
                "New to equation discovery? See EPDE and SINDy step by step", "🧭")
@@ -46,6 +50,7 @@ RECORD_GROUPS = {
     "Systems of ODEs": ["lv", "lorenz"],
     "Partial differential equations": ["burgers", "burgers_inviscid", "ac", "wave", "kdv_cossin",
                                        "pde_compound", "pde_divide"],
+    "Heavy PDEs — local computer only": ["ns", "ks", "jhtdb"],
     "Partial differential equations, NIR-1 test set": [
         "nir1_advection", "nir1_heat", "nir1_reactiondiff", "nir1_wave", "nir1_advdiff",
         "nir1_h11_gaussian_heat", "nir1_h11_advection_decay", "nir1_h11_viscous_burgers",
@@ -149,6 +154,29 @@ if source == "Built-in equation":
     groups = lab_records()
     group = st.selectbox("Group", list(groups))
     record_name = st.selectbox("Equation", groups[group], format_func=dataset_label)
+    from support.discovery_lab.execution_policy import HEAVY_RECORDS
+    if record_name in HEAVY_RECORDS:
+        st.error("This PDE is too large for the free server. "
+                 "It will not be loaded or queued here.")
+        st.markdown("**Run the unchanged EPDE on your own CPU**")
+        launcher = Path(__file__).resolve().parents[2] / "native_launcher" / "EPDE-Start.cmd"
+        if launcher.exists():
+            st.download_button(
+                "Download Windows setup (experimental, one-time)",
+                launcher.read_bytes(), file_name="EPDE-Start.cmd",
+                mime="application/octet-stream",
+                help="Explicitly run this file on your own Windows x64 PC. "
+                     "Its first launch downloads Python and the original locked EPDE environment.")
+        st.code(
+            "git clone --branch demo/streamlit-community-cloud https://github.com/MakSoS1/EPDE.git\n"
+            "cd EPDE/projects/pic\n"
+            "uv sync --locked --extra cpu --extra app\n"
+            "uv run --locked --extra cpu --extra app python app/local_worker_service.py",
+            language="bash")
+        st.caption("The Windows installer has not yet passed its full cross-machine "
+                   "test. The standard scientific Python runner is independently "
+                   "verified. Heavy jobs will not consume the public server.")
+        st.stop()
     from epde_bench.config import load_config
     original_profile = load_config(record_name, "default")
     problem = load_problem(record_name, json.dumps(original_profile.get("loader", {}), sort_keys=True))
@@ -237,9 +265,12 @@ else:
         noise = st.number_input("Extra noise, % of the standard deviation", 0.0, 10.0, 0.0, 0.5,
                                 help="Usually 0 for measured data.")
 
-st.subheader("2 · Choose methods")
-options = ["epde", "pysindy"] + (["llm"] if LLM_READY else [])
-methods = st.pills("Methods", options, default=["epde", "pysindy"],
+st.subheader("2 · Compute method")
+st.markdown("**EPDE** uses the original scientific engine on the demo server "
+            "for light jobs. **PySINDy** runs in your browser from the separate "
+            "tab above and does not use the server CPU.")
+options = ["epde"] + (["llm"] if LLM_READY else [])
+methods = st.pills("Methods", options, default=["epde"],
                     selection_mode="multi", format_func=METHOD_LABELS.get)
 if not LLM_READY:
     st.caption("The LLM agent slot is ready but no service is configured on this server.")
@@ -271,9 +302,10 @@ budget_code = {
 
 st.subheader("4 · Compute")
 location = st.segmented_control("Execution",
-    ["My computer", "Demo server"], default="My computer",
+    ["Demo server", "My computer"], default="Demo server",
     key="lab_execution_location",
-    help="Local uses your CPU with an installed native worker. Cloud shares free CPU.")
+    help="Free server is for short, resource-limited EPDE. My computer runs full "
+         "native EPDE via a user-approved local worker.")
 if location == "My computer":
     st.caption("Native EPDE and PySINDy run on your computer. The demo site is hosted for free.")
     with st.popover("Install and start local worker"):
@@ -291,9 +323,41 @@ if location == "My computer":
         st.info("Local execution currently supports EPDE and PySINDy, not the private LLM service.")
 else:
     access = ""
-    st.warning("Demo-server CPU is shared and limited. Prefer local execution for real experiments.")
+    st.caption("Only small inputs and bounded search budgets may use the free CPU. "
+               "Bigger data and Navier–Stokes always run locally.")
 
+# Show the decision before the user clicks Run; the worker verifies it again.
+hosted_allowed, hosted_reason, hosted_diag = True, "", {}
+if settings_valid and "epde" in methods:
+    from support.discovery_lab.execution_policy import classify_epde
+    from epde_bench.config import load_config, resolve_for_problem
+    try:
+        if record_name:
+            effective = load_config(record_name, variant, overrides=overrides)
+            resolved = resolve_for_problem(effective, problem)
+            shape, nvars = problem.shape, len(problem.variables)
+        elif arrays is not None and settings is not None:
+            resolved = settings["search"]
+            field_keys = [k for k in arrays if k.startswith("var_")]
+            shape = tuple(np.asarray(arrays[field_keys[0]]).shape)
+            nvars = len(field_keys)
+        else:
+            resolved, shape, nvars = {}, (), 0
+        hosted_allowed, hosted_reason, hosted_diag = classify_epde(
+            record_name, shape, nvars, resolved)
+    except (ValueError, KeyError, TypeError, IndexError) as exc:
+        hosted_allowed, hosted_reason = False, "Invalid scientific settings."
+if location == "Demo server":
+    if hosted_allowed:
+        if "epde" in methods:
+            st.caption("Server admission: " + hosted_reason)
+    else:
+        st.warning("This configuration must run locally: " + hosted_reason)
+        st.caption("Choose My computer for the original EPDE search or reduce "
+                   "the dataset and search budget. Heavy jobs are never queued.")
 ready = settings_valid and bool(methods) and (record_name is not None or arrays is not None)
+if location == "Demo server" and "epde" in methods:
+    ready = ready and hosted_allowed
 if location == "My computer":
     ready = ready and bool(access.strip()) and all(m in ("epde","pysindy") for m in methods)
 if st.button("Prepare local runs" if location == "My computer" else "Run on demo server",
