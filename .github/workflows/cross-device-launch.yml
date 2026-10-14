@@ -36,3 +36,34 @@ jobs:
         shell: bash
         run: |
           python -c "import json; x=json.load(open('.devcontainer/devcontainer.json')); assert x['portsAttributes']['8501']['visibility']=='private'; assert 8501 in x['forwardPorts']; print('CODESPACES_CONFIG_PASS')"
+
+  report:
+    name: Publish cross-platform launch status
+    needs: [launcher-paths]
+    if: always()
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish aggregated OS matrix result
+        env:
+          MATRIX_RESULT: ${{ needs.launcher-paths.result }}
+        run: |
+          python - <<'PY'
+          import json, os, pathlib
+          success = os.environ["MATRIX_RESULT"] == "success"
+          report={"revision":os.environ["GITHUB_SHA"],
+                  "run_id":int(os.environ["GITHUB_RUN_ID"]),
+                  "os_matrix":["windows-2025","macos-15","ubuntu-24.04"],
+                  "result":os.environ["MATRIX_RESULT"],
+                  "verified":success,
+                  "scope":"launcher file paths and syntax; full Linux scientific browser E2E is a separate job"}
+          pathlib.Path("/tmp/epde-run-report.json").write_text(json.dumps(report,indent=2))
+          PY
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          blob=$(git hash-object -w /tmp/epde-run-report.json)
+          tree=$(printf '100644 blob %s\tresult.json\n' "$blob" | git mktree)
+          commit=$(printf 'Cross-device EPDE launch report\n' | git commit-tree "$tree")
+          git push --force origin "$commit:refs/heads/ci/cross-device-launch"
