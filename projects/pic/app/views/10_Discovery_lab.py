@@ -172,8 +172,8 @@ if source == "Built-in equation":
                    "The free shared server will not load it.")
         st.markdown("**Run the entire EPDE interface on your computer:**")
         st.code(
-            "git clone --branch demo/streamlit-community-cloud https://github.com/MakSoS1/EPDE.git\\n"
-            "cd EPDE\\n"
+            "git clone --branch demo/streamlit-community-cloud https://github.com/MakSoS1/EPDE.git\n"
+            "cd EPDE\n"
             "uv run --project projects/pic --locked --extra cpu --extra app "
             "streamlit run projects/pic/app/Home.py",
             language="bash")
