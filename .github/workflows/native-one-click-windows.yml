@@ -23,8 +23,8 @@ jobs:
           EPDE_SETUP_ONLY: '1'
           EPDE_SOURCE_OVERRIDE: ${{ github.workspace }}
         run: |
-          & cmd.exe /c "projectspic
-ative_launcherEPDE-Start.cmd" *> native-log.txt
+          $launcher = Join-Path (Join-Path (Join-Path "projects" "pic") "native_launcher") "EPDE-Start.cmd"
+          & cmd.exe /c $launcher *> native-log.txt
           $log = Get-Content native-log.txt -Raw
           $log | Select-Object -Last 30
           if ($LASTEXITCODE -ne 0) { throw "Native launcher failed with code $LASTEXITCODE" }
