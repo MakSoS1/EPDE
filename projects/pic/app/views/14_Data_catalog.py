@@ -1,11 +1,13 @@
 """Full 59+ dataset catalogue; metadata-only by default, never allocate PDE grids."""
 from __future__ import annotations
 
+import inspect
+
 import pandas as pd
 import streamlit as st
 
 from support.common import page
-from support.discovery_lab.catalog import KIND_LABELS, SUITE_LABELS, declared_equations, full_catalog
+from support.discovery_lab.catalog import KIND_LABELS, SUITE_LABELS, declared_equations, full_catalog, source_file_status
 from support.discovery_lab.execution_policy import is_local_only
 
 page("All equations & datasets", "📚")
@@ -39,6 +41,7 @@ table = pd.DataFrame([{
     "Class": row["kind_label"],
     "Collection": row["suite_label"],
     "Reference law": "Declared" if row["law_known"] else "May be unavailable",
+    "Source files": source_file_status(row["id"])["status"],
     "Execution": "Local EPDE" if is_local_only(row["id"]) else "Server or local (budget permitting)",
 } for row in filtered])
 st.dataframe(table, use_container_width=True, hide_index=True)
@@ -52,6 +55,17 @@ if filtered:
     st.write("**Dataset ID:** `" + selected + "` · **Class:** " + row["kind_label"] +
              " · **Source:** " + row["source"] + " · **Suite:** " + row["suite_label"])
     st.write("**Original registered data paths:** `" + row["files"] + "`")
+    status = source_file_status(selected)
+    if status["status"] == "missing":
+        st.warning("Some original scientific files are not in this checkout: " +
+                   ", ".join(status["missing"][:8]) +
+                   (", …" if len(status["missing"]) > 8 else "") +
+                   ". See projects/pic/DATASETS.md for acquisition.")
+    elif status["status"] == "unknown":
+        st.caption("Source-file completeness could not be verified from "
+                   "static references; data may be produced dynamically.")
+    else:
+        st.caption(f"{status['checked']} statically referenced input file(s) are present.")
     laws = declared_equations(selected)
     if laws:
         st.markdown("**Declared governing equation(s)**")
@@ -69,6 +83,11 @@ if filtered:
     elif row["suite"] in ("real", "other"):
         st.info("Measured or supplementary records may not have an exact known law, "
                 "and some original data files must be downloaded separately.")
+    with st.expander("Original loader and governing-law source", expanded=False):
+        from epde_bench.datasets import REGISTRY
+        st.code(inspect.getsource(REGISTRY[selected].loader), language="python")
+        st.caption("This is the actual versioned Python source for the dataset, "
+                   "not an inferred or simplified equation.")
     if st.button("Use this record in Lab", type="primary"):
         st.session_state["catalog_requested_record"] = selected
         st.switch_page("views/10_Discovery_lab.py")
