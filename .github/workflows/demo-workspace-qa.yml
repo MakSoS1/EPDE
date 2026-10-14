@@ -6,6 +6,7 @@ on:
     paths:
       - 'projects/pic/app/Home.py'
       - 'projects/pic/app/views/10_Discovery_lab.py'
+      - 'projects/pic/app/views/13_Browser_sindy.py'
       - 'projects/pic/app/views/11_Discovery_results.py'
       - 'projects/pic/app/views/12_Discovery_compare.py'
       - 'projects/pic/app/views/9_How_EPDE_works.py'
@@ -15,6 +16,7 @@ on:
       - 'projects/pic/tests/test_demo_workspace_navigation.py'
       - 'projects/pic/tests/test_demo_lab_settings.py'
       - 'projects/pic/tests/test_demo_local_cpu.py'
+      - 'projects/pic/tests/test_demo_execution_routing.py'
       - 'projects/pic/app/local_worker_service.py'
       - '.github/workflows/demo-workspace-qa.yml'
   workflow_dispatch:
@@ -33,7 +35,7 @@ jobs:
           python-version: '3.12'
       - name: Check all public demo page syntax
         run: |
-          python -m compileall -q projects/pic/app/Home.py projects/pic/app/views/10_Discovery_lab.py projects/pic/app/views/11_Discovery_results.py projects/pic/app/views/12_Discovery_compare.py projects/pic/app/support/discovery_lab projects/pic/app/views/9_How_EPDE_works.py projects/pic/app/support/sindy_guide.py
+          python -m compileall -q projects/pic/app/Home.py projects/pic/app/views/13_Browser_sindy.py projects/pic/app/views/10_Discovery_lab.py projects/pic/app/views/11_Discovery_results.py projects/pic/app/views/12_Discovery_compare.py projects/pic/app/support/discovery_lab projects/pic/app/views/9_How_EPDE_works.py projects/pic/app/support/sindy_guide.py
       - name: Verify minimal sidebar navigation and shared owner
         run: |
           python -m unittest discover -s projects/pic/tests -p 'test_demo_workspace_navigation.py' -v
@@ -59,6 +61,9 @@ jobs:
       - name: Test loopback authentication and browser bridge schema
         run: |
           projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_demo_local_cpu.py' -v
+      - name: Verify EPDE free-server admission and visitor-browser routing
+        run: |
+          projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_demo_execution_routing.py' -v
       - name: Smoke-test PySINDy native local scientific adapter
         run: |
           projects/pic/.venv/bin/python - <<'PY'
