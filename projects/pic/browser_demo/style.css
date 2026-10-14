@@ -53,3 +53,18 @@ p{line-height:1.62;margin:5px 0 12px}.muted{color:var(--muted)}.small{font-size:
 .compare-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:15px;margin-top:18px}.compare-grid>div{border:1px solid var(--line);padding:16px;border-radius:10px}
 @media(max-width:900px){.layout{grid-template-columns:1fr}.sidebar{height:auto;min-height:0;position:static;padding:12px 18px;gap:12px}.brand{border:0;padding:0}.nav{display:flex;gap:6px;overflow-x:auto}.nav-btn{width:auto;white-space:nowrap;padding:9px 10px;font-size:.8rem}.side-note,.side-links{display:none}main{padding:24px 16px 44px}.two-col{grid-template-columns:1fr}.method-cards{grid-template-columns:1fr}.learn-grid{grid-template-columns:1fr}.page-head{margin-bottom:18px}}
 @media(prefers-reduced-motion:reduce){.progress>div{animation:none;width:100%}}
+
+/* Single website embedded into Streamlit: compact workspace header, full Results. */
+body.embedded{background:#fff}
+.embedded .layout{grid-template-columns:1fr}
+.embedded .sidebar{height:auto;min-height:0;position:static;display:flex;flex-direction:row;
+ align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;
+ border-radius:10px;margin-bottom:12px}
+.embedded .brand,.embedded .side-note,.embedded .side-links{display:none}
+.embedded .nav{display:flex;gap:7px;flex-wrap:wrap}
+.embedded .nav-btn{width:auto;padding:8px 13px;font-size:.83rem}
+.embedded main{padding:10px 8px 22px;max-width:100%}
+.embedded .page-head{margin-bottom:16px}
+.embedded .notice{font-size:.81rem}
+.embedded .method-card:has(#method-evo){display:none}
+.embedded .privacy{font-size:.73rem}
