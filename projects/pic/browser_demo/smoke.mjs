@@ -23,7 +23,7 @@ try {
   await page.waitForFunction(() => {
     const status = document.querySelector("#status")?.textContent || "";
     return status.includes("Finished.") || status.includes("Could not finish:");
-  }, {timeout:240000}).catch(async () => {
+  }, undefined, {timeout:240000}).catch(async () => {
     throw new Error("Browser scientific run timed out: " +
                     await page.locator("#status").textContent());
   });
@@ -55,7 +55,7 @@ try {
   await page.waitForFunction(() => {
     const status = document.querySelector("#status")?.textContent || "";
     return status.includes("Finished.") || status.includes("Could not finish:");
-  }, {timeout:90000});
+  }, undefined, {timeout:90000});
   if (!(await page.locator("#status").textContent()).includes("Finished.")) {
     throw new Error("Evolutionary educational demonstration failed");
   }
