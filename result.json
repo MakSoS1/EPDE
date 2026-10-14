@@ -1,0 +1,12 @@
+{
+  "revision": "a9f2d908fc9d84b708803633cc1338fc379cf2cb",
+  "run_id": 38654133611,
+  "os_matrix": [
+    "windows-2025",
+    "macos-15",
+    "ubuntu-24.04"
+  ],
+  "result": "success",
+  "verified": true,
+  "scope": "launcher file paths and syntax; full Linux scientific browser E2E is a separate job"
+}
