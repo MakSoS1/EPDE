@@ -92,10 +92,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
           blob=$(git hash-object -w /tmp/report.json)
-          tree=$(printf '100644 blob %s	result.json
-' "$blob" | git mktree)
-          commit=$(printf 'PDEComp/native PySINDy report
-' | git commit-tree "$tree")
+          tree=$(printf '100644 blob %s\tresult.json\n' "$blob" | git mktree)
+          commit=$(printf 'PDEComp/native PySINDy report\n' | git commit-tree "$tree")
           git push --force origin "$commit:refs/heads/ci/pdecomp-native-pysindy"
       - uses: actions/upload-artifact@v4
         if: always()
@@ -171,10 +169,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
           blob=$(git hash-object -w /tmp/report.json)
-          tree=$(printf '100644 blob %s	result.json
-' "$blob" | git mktree)
-          commit=$(printf 'PDEComp/native %s container report
-' "$FRAMEWORK" | git commit-tree "$tree")
+          tree=$(printf '100644 blob %s\tresult.json\n' "$blob" | git mktree)
+          commit=$(printf 'PDEComp/native %s container report\n' "$FRAMEWORK" | git commit-tree "$tree")
           git push --force origin "$commit:refs/heads/ci/pdecomp-native-$FRAMEWORK"
       - uses: actions/upload-artifact@v4
         if: always()
