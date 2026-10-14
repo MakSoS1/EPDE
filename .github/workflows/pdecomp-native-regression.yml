@@ -138,12 +138,23 @@ jobs:
         timeout-minutes: 12
         run: |
           set -o pipefail
+          mkdir -p "pdecomp/results/$FRAMEWORK/native"
+          chmod -R a+rwx pdecomp/results
           cd pdecomp
           if [ "$FRAMEWORK" = discover ]; then
             docker compose run --rm discover python clean_run_metrics.py discover               --protocol native --datasets burgers_data.mat               --algorithm-seed 0 --native-max-iterations 250               --output /app/results/discover/native/smoke.csv               2>&1 | tee /tmp/pdecomp-run.log
           else
             docker compose run --rm deepmod python clean_run_metrics.py deepmod               --protocol native --datasets burgers_data.mat               --algorithm-seed 0 --native-max-iterations 5 --native-max-samples 512               --output /app/results/deepmod/native/smoke.csv               2>&1 | tee /tmp/pdecomp-run.log
           fi
+          test -s "results/$FRAMEWORK/native/smoke.csv"
+          python3 - <<'PY'
+          import csv,os
+          p=f"results/{os.environ['FRAMEWORK']}/native/smoke.csv"
+          with open(p,newline="") as f: rows=list(csv.DictReader(f))
+          if not rows or any(r["status"]=="error" for r in rows) or not any(r["status"]=="ok" for r in rows):
+              raise RuntimeError(f"Native scientific benchmark failed: {rows}")
+          print("NATIVE_SCIENTIFIC_SUCCESS",os.environ["FRAMEWORK"],len(rows))
+          PY
       - name: Persist exact native container findings, including failures
         if: always()
         env:
