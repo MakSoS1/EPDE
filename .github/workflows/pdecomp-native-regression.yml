@@ -1,0 +1,184 @@
+name: PDEComp native protocol — independent regression
+on:
+  push:
+    branches: [demo/streamlit-community-cloud]
+    paths:
+      - '.github/workflows/pdecomp-native-regression.yml'
+      - 'projects/pic/tests/pdecomp_native_csv_audit.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PDECOMP_REV: 4abfe4e9eef5263c35ae5672c6ebfb65aabf8365
+
+jobs:
+  native-pysindy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      FRAMEWORK: pysindy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: MakSoS1/PDEComp
+          ref: 4abfe4e9eef5263c35ae5672c6ebfb65aabf8365
+          path: pdecomp
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - id: setup
+        name: Install native PDEComp PySINDy versions
+        run: |
+          set -o pipefail
+          python -m pip install numpy==1.26.4 scipy==1.15.2 scikit-learn==1.6.1 pandas==1.5.3 matplotlib==3.10.1 pysindy==2.1.0 2>&1 | tee /tmp/pdecomp-setup.log
+          python -m pip check 2>&1 | tee -a /tmp/pdecomp-setup.log
+      - id: actual
+        name: Run original PDEComp/native ODE, system and PDE twice
+        timeout-minutes: 18
+        run: |
+          set -o pipefail
+          mkdir -p reports
+          cd pdecomp
+          python clean_run_metrics.py pysindy --protocol native --algorithm-seed 0 \
+            --datasets ode_data.npy vdp_data.npy lotka_data.npy burgers_data.mat \
+            --output ../reports/native-1.csv 2>&1 | tee /tmp/pdecomp-native.log
+          python clean_run_metrics.py pysindy --protocol native --algorithm-seed 0 \
+            --datasets ode_data.npy vdp_data.npy lotka_data.npy burgers_data.mat \
+            --output ../reports/native-2.csv 2>&1 | tee -a /tmp/pdecomp-native.log
+          cd ..
+          python projects/pic/tests/pdecomp_native_csv_audit.py --framework pysindy \
+            --first reports/native-1.csv --second reports/native-2.csv
+      - id: fixed
+        name: Check original controlled protocol independently (not expected identical)
+        timeout-minutes: 8
+        run: |
+          set -o pipefail
+          cd pdecomp
+          python clean_run_metrics.py pysindy --protocol fixed --algorithm-seed 0 \
+            --datasets ode_data.npy vdp_data.npy lotka_data.npy \
+            --output ../reports/fixed.csv 2>&1 | tee /tmp/pdecomp-fixed.log
+          cd ..
+          python projects/pic/tests/pdecomp_native_csv_audit.py --framework pysindy \
+            --protocol fixed --first reports/fixed.csv
+      - name: Persist pinned-branch verification results
+        if: always()
+        env:
+          SETUP: ${{ steps.setup.outcome }}
+          NATIVE: ${{ steps.actual.outcome }}
+          FIXED: ${{ steps.fixed.outcome }}
+        run: |
+          python - <<'PY'
+          import json,os,pathlib
+          report = {
+            "pdecomp_sha": os.environ["PDECOMP_REV"],
+            "site_sha": os.environ["GITHUB_SHA"],
+            "run_id": os.environ["GITHUB_RUN_ID"],
+            "framework":"pysindy", "installed":os.environ.get("SETUP"),
+            "native":os.environ.get("NATIVE"), "fixed":os.environ.get("FIXED"),
+            "verified":all(os.environ.get(n)=="success" for n in ("SETUP","NATIVE","FIXED")),
+          }
+          report["log"] = "\n".join(
+            pathlib.Path(p).read_text(errors="replace")[-7500:]
+            for p in ("/tmp/pdecomp-setup.log","/tmp/pdecomp-native.log",
+                      "/tmp/pdecomp-fixed.log") if pathlib.Path(p).exists())
+          pathlib.Path("/tmp/report.json").write_text(json.dumps(report,indent=2))
+          PY
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          blob=$(git hash-object -w /tmp/report.json)
+          tree=$(printf '100644 blob %s	result.json
+' "$blob" | git mktree)
+          commit=$(printf 'PDEComp/native PySINDy report
+' | git commit-tree "$tree")
+          git push --force origin "$commit:refs/heads/ci/pdecomp-native-pysindy"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: PDEComp-native-PySINDy-benchmarks
+          path: reports/*.csv
+          if-no-files-found: ignore
+
+  native-containers:
+    strategy:
+      fail-fast: false
+      matrix:
+        framework: [deepmod, discover]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 42
+    env:
+      FRAMEWORK: ${{ matrix.framework }}
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: MakSoS1/PDEComp
+          ref: 4abfe4e9eef5263c35ae5672c6ebfb65aabf8365
+          path: pdecomp
+      - id: submodule
+        name: Fetch the original framework-specific source submodule
+        run: |
+          cd pdecomp
+          git submodule update --init "$FRAMEWORK/$([ "$FRAMEWORK" = deepmod ] && echo deepymod || echo discover)" 2>&1 | tee /tmp/pdecomp-submodule.log
+      - id: container
+        name: Build Vlad's isolated native environment
+        timeout-minutes: 22
+        run: |
+          set -o pipefail
+          cd pdecomp
+          docker compose build "$FRAMEWORK" 2>&1 | tee /tmp/pdecomp-build.log
+      - id: actual
+        name: Run the unchanged native wrapper on Burgers
+        timeout-minutes: 12
+        run: |
+          set -o pipefail
+          cd pdecomp
+          if [ "$FRAMEWORK" = discover ]; then
+            docker compose run --rm discover python clean_run_metrics.py discover               --protocol native --datasets burgers_data.mat               --algorithm-seed 0 --native-max-iterations 250               --output /app/results/discover/native/smoke.csv               2>&1 | tee /tmp/pdecomp-run.log
+          else
+            docker compose run --rm deepmod python clean_run_metrics.py deepmod               --protocol native --datasets burgers_data.mat               --algorithm-seed 0 --native-max-iterations 5 --native-max-samples 512               --output /app/results/deepmod/native/smoke.csv               2>&1 | tee /tmp/pdecomp-run.log
+          fi
+      - name: Persist exact native container findings, including failures
+        if: always()
+        env:
+          SUBMODULE: ${{ steps.submodule.outcome }}
+          CONTAINER: ${{ steps.container.outcome }}
+          NATIVE: ${{ steps.actual.outcome }}
+        run: |
+          python - <<'PY'
+          import json,os,pathlib
+          parts={}
+          for n,p in [('submodule','/tmp/pdecomp-submodule.log'),
+                      ('build','/tmp/pdecomp-build.log'),('scientific','/tmp/pdecomp-run.log')]:
+              f=pathlib.Path(p);parts[n]=f.read_text(errors="replace")[-7500:] if f.exists() else ""
+          data={"framework":os.environ["FRAMEWORK"],"pdecomp_sha":os.environ["PDECOMP_REV"],
+                "site_sha":os.environ["GITHUB_SHA"],"run_id":os.environ["GITHUB_RUN_ID"],
+                "submodule":os.environ.get("SUBMODULE"),
+                "docker_build":os.environ.get("CONTAINER"),
+                "native_science":os.environ.get("NATIVE"),
+                "verified":all(os.environ.get(k)=="success" for k in ("SUBMODULE","CONTAINER","NATIVE")),
+                "logs":parts}
+          pathlib.Path("/tmp/report.json").write_text(json.dumps(data,indent=2))
+          PY
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          blob=$(git hash-object -w /tmp/report.json)
+          tree=$(printf '100644 blob %s	result.json
+' "$blob" | git mktree)
+          commit=$(printf 'PDEComp/native %s container report
+' "$FRAMEWORK" | git commit-tree "$tree")
+          git push --force origin "$commit:refs/heads/ci/pdecomp-native-$FRAMEWORK"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: PDEComp-native-${{ matrix.framework }}-measurements
+          path: pdecomp/results/${{ matrix.framework }}/native/*.csv
+          if-no-files-found: ignore
