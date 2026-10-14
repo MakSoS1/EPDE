@@ -20,6 +20,8 @@ jobs:
     name: Genuine PySINDy and browser smoke
     runs-on: ubuntu-24.04
     timeout-minutes: 35
+    permissions:
+      contents: write  # write a tiny public verification result to a dedicated CI branch
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -27,14 +29,16 @@ jobs:
           python-version: '3.12'
       - name: Install scientific test dependencies without EPDE/Torch
         run: python -m pip install numpy scipy scikit-learn pysindy==2.1.0
-      - name: Compile and numerically test the browser scientific engine
+      - id: numerical
+        name: Compile and numerically test the browser scientific engine
         run: |
           python -m py_compile projects/pic/browser_demo/science.py projects/pic/browser_demo/test_science.py
           python -m unittest discover -s projects/pic/browser_demo -p 'test_science.py' -v
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Validate JavaScript syntax
+      - id: syntax
+        name: Validate JavaScript syntax
         run: |
           node --check projects/pic/browser_demo/app.js
           node --check projects/pic/browser_demo/science_worker.js
@@ -51,10 +55,38 @@ jobs:
           echo $! > /tmp/browser-demo-server.pid
           sleep 2
           curl --fail http://127.0.0.1:8766/ > /dev/null
-      - name: REAL WebAssembly PySINDy in Chromium, storage and Compare
+      - id: browser
+        name: REAL WebAssembly PySINDy in Chromium, storage and Compare
         timeout-minutes: 12
         working-directory: projects/pic/browser_demo
         run: npm run smoke
+      - name: Publish verification outcomes for inspection
+        if: always()
+        env:
+          NUMERICAL: ${{ steps.numerical.outcome }}
+          JS_SYNTAX: ${{ steps.syntax.outcome }}
+          BROWSER: ${{ steps.browser.outcome }}
+        run: |
+          python - <<'PY'
+          import json,os,datetime
+          values = {
+              "revision":os.environ["GITHUB_SHA"],
+              "timestamp":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              "numerical":os.environ.get("NUMERICAL"),
+              "javascript":os.environ.get("JS_SYNTAX"),
+              "chromium_wasm":os.environ.get("BROWSER"),
+          }
+          values["verified"] = all(values[k]=="success" for k in
+                                   ("numerical","javascript","chromium_wasm"))
+          with open("/tmp/epde-browser-verification.json","w") as f:
+              json.dump(values,f,indent=2)
+          PY
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          blob=$(git hash-object -w /tmp/epde-browser-verification.json)
+          tree=$(printf '100644 blob %s\tresult.json\n' "$blob" | git mktree)
+          commit=$(printf 'Browser smoke report for %s\n' "$GITHUB_SHA" | git commit-tree "$tree")
+          git push --force origin "$commit:refs/heads/ci/browser-demo-verification"
       - name: Preserve failed browser screenshot and logs
         if: failure()
         uses: actions/upload-artifact@v4
