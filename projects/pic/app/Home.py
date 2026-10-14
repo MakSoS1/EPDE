@@ -1,7 +1,7 @@
-"""EPDE explorer. Research pages remain available in local mode.
+"""Equation Discovery Lab: one public Streamlit application, three clear pages.
 
-Set EPDE_PUBLIC_DEMO=1 for the isolated visitor-facing Discovery Lab.
-This setting is intentionally opt-in; legacy pages have shared job files.
+The old teaching/research pages stay in the repository for regression and
+private research, but are not offered to anonymous public visitors.
 """
 import os
 import sys
@@ -16,34 +16,34 @@ from epde_bench import env
 env.pin_blas_threads(1)
 
 import streamlit as st
-st.set_page_config(page_title="EPDE Explorer", page_icon="🧮", layout="wide")
 
-if os.environ.get("EPDE_PUBLIC_DEMO") == "1":
-    # Do not expose old shared-instance Results, Jobs, Benchmark, Upload or Overview.
-    st.navigation([st.Page("views/10_Discovery_lab.py", title="Equation Discovery Lab",
-                           icon="🧪", default=True)]).run()
-else:
-    PAGES = {
-        "Experiments": [
-            st.Page("views/10_Discovery_lab.py", title="Equation Discovery Lab", icon="🧪", default=True),
-        ],
-        "Start": [
-            st.Page("overview.py", title="Overview", icon="🧮"),
-            st.Page("views/9_How_EPDE_works.py", title="How EPDE works", icon="🧭"),
-        ],
-        "Explore data": [
-            st.Page("views/1_Data_sets.py", title="Data sets", icon="🗂️"),
-            st.Page("views/2_Signal_check.py", title="Signal check", icon="🔍"),
-            st.Page("views/3_Derivatives.py", title="Derivatives", icon="📈"),
-        ],
-        "Find equations": [
-            st.Page("views/5_Run_search.py", title="Run a search (legacy)", icon="🚀"),
-            st.Page("views/4_SINDy.py", title="SINDy baseline", icon="🧩"),
-            st.Page("views/6_Your_data.py", title="Your data (legacy)", icon="📤"),
-        ],
-        "Review": [
-            st.Page("views/7_Results.py", title="Results (legacy)", icon="🗃️"),
-            st.Page("views/8_Benchmark.py", title="Benchmark (legacy)", icon="🏁"),
-        ],
-    }
-    st.navigation(PAGES).run()
+st.set_page_config(page_title="Equation Discovery Lab", page_icon="🧪", layout="wide")
+
+PAGES = {
+    "Workspace": [
+        st.Page("views/10_Discovery_lab.py", title="Lab", icon="🧪", default=True),
+        st.Page("views/11_Discovery_results.py", title="Results", icon="🗂️"),
+        st.Page("views/12_Discovery_compare.py", title="Compare", icon="⚖️"),
+    ],
+}
+
+# Preserve the old exploratory interface without exposing shared-instance
+# uploads, jobs and results on the hosted public demonstration.
+if (os.environ.get("EPDE_SHOW_RESEARCH_PAGES") == "1"
+        and os.environ.get("EPDE_PUBLIC_DEMO") != "1"):
+    PAGES["Research tools (local only)"] = [
+        st.Page("overview.py", title="Overview", icon="🧮"),
+        st.Page("views/9_How_EPDE_works.py", title="How EPDE works", icon="🧭"),
+        st.Page("views/1_Data_sets.py", title="Data sets", icon="🗂️"),
+        st.Page("views/2_Signal_check.py", title="Signal check", icon="🔍"),
+        st.Page("views/3_Derivatives.py", title="Derivatives", icon="📈"),
+        st.Page("views/5_Run_search.py", title="Run a search (legacy)", icon="🚀"),
+        st.Page("views/4_SINDy.py", title="SINDy baseline (legacy)", icon="🧩"),
+        st.Page("views/6_Your_data.py", title="Your data (legacy)", icon="📤"),
+        st.Page("views/7_Results.py", title="Results (legacy)", icon="🗃️"),
+        st.Page("views/8_Benchmark.py", title="Benchmark (legacy)", icon="🏁"),
+    ]
+
+st.sidebar.caption("Start with Lab. Open Results to inspect saved experiments, "
+                   "or Compare to view runs on the same data.")
+st.navigation(PAGES).run()
