@@ -95,6 +95,21 @@ jobs:
         run: |
           bash -n run-epde.sh .devcontainer/setup.sh .devcontainer/start.sh
           bash run-epde.sh --check
+      - name: Inventory original dataset file availability without reading heavy arrays
+        run: |
+          projects/pic/.venv/bin/python - <<'PY'
+          from collections import Counter
+          from support.discovery_lab.catalog import full_catalog, source_file_status
+          rows=full_catalog()
+          status={r['id']:source_file_status(r['id']) for r in rows}
+          counts=Counter(v['status'] for v in status.values())
+          print("ORIGINAL_REGISTRY_COUNT",len(rows))
+          print("FILE_STATUS_COUNTS",dict(counts))
+          print("MISSING_FILES",{
+              k:v['missing'] for k,v in status.items()
+              if v['status']=='missing'
+          })
+          PY
       - name: Extended scientific contracts — real ODE, fourth-order PDE, generated upload and queue isolation
         timeout-minutes: 12
         run: |
