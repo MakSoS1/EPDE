@@ -37,6 +37,17 @@ try {
   const number = await page.locator("#result-detail .metric strong").first().textContent();
   if (!(Number(number) > .95)) throw new Error("PySINDy recovered poor decay fit: " + number);
   console.log("PASS: genuine PySINDy native library executing inside Chromium WebAssembly.");
+  const capabilities = JSON.parse(await page.evaluate(() =>
+    sessionStorage.getItem("epde_browser_capabilities") || "null"));
+  if (!capabilities || capabilities.platform !== "emscripten") {
+    throw new Error("Pyodide environment probe missing or inconsistent");
+  }
+  if (capabilities.epde_importable || capabilities.torch_importable ||
+      capabilities.native_subprocess) {
+    throw new Error("Unexpected unverified native support: " + JSON.stringify(capabilities));
+  }
+  console.log("PASS: measured in-browser EPDE/PyTorch/subprocess limits: " +
+              JSON.stringify(capabilities));
 
   // Validate IndexedDB persistence on F5; the same browser should retain its results.
   await page.reload({waitUntil:"domcontentloaded"});
