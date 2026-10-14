@@ -60,7 +60,9 @@ jobs:
         name: REAL WebAssembly PySINDy in Chromium, storage and Compare
         timeout-minutes: 12
         working-directory: projects/pic/browser_demo
-        run: npm run smoke
+        run: |
+          set -o pipefail
+          npm run smoke 2>&1 | tee /tmp/epde-browser.log
       - name: Publish verification outcomes for inspection
         if: always()
         env:
@@ -82,6 +84,8 @@ jobs:
           from pathlib import Path
           numeric_log = Path("/tmp/epde-numerical.log")
           values["numerical_log_tail"] = numeric_log.read_text(errors="replace")[-12000:] if numeric_log.exists() else ""
+          browser_log = Path("/tmp/epde-browser.log")
+          values["browser_log_tail"] = browser_log.read_text(errors="replace")[-12000:] if browser_log.exists() else ""
           with open("/tmp/epde-browser-verification.json","w") as f:
               json.dump(values,f,indent=2)
           PY
