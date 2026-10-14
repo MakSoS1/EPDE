@@ -6,6 +6,7 @@ parameter grid. All public modifications are declarative and bounded.
 from __future__ import annotations
 
 import copy
+import os
 
 import streamlit as st
 import yaml
@@ -47,8 +48,10 @@ def validate_public_search(search, shape, *, override=False):
 
     pop = int(ev.get("population_size", 16))
     epochs = int(ev.get("training_epochs", 5))
-    if not 2 <= pop <= 96 or not 1 <= epochs <= 50:
-        raise ValueError("Public limit: population 2–96, epochs 1–50")
+    pop_limit, epoch_limit = (512, 200) if override else (96, 50)
+    if not 2 <= pop <= pop_limit or not 1 <= epochs <= epoch_limit:
+        raise ValueError(f"EPDE budget must be population 2–{pop_limit}, "
+                         f"epochs 1–{epoch_limit}")
     if not 1 <= int(sp.get("data_fun_pow", 3)) <= 4:
         raise ValueError("Variable degree must be 1–4")
     if not 1 <= int(sp.get("deriv_fun_pow", 2)) <= 4:
@@ -94,8 +97,9 @@ def validate_public_search(search, shape, *, override=False):
         raise ValueError("Solver-based EPDE evaluation is disabled on the hosted demo")
     if "operators" in ev and ev["operators"]:
         raise ValueError("Custom operator mappings are not supported in the public demo")
-    if not 1 <= float(runtime.get("memory_for_cache", 2)) <= 4:
-        raise ValueError("Tensor cache limit: 1–4% memory")
+    cache_limit = 16 if override else 4
+    if not 1 <= float(runtime.get("memory_for_cache", 2)) <= cache_limit:
+        raise ValueError(f"Tensor cache limit: 1–{cache_limit}% memory")
     if objectives.get("research_objective_metric") or objectives.get("research_regularizer_metric"):
         raise ValueError("Research-only objective channels are not public options")
     validate_polynomial_options(search, shape)
@@ -217,16 +221,18 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
                                      min(50, original_epochs * 2)),
         "Custom": (original_pop, original_epochs),
     }
+    local_full = os.environ.get("EPDE_LOCAL_FULL_RUN") == "1"
+    pop_limit, epoch_limit = (512, 200) if local_full else (96, 50)
     dpop, dep = derived_budget[preset]
-    if not 4 <= int(dpop) <= 96 or not 1 <= int(dep) <= 50:
-        st.warning("The stored budget exceeds public Cloud limits (up to 96 candidates "
-                   "and 50 epochs). The displayed selection is capped for safety; "
-                   "use the trusted local research runner for the unmodified full profile.")
-        dpop, dep = max(4, min(96, int(dpop))), max(1, min(50, int(dep)))
+    if not 4 <= int(dpop) <= pop_limit or not 1 <= int(dep) <= epoch_limit:
+        st.warning(f"Budget exceeds the selected environment limits "
+                   f"({pop_limit} candidates, {epoch_limit} epochs); select "
+                   "the original research runner for larger experiments.")
+        dpop, dep = max(4, min(pop_limit, int(dpop))), max(1, min(epoch_limit, int(dep)))
     a, b, c = st.columns(3)
-    pop = a.number_input("Population / candidates", min_value=4, max_value=96,
+    pop = a.number_input("Population / candidates", min_value=4, max_value=pop_limit,
                          value=dpop, step=4, key=f"lab_pop_{source}_{record_name}_{variant}_{preset}")
-    epochs = b.number_input("Evolution epochs", min_value=1, max_value=50,
+    epochs = b.number_input("Evolution epochs", min_value=1, max_value=epoch_limit,
                             value=dep, step=1,
                             key=f"lab_epochs_{source}_{record_name}_{variant}_{preset}")
     terms = c.slider("Maximum terms in an equation", min_value=2, max_value=15,
@@ -360,11 +366,13 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
             "Sparsity operator", values, index=values.index(current),
             key=f"lab_sparsity_{source}_{record_name}_{variant}")
         cache_pct = float(resource.get("memory_for_cache", 2))
-        if not 1 <= cache_pct <= 4:
-            st.warning("Native cache percentage was capped to the public 1–4% range.")
+        cache_limit = 16.0 if local_full else 4.0
+        if not 1 <= cache_pct <= cache_limit:
+            st.warning(f"Cache percentage is limited to 1–{cache_limit:g}% "
+                       "of this machine's RAM.")
         resource["memory_for_cache"] = float(st.number_input(
-            "EPDE tensor cache: % of host RAM", 1.0, 4.0,
-            value=max(1.0, min(4.0, cache_pct)),
+            "EPDE tensor cache: % of host RAM", 1.0, cache_limit,
+            value=max(1.0, min(cache_limit, cache_pct)),
             step=1.0, key=f"lab_cache_{source}_{record_name}_{variant}"))
         st.info("Solver-based fitness and user-defined Python/operator implementations "
                 "are disabled for this hosted CPU-only demo. Advanced operator "
@@ -401,7 +409,7 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
             mime="application/x-yaml", key=f"lab_export_{source}_{record_name}_{variant}")
     search.setdefault("solver", {})["use_solver"] = False
     search["solver"]["device"] = "cpu"
-    validate_public_search(search, shape)
+    validate_public_search(search, shape, override=local_full)
     inverse = any(t.get("family") == "inverse_space_coordinate"
                   for t in search.get("search_space", {}).get("tokens", []))
     if inverse:
