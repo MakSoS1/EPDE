@@ -1,8 +1,7 @@
-"""Real Chromium verification of first-party, install-free PySINDy srcdoc.
-
-The HTML is generated from the SAME checkout that Streamlit uses. No source is
-fetched from raw.githack/Pages to initialize the browser component.
-"""
+/* Real Chromium verification of first-party, install-free PySINDy HTML.
+ * The HTML is generated from the SAME checkout that Streamlit uses.
+ * No source is fetched from a third-party HTML CDN.
+ */
 import { chromium } from "playwright";
 
 const base = process.env.BROWSER_INLINE_BASE || "http://127.0.0.1:8767";
