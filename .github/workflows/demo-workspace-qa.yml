@@ -58,6 +58,25 @@ jobs:
       - name: Validate original record profiles and public search controls
         run: |
           projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_demo_lab_settings.py' -v
+      - name: End-to-end real EPDE on free-hosting-sized dataset
+        run: |
+          projects/pic/.venv/bin/python - <<'PY'
+          from support.discovery_lab.worker import _run_record
+          request={"method":"epde","source":"record","dataset":"ode","variant":"default",
+                   "noise":0.0,"seed":0,"effort":"custom",
+                   "overrides":{"search":{"evolution":{
+                       "population_size":4,"training_epochs":1}}}}
+          record=_run_record(request,hosted=True)
+          assert record["status"]=="ok", record.get("error")
+          assert record["method"]=="epde" and record["front"]
+          request["dataset"]="ns"
+          try:
+              _run_record(request,hosted=True)
+              raise AssertionError("Heavy Navier-Stokes was not blocked")
+          except ValueError as exc:
+              assert "Hosted EPDE refused" in str(exc)
+          print("HOSTED_EPDE_PASS; HEAVY_PDE_DENIED")
+          PY
       - name: Test loopback authentication and browser bridge schema
         run: |
           projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_demo_local_cpu.py' -v
