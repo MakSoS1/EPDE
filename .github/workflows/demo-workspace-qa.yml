@@ -94,7 +94,8 @@ jobs:
             test_discovery_lab.WorkerAndPage.test_ode_record_is_found_and_solved \
             test_discovery_lab.WorkerAndPage.test_fourth_order_pde_is_solved \
             test_discovery_lab.WorkerAndPage.test_generated_ode_is_scored_against_its_law
-        working-directory: projects/pic/tests
+        env:
+          PYTHONPATH: .:projects/pic:projects/pic/app:projects/pic/tests
       - name: Smoke-test PySINDy native local scientific adapter
         run: |
           projects/pic/.venv/bin/python - <<'PY'
