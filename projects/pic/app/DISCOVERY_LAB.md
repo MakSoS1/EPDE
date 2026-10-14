@@ -26,7 +26,7 @@ $env:EPDE_PUBLIC_DEMO = "1"
 uv run --locked --extra cpu --extra app streamlit run app/Home.py --server.address 127.0.0.1
 ```
 
-The default interface (local or hosted) shows three pages: Lab, Results and Compare. To expose the legacy research navigation **only on a local trusted server**, set `EPDE_SHOW_RESEARCH_PAGES=1` and leave `EPDE_PUBLIC_DEMO` unset. Never expose legacy pages on a public instance.
+The default interface (local or hosted) shows four pages: Lab, Results, Compare and How it works (EPDE + SINDy). To expose the legacy research navigation **only on a local trusted server**, set `EPDE_SHOW_RESEARCH_PAGES=1` and leave `EPDE_PUBLIC_DEMO` unset. Never expose legacy pages on a public instance.
 
 Docker Compose (requires local Docker resources):
 
@@ -40,8 +40,10 @@ Then visit `http://127.0.0.1:8501`. The Compose port is bound only to localhost.
 
 | File | Purpose |
 | --- | --- |
-| `app/Home.py` | Three-page sidebar navigation with Lab as the landing page |
+| `app/Home.py` | Four-page sidebar navigation with Lab as the landing page |
 | `app/views/11_Discovery_results.py` | Current session's history, status and detailed results |
+| `app/views/9_How_EPDE_works.py` | Original interactive EPDE stages, LikeC4 diagrams and short optimizer example, plus a PySINDy selector |
+| `app/support/sindy_guide.py` | PySINDy architecture using the bundled LikeC4 models, stages, STLSQ and algorithm comparison |
 | `app/views/12_Discovery_compare.py` | Matched-input comparison and read-only published archive |
 | `app/support/discovery_lab/session.py` | Shared session capability and recovery across all three pages |
 | `app/views/10_Discovery_lab.py` | Three tabs: new experiment, results, comparison |
@@ -85,6 +87,15 @@ experiments; anyone with the address sees them.
 The hosted entrypoint remains `projects/pic/app/Home.py`; the application URL does not change. The repo `MakSoS1/EPDE`, branch `demo/streamlit-community-cloud`, and deployment settings remain unchanged. The push ordinarily triggers a rebuild. If the old navigation persists, open https://share.streamlit.io, select the existing `epde-explorer-demo` app and use **Reboot**; do not create a second app.
 
 The navigation smoke suite is in `projects/pic/tests/test_demo_workspace_navigation.py`, and `.github/workflows/demo-workspace-qa.yml` is scoped to the demo branch. Historical anonymous run files from the old shared application are deliberately **not** mixed into private session history, because ownership cannot be established; prepublished benchmark campaigns appear separately in Compare.
+
+### Learn how the algorithms work
+
+**How it works** is accessible from the left sidebar. The EPDE tab preserves the original
+interactive LikeC4 views, complete stage-selector text, source-code walkthroughs and the
+short real evolutionary example. The SINDy tab uses existing LikeC4 views of the shared
+benchmark architecture and a SINDy-specific pipeline diagram to explain sparse
+regression, time-tail validation and the single-candidate output. Both link back to the
+same Lab for running methods; no legacy shared-result pages are reintroduced.
 
 ## Scientific principles
 
