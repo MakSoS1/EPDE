@@ -250,7 +250,7 @@ st.subheader("3 · Scientific settings")
 st.caption("The same scientific settings are used locally and on the server.")
 from support.discovery_lab.lab_settings import render_settings
 
-variant, overrides, settings, selected_budget = "default", {}, None, "Stored / recommended starting values"
+variant, overrides, settings, selected_budget = "default", {}, None, "Preset"
 settings_valid = True
 try:
     variant, overrides, settings, selected_budget = render_settings(
@@ -267,7 +267,7 @@ budget_code = {
     "Quick": "quick",
     "Thorough": "thorough",
     "Custom": "custom",
-}[selected_budget]
+}.get(selected_budget, "standard")
 
 st.subheader("4 · Compute")
 location = st.segmented_control("Execution",
