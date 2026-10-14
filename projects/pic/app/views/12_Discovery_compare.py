@@ -16,7 +16,7 @@ st.title("⚖️ Compare")
 owner = current_owner()
 st.caption("Choose experiments on the same input to inspect recovered equations, "
            "prediction quality and runtimes side by side. This is not a framework ranking.")
-st.page_link("views/10_Discovery_lab.py", label="Run methods in Lab", icon="🧪")
+st.page_link("views/10_Discovery_lab.py", label="Run a search", icon="🚀")
 st.caption("When you choose several methods in Lab, their searches share a dataset, "
            "noise level and seed. Only matching input groups can be compared.")
 
@@ -25,22 +25,33 @@ results = {r["id"]: queue.result(owner, r["id"]) for r in rows}
 rows = [r for r in rows if (results.get(r["id"]) or {}).get("status") == "ok"]
 if not rows:
     st.info("Finished searches appear here, grouped by input. Run several methods on the same "
-            "data in **① New experiment** to compare them.")
+            "data in **Run a search** to compare them.")
 else:
     groups = {}
     for r in rows:
         groups.setdefault(r.get("input_key") or r["id"], []).append(r)
     keys = list(groups)
     preferred = st.session_state.get("discovery_compare_key")
-    key = st.selectbox(
-        "Input", keys, index=keys.index(preferred) if preferred in keys else 0,
-        format_func=lambda k: (f"{groups[k][0].get('label') or groups[k][0].get('dataset')} · "
-                               f"noise {groups[k][0].get('noise', 0):g} % · {len(groups[k])} run(s)"))
+    input_label = lambda k: (f"{groups[k][0].get('label') or groups[k][0].get('dataset')} · "
+                             f"noise {groups[k][0].get('noise', 0):g} % · {len(groups[k])} run(s)")
+    if len(keys) <= 6:
+        key = st.pills("Input", keys, default=preferred if preferred in keys else keys[0],
+                       selection_mode="single", format_func=input_label) or keys[0]
+    else:
+        key = st.selectbox("Input", keys,
+                           index=keys.index(preferred) if preferred in keys else 0,
+                           format_func=input_label)
     members = groups[key]
     names = {r["id"]: f"{ui.METHOD_NAMES.get(r.get('method'))} · {r.get('effort', 'standard')} budget"
                       f" · started {time.strftime('%H:%M:%S', time.localtime(r.get('created', 0)))}"
              for r in members}
-    picked = st.multiselect("Runs", list(names), default=list(names)[:2], max_selections=4, format_func=names.get)
+    if len(names) <= 6:
+        picked = st.pills("Runs", list(names), default=list(names)[:2],
+                          selection_mode="multi", format_func=names.get)
+        picked = list(picked or [])[:4]
+    else:
+        picked = st.multiselect("Runs", list(names), default=list(names)[:2],
+                                max_selections=4, format_func=names.get)
     chosen = [(names[i], results[i]) for i in picked]
     if chosen:
         first = chosen[0][1]
