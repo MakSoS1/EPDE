@@ -4,6 +4,7 @@ on:
     branches: [demo/streamlit-community-cloud]
     paths:
       - 'projects/pic/browser_demo/**'
+      - 'projects/pic/app/support/discovery_lab/browser_inline.py'
       - 'projects/pic/app/static/likec4-views.js'
       - '.github/workflows/browser-demo-pages.yml'
   workflow_dispatch:
@@ -106,6 +107,18 @@ jobs:
           tree=$(printf '100644 blob %s\tresult.json\n' "$blob" | git mktree)
           commit=$(printf 'Browser smoke report for %s\n' "$GITHUB_SHA" | git commit-tree "$tree")
           git push --force origin "$commit:refs/heads/ci/browser-demo-verification"
+      - name: Prepare first-party Streamlit HTML bundle and serve without external HTML CDN
+        run: |
+          python projects/pic/app/support/discovery_lab/browser_inline.py --output /tmp/epde-inline-site/index.html
+          python -m http.server 8767 --directory /tmp/epde-inline-site > /tmp/inline-http.log 2>&1 &
+          sleep 2
+          curl --fail http://127.0.0.1:8767/ > /dev/null
+      - name: REAL PySINDy WASM from first-party Streamlit HTML
+        timeout-minutes: 10
+        working-directory: projects/pic/browser_demo
+        env:
+          BROWSER_INLINE_BASE: http://127.0.0.1:8767
+        run: npm exec -- node smoke_inline.mjs
       - name: Preserve failed browser screenshot and logs
         if: failure()
         uses: actions/upload-artifact@v4
@@ -113,6 +126,8 @@ jobs:
           name: browser-lab-smoke-debug
           path: |
             projects/pic/browser_demo/browser-smoke-last.png
+            projects/pic/browser_demo/browser-inline-smoke.png
+            /tmp/inline-http.log
             /tmp/browser-demo-http.log
           if-no-files-found: ignore
 
