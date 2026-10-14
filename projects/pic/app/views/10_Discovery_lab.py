@@ -221,7 +221,7 @@ if source == "Built-in equation":
     if not is_local_only(record_name):
         preview(problem)
     else:
-        st.caption("Large local dataset preview is disabled by default to preserve memory.")
+        st.caption("Large dataset preview is disabled by default to preserve memory.")
     a, b = st.columns(2)
     noise = a.number_input("Noise, % of the standard deviation", 0.0, 10.0, 0.0, 0.5,
                            help="Gaussian noise added to the data before the search.")
@@ -415,7 +415,7 @@ if recent:
     active = [r for r in recent if r.get("state") in ("queued", "running")]
     if active:
         st.info(f"{len(active)} experiment(s) running or waiting. "
-                "You can navigate away while jobs run on the server.")
+                "You can navigate away while the searches are running.")
     for item in recent[:3]:
         state = item.get("state", "unknown")
         st.write(f"**{item.get('label') or item.get('dataset')}** · "
