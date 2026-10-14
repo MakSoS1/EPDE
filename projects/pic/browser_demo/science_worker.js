@@ -34,6 +34,21 @@ async function initialize() {
     const source = await response.text();
     runtime.FS.writeFile("/home/pyodide/science.py", source);
     runtime.runPython("import sys; sys.path.insert(0, '/home/pyodide'); import science");
+    // Environment probe. It runs in the same Pyodide environment as scientific jobs;
+    // flags are measured, not claimed from documentation.
+    const probe = JSON.parse(runtime.runPython([
+      "import sys, json, importlib.util",
+      "capabilities = {'platform': sys.platform, 'torch_importable': bool(importlib.util.find_spec('torch')),",
+      " 'epde_importable': bool(importlib.util.find_spec('epde')), 'native_subprocess': False}",
+      "try:",
+      " import subprocess",
+      " subprocess.run([sys.executable, '--version'], check=True)",
+      " capabilities['native_subprocess'] = True",
+      "except Exception as e:",
+      " capabilities['subprocess_reason'] = type(e).__name__",
+      "json.dumps(capabilities)"
+    ].join("\n")));
+    self.postMessage({type:"capabilities", report:probe});
     instance = runtime;
     status("ready", "Ready. Genuine PySINDy loaded; only your CPU runs numerical searches.");
     return instance;
