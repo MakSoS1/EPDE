@@ -59,7 +59,9 @@ def check_equation(eq_text, arrays, inner, series=False, include_intercept=False
 
     def r2(cols):
         coef, *_ = np.linalg.lstsq(X1[:, cols], y, rcond=None)
-        return 1 - float(np.var(y - X1[:, cols] @ coef)) / var_y, coef
+        # Penalise the full residual mean square: variance-only R2 would
+        # silently forgive a constant bias, even without an intercept.
+        return 1 - float(np.mean((y - X1[:, cols] @ coef) ** 2)) / var_y, coef
 
     full = list(range(X1.shape[1]))
     r2_full, coef = r2(full)
