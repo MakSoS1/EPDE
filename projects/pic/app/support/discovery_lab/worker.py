@@ -34,7 +34,7 @@ def _run_record(req, *, hosted=False):
     from epde_bench.datasets import REGISTRY
     method = req["method"]
     dataset, variant = req["dataset"], req["variant"]
-    if hosted and method == "epde":
+    if hosted and method in ("epde", "pysindy"):
         from support.discovery_lab.execution_policy import is_local_only
         if is_local_only(dataset):
             raise ValueError("Hosted EPDE refused: heavy datasets must run locally.")
@@ -68,7 +68,7 @@ def _run_record(req, *, hosted=False):
             population, epochs = EFFORTS[effort]
             overrides = {"search": {"evolution": {"population_size": population,
                                                   "training_epochs": epochs}}}
-    if hosted and method == "epde":
+    if hosted and method in ("epde", "pysindy"):
         from support.discovery_lab.execution_policy import require_hosted_epde
         # The complete effective settings are re-evaluated independently of
         # the frontend. Legacy requests without overrides are gated too.
@@ -140,7 +140,7 @@ def _run_upload(req, folder, *, hosted=False):
     search_cfg = resolve_for_problem({"search": settings["search"]}, problem)
     from support.discovery_lab.lab_settings import validate_public_search
     validate_public_search(search_cfg, problem.shape, override=not hosted)
-    if hosted and method == "epde":
+    if hosted and method in ("epde", "pysindy"):
         from support.discovery_lab.execution_policy import require_hosted_epde
         require_hosted_epde(None, problem.shape, len(problem.variables), search_cfg)
     record["search_config"] = search_cfg
