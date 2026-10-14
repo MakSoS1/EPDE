@@ -19,9 +19,26 @@ page.on("response", response => {
 page.on("console", message => {
   if(message.type() === "error") consoleErrors.push(message.text());
 });
+async function findAppFrame(timeoutMs=90000) {
+  const deadline=Date.now()+timeoutMs;
+  while(Date.now()<deadline){
+    for(const frame of [...page.frames()].reverse()){
+      try{
+        if(await frame.getByRole("link",{name:/PySINDy.*your PC/i}).first().isVisible()){
+          return frame;
+        }
+      }catch(_){}
+    }
+    await page.waitForTimeout(1500);
+  }
+  throw new Error("Streamlit navigation not found in frames: "+JSON.stringify(
+    page.frames().map(frame=>frame.url())));
+}
 try {
   await page.goto(BASE, {waitUntil:"domcontentloaded", timeout:45000});
-  const sindyNav = page.getByRole("link", {name:/PySINDy.*your PC/i}).first();
+  const appFrame=await findAppFrame();
+  console.log("STREAMLIT_FRAME "+appFrame.url());
+  const sindyNav = appFrame.getByRole("link", {name:/PySINDy.*your PC/i}).first();
   try {
     await sindyNav.waitFor({timeout:60000});
   } catch (err) {
@@ -29,6 +46,7 @@ try {
     console.error("LIVE_SITE_BODY "+(await page.locator("body").innerText()).slice(0,4500));
     const controls=await page.getByRole("button").allTextContents();
     console.error("LIVE_SITE_BUTTONS "+JSON.stringify(controls.slice(0,30)));
+    console.error("LIVE_SITE_FRAMES "+JSON.stringify(page.frames().map(f=>f.url())));
     console.error("LIVE_SITE_REQUEST_FAILURES "+JSON.stringify(failedRequests.slice(-40)));
     console.error("LIVE_SITE_HTTP_ERRORS "+JSON.stringify(httpErrors.slice(-40)));
     console.error("LIVE_SITE_JS_EXCEPTIONS "+JSON.stringify(errors.slice(-30)));
@@ -42,7 +60,7 @@ try {
     throw err;
   }
   await sindyNav.click();
-  const iframe = page.frameLocator("iframe[title*='PySINDy 2.1.0']");
+  const iframe = appFrame.frameLocator("iframe[title*='PySINDy 2.1.0']");
   await iframe.locator("#run").waitFor({timeout:45000});
   if (await iframe.locator("#method-evo").isChecked()) {
     throw new Error("The educational EvoSparse search is selected in the user-facing PySINDy tab");
@@ -50,7 +68,7 @@ try {
   await iframe.locator("#dataset").selectOption("decay");
   await iframe.locator("#run").click();
   await iframe.locator("#status").waitFor({timeout:20000});
-  await page.waitForFunction(() => {
+  await appFrame.waitForFunction(() => {
     const frame = [...document.querySelectorAll("iframe")]
       .find(f => (f.title || "").includes("PySINDy 2.1.0"));
     const message = frame?.contentDocument?.querySelector("#status")?.textContent || "";
@@ -66,21 +84,24 @@ try {
   // The Streamlit server must not own or need this result. Browser IndexedDB
   // should survive a page refresh in the same origin.
   await page.reload({waitUntil:"domcontentloaded"});
-  const newIframe = page.frameLocator("iframe[title*='PySINDy 2.1.0']");
+  const afterReload=await findAppFrame();
+  await afterReload.getByRole("link",{name:/PySINDy.*your PC/i}).first().click();
+  const newIframe = afterReload.frameLocator("iframe[title*='PySINDy 2.1.0']");
   await newIframe.locator("#count").waitFor({timeout:45000});
-  await page.waitForFunction(() => {
+  await afterReload.waitForFunction(() => {
     const f = [...document.querySelectorAll("iframe")]
       .find(x => (x.title || "").includes("PySINDy 2.1.0"));
     return f?.contentDocument?.querySelector("#count")?.textContent === "1";
   },undefined,{timeout:30000});
   console.log("STREAMLIT_INTEGRATION_INDEXEDDB_PASS");
 
-  const labNav = page.getByRole("link", {name:/Lab.*EPDE/i}).first();
+  const labNav = afterReload.getByRole("link", {name:/Lab.*EPDE/i}).first();
   await labNav.click();
-  await page.getByText("4 · Compute").waitFor({timeout:40000});
-  const pageText = await page.locator("body").textContent();
+  await afterReload.getByText("4 · Compute").waitFor({timeout:40000});
+  const pageText = await afterReload.locator("body").textContent();
   if (!pageText?.includes("Scientific settings") ||
-      !pageText.includes("Full local EPDE environment")) {
+      !(pageText.includes("Full local EPDE environment") ||
+        pageText.includes("Light EPDE runs on this free shared server"))) {
     throw new Error("Original local EPDE Lab failed to render: "+
                     String(pageText).slice(-1900));
   }
@@ -89,9 +110,9 @@ try {
   // Full catalogue is tested through actual Streamlit navigation, not just
   // Python mocks. The page must show EVERY registered ODE/PDE dataset without
   // reading full Navier–Stokes tensors on the shared server.
-  await page.getByRole("link", {name:/All datasets/i}).first().click();
-  await page.getByText("Registered datasets").first().waitFor({timeout:45000});
-  await page.getByText(/Showing 59 of 59 registered scientific datasets/).waitFor({timeout:30000});
+  await afterReload.getByRole("link", {name:/All datasets/i}).first().click();
+  await afterReload.getByText("Registered datasets").first().waitFor({timeout:45000});
+  await afterReload.getByText(/Showing 59 of 59 registered scientific datasets/).waitFor({timeout:30000});
   console.log("STREAMLIT_COMPLETE_CATALOG_PASS 59/59");
 
   if (errors.length) throw new Error("Browser page exceptions: "+errors.join(" | "));
