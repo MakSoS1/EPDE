@@ -83,3 +83,37 @@ def declared_equations(name):
                     if isinstance(declared, (list, tuple)):
                         return [eq for eq in declared if isinstance(eq, str)]
     return []
+
+
+def source_file_status(name):
+    """Check stat metadata of literal source paths; never read numeric tensors.
+
+    An incomplete/dynamic source declaration produces 'unknown', not a
+    fabricated claim that every external research archive is installed.
+    """
+    from epde_bench.paths import DATA_DIR
+
+    if name not in REGISTRY:
+        raise KeyError(name)
+    tree = ast.parse(inspect.getsource(REGISTRY[name].loader))
+    paths = []
+    dynamic = False
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Name):
+            continue
+        if node.func.id not in ("data_path", "_loadmat"):
+            continue
+        if node.args and all(isinstance(a, ast.Constant) and isinstance(a.value, str)
+                             for a in node.args):
+            paths.append(DATA_DIR.joinpath(*(a.value for a in node.args)))
+        else:
+            dynamic = True
+    unique = list(dict.fromkeys(paths))
+    missing = [str(p.relative_to(DATA_DIR)) for p in unique if not p.is_file()]
+    if dynamic or not unique:
+        status = "unknown"
+    elif missing:
+        status = "missing"
+    else:
+        status = "present"
+    return {"status": status, "checked": len(unique), "missing": missing}
