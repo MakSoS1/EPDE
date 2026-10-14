@@ -9,11 +9,10 @@ import time
 import pandas as pd
 import streamlit as st
 
-from support.common import page
 from support.discovery_lab import job_queue as queue, ui
 from support.discovery_lab.session import current_owner
 
-page("Compare", "⚖️")
+st.title("⚖️ Compare")
 owner = current_owner()
 st.caption("Choose experiments on the same input to inspect recovered equations, "
            "prediction quality and runtimes side by side. This is not a framework ranking.")
