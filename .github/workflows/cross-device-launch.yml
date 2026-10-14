@@ -1,0 +1,38 @@
+name: Cross-device Explorer startup checks
+on:
+  push:
+    branches: [demo/streamlit-community-cloud]
+    paths:
+      - 'run-epde.sh'
+      - 'run-epde.cmd'
+      - '.devcontainer/**'
+      - '.github/workflows/cross-device-launch.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  launcher-paths:
+    name: Startup commands on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Windows one-click frontend
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: call run-epde.cmd --check
+      - name: Validate macOS / Linux launcher and Codespaces scripts
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          bash -n run-epde.sh .devcontainer/setup.sh .devcontainer/start.sh
+          bash run-epde.sh --check
+      - name: Validate Codespaces configuration and private port
+        shell: bash
+        run: |
+          python -c "import json; x=json.load(open('.devcontainer/devcontainer.json')); assert x['portsAttributes']['8501']['visibility']=='private'; assert 8501 in x['forwardPorts']; print('CODESPACES_CONFIG_PASS')"
