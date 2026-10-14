@@ -22,13 +22,15 @@ try{
    const result=await page.evaluate(() => store.records[0]);
    if(result.method!=="pysindy"||result.dataset!==dataset||result.status!=="ok")throw Error("Result provenance mismatch for "+dataset);
    if(!result.validation || !Number.isFinite(result.validation.r2))throw Error("Invalid validation R2 for "+dataset);
+   if(result.validation.r2 < 0.95)throw Error("Insufficient derivative holdout R² on "+dataset+": "+result.validation.r2);
+   if(dataset==="vdp" && result.degree!==3)throw Error("Van der Pol requires cubic feature library by default");
    if(!Array.isArray(result.details?.coefficients) || !result.details.coefficients.length)throw Error("No recovered coefficient matrix for "+dataset);
    records.push({dataset,validation:result.validation,eq:result.equations,features:result.details.features,coefficients:result.details.coefficients});
    console.log("SINDY_CASE "+dataset+" R2="+result.validation.r2.toFixed(6)+" "+JSON.stringify(result.equations));
  }
  await page.reload({waitUntil:"domcontentloaded"});
- await page.waitForFunction(() => document.querySelector("#count")?.textContent===String(cases.length),
-                            undefined,{timeout:15000});
+ await page.waitForFunction(count => document.querySelector("#count")?.textContent===String(count),
+                            cases.length,{timeout:15000});
  console.log("BROWSER_MATRIX_PASS 5/5; IndexedDB retained "+cases.length+" cases");
 }finally{
  await page.screenshot({path:"browser-matrix.png",fullPage:true});
