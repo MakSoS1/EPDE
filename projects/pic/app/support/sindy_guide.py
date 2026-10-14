@@ -74,14 +74,14 @@ def render_sindy_guide():
             "the preprocessing layer and the PySINDy adapter. Click the diagram to zoom in."
         )
         choice = st.selectbox("Architecture view", [
-            "Benchmark implementation and PySINDy",
+            "System landscape (includes PySINDy)",
+            "Benchmark implementation (baseline adapter)",
             "Datasets, runner and application",
-            "System landscape",
         ], key="sindy_architecture_view")
         view = {
-            "Benchmark implementation and PySINDy": "benchView",
+            "System landscape (includes PySINDy)": "index",
+            "Benchmark implementation (baseline adapter)": "benchView",
             "Datasets, runner and application": "picView",
-            "System landscape": "index",
         }[choice]
         diagrams.likec4_view(view, height=540)
     else:
