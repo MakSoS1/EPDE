@@ -1,0 +1,85 @@
+"""Complete registry-backed catalogue for the EPDE Explorer.
+
+Never load numerical arrays merely to list entries: a full experimental
+database includes large 2D/3D records and externally distributed files.
+"""
+from __future__ import annotations
+
+import ast
+import inspect
+
+from epde_bench.datasets import REGISTRY
+from epde_bench.identity import problem_metadata
+
+KIND_LABELS = {
+    "ode": "Ordinary differential equations",
+    "ode_system": "ODE systems",
+    "pde_1d": "PDE · 1 spatial dimension",
+    "pde_2d": "PDE · 2 spatial dimensions",
+    "pde_3d": "PDE · 3 spatial dimensions",
+}
+SUITE_LABELS = {
+    "core": "Core benchmark",
+    "extended": "Extended benchmark",
+    "real": "Measured data",
+    "other": "Other data",
+}
+
+
+def full_catalog():
+    """Return one row per registered record, with no expensive data reads."""
+    rows = []
+    for name, spec in REGISTRY.items():
+        meta = problem_metadata(name)
+        rows.append({
+            "id": name,
+            "title": spec.title,
+            "kind": spec.kind,
+            "kind_label": KIND_LABELS.get(spec.kind, spec.kind),
+            "suite": spec.suite,
+            "suite_label": SUITE_LABELS.get(spec.suite, spec.suite),
+            "source": spec.source,
+            "files": spec.files,
+            "law_known": bool(meta["truth_known"]),
+        })
+    return rows
+
+
+def grouped_catalog():
+    """All registered datasets, automatically including new additions."""
+    rows = full_catalog()
+    groups = {"All registered datasets": [row["id"] for row in rows]}
+    for kind, label in KIND_LABELS.items():
+        subset = [row["id"] for row in rows if row["kind"] == kind]
+        if subset:
+            groups[label] = subset
+    for suite, label in SUITE_LABELS.items():
+        subset = [row["id"] for row in rows if row["suite"] == suite]
+        if subset:
+            groups[label] = subset
+    return groups
+
+
+def declared_equations(name):
+    """Only literal laws declared by the native loader; never infer a law.
+
+    Nonliteral expressions or data-dependent truths are *not* reconstructed
+    from symbolic guesses. Those still appear in the full catalog with a link
+    to the source loader and may be inspected after an explicit data load.
+    """
+    if name not in REGISTRY:
+        raise KeyError(name)
+    tree = ast.parse(inspect.getsource(REGISTRY[name].loader))
+    for call in ast.walk(tree):
+        if isinstance(call, ast.Call):
+            for keyword in call.keywords:
+                if keyword.arg == "truth":
+                    try:
+                        declared = ast.literal_eval(keyword.value)
+                    except (ValueError, TypeError, SyntaxError, MemoryError, RecursionError):
+                        return []
+                    if isinstance(declared, str):
+                        return [declared]
+                    if isinstance(declared, (list, tuple)):
+                        return [eq for eq in declared if isinstance(eq, str)]
+    return []
