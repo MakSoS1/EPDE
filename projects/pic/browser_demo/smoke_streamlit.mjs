@@ -12,7 +12,15 @@ page.on("pageerror", err => errors.push(err.message));
 try {
   await page.goto(BASE, {waitUntil:"domcontentloaded", timeout:45000});
   const sindyNav = page.getByRole("link", {name:/PySINDy.*your PC/i}).first();
-  await sindyNav.waitFor({timeout:60000});
+  try {
+    await sindyNav.waitFor({timeout:60000});
+  } catch (err) {
+    console.error("LIVE_SITE_DIAG url="+page.url()+" title="+await page.title());
+    console.error("LIVE_SITE_BODY "+(await page.locator("body").innerText()).slice(0,4500));
+    const controls=await page.getByRole("button").allTextContents();
+    console.error("LIVE_SITE_BUTTONS "+JSON.stringify(controls.slice(0,30)));
+    throw err;
+  }
   await sindyNav.click();
   const iframe = page.frameLocator("iframe[title*='PySINDy 2.1.0']");
   await iframe.locator("#run").waitFor({timeout:45000});
