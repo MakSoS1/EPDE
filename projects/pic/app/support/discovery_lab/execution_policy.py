@@ -15,9 +15,21 @@ MAX_POPULATION = 24
 MAX_EPOCHS = 8
 MAX_SEARCH_WORK = 250_000  # field cells × candidates × epochs
 HEAVY_RECORDS = frozenset({
-    "ns", "jhtdb", "jhtdb_slice", "ks", "navier_stokes",
+    "ns", "jhtdb", "jhtdb_plane", "jhtdb_slice", "ks", "navier_stokes",
+    "kdv_homogen", "kdv_sga", "heat_laser", "dp_video",
 })
-# Names in this list are known immediately, before the dataset is loaded.
+# A free shared server must not materialize huge arrays just to classify a job.
+
+
+def is_local_only(dataset: str | None) -> bool:
+    """Classify by registry metadata, without opening numerical input data."""
+    if not dataset:
+        return False
+    if dataset in HEAVY_RECORDS:
+        return True
+    from epde_bench.datasets import REGISTRY
+    spec = REGISTRY.get(dataset)
+    return bool(spec and spec.kind in ("pde_2d", "pde_3d"))
 
 
 def classify_epde(dataset: str | None, shape, variable_count: int, search: dict):
@@ -26,8 +38,8 @@ def classify_epde(dataset: str | None, shape, variable_count: int, search: dict)
     A coarse upper bound on search work; not a wall-clock prediction. Deny
     unknown geometry or invalid params. Native local EPDE remains unrestricted.
     """
-    if dataset in HEAVY_RECORDS:
-        return False, "This record requires a local EPDE installation; it is not loaded on the free server.", {}
+    if is_local_only(dataset):
+        return False, "This record requires local EPDE; it is not loaded on the shared free server.", {}
     try:
         dims = tuple(int(n) for n in shape)
         n_vars = int(variable_count)
