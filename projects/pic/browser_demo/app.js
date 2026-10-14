@@ -451,8 +451,19 @@ function loadDiagrams() {
     view.style.height="500px";
     target.replaceChildren(view);
   };
-  script.onerror = () => target.replaceChildren(
-    make("p","muted","LikeC4 bundle was not available. Open the model sources on GitHub."));
+  let triedRawFallback = false;
+  script.onerror = () => {
+    // A source-file preview has no build step. Load the original, versioned
+    // LikeC4 asset directly from the same GitHub repository through the
+    // correct-MIME development proxy; GitHub Pages has it locally.
+    if (!triedRawFallback) {
+      triedRawFallback = true;
+      script.src = "https://raw.githack.com/MakSoS1/EPDE/demo/streamlit-community-cloud/projects/pic/app/static/likec4-views.js";
+    } else {
+      target.replaceChildren(make("p","muted",
+        "LikeC4 could not load. Open the original architecture in the native demo."));
+    }
+  };
   document.head.append(script);
   el("load-diagram").disabled=true;
 }
