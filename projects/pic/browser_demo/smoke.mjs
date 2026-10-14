@@ -5,7 +5,17 @@ import {chromium} from "playwright";
 
 const base = process.env.BROWSER_BASE || "http://127.0.0.1:8766";
 const browser = await chromium.launch({headless:true});
-const page = await browser.newPage({viewport:{width:1340,height:920}});
+const context = await browser.newContext({viewport:{width:1340,height:920}});
+if (base.includes("raw.githack.com")) {
+  // This third-party preview normally displays a one-time anti-phishing
+  // confirmation. CI accepts it through the vendor-documented cookie,
+  // never by lowering browser security settings.
+  await context.addCookies([{
+    name:"__Http-phish", value:"1", domain:"raw.githack.com",
+    path:"/", secure:true, httpOnly:true, sameSite:"Lax"
+  }]);
+}
+const page = await context.newPage();
 const failures=[];
 page.on("pageerror", err => failures.push("pageerror: " + err.message));
 // HTTP CDN diagnostics can log benign console warnings; assert job result instead.
