@@ -186,6 +186,7 @@ jobs:
           SUBMODULE: ${{ steps.submodule.outcome }}
           CONTAINER: ${{ steps.container.outcome }}
           NATIVE: ${{ steps.actual.outcome }}
+          EXTENDED: ${{ steps.extended.outcome }}
         run: |
           python - <<'PY'
           import json,os,pathlib
