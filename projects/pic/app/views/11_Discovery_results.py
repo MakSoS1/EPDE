@@ -13,7 +13,7 @@ from support.discovery_lab.session import current_owner
 
 st.title("🗂️ Results")
 owner = current_owner()
-st.caption("All your saved Lab searches appear here, including their data, methods, "
+st.caption("All your Run a search experiments appear here, including their data, methods, "
            "status and scientific results. Open a result to inspect or download it.")
 st.page_link("views/10_Discovery_lab.py", label="Run a search", icon="🚀")
 
