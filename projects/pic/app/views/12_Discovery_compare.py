@@ -17,7 +17,7 @@ owner = current_owner()
 st.caption("Choose experiments on the same input to inspect recovered equations, "
            "prediction quality and runtimes side by side. This is not a framework ranking.")
 st.page_link("views/10_Discovery_lab.py", label="Run a search", icon="🚀")
-st.caption("When you choose several methods in Lab, their searches share a dataset, "
+st.caption("When you choose both methods in Run a search, they share a dataset, 
            "noise level and seed. Only matching input groups can be compared.")
 
 rows = [r for r in queue.list_jobs(owner) if r.get("state") == "finished"]
