@@ -28,12 +28,16 @@ def _inside(path, base):
     return p
 
 
-def _run_record(req):
+def _run_record(req, *, hosted=False):
     from epde_bench.config import variants
     from epde_bench.runner import run_one
     from epde_bench.datasets import REGISTRY
     method = req["method"]
     dataset, variant = req["dataset"], req["variant"]
+    if hosted and method == "epde":
+        from support.discovery_lab.execution_policy import HEAVY_RECORDS
+        if dataset in HEAVY_RECORDS:
+            raise ValueError("Hosted EPDE refused: heavy datasets must run locally.")
     if dataset not in REGISTRY or variant not in variants():
         raise ValueError("Unregistered record/variant")
     if variants()[variant].get("method", "epde") != method:
@@ -64,12 +68,20 @@ def _run_record(req):
             population, epochs = EFFORTS[effort]
             overrides = {"search": {"evolution": {"population_size": population,
                                                   "training_epochs": epochs}}}
+    if hosted and method == "epde":
+        from support.discovery_lab.execution_policy import require_hosted_epde
+        # The complete effective settings are re-evaluated independently of
+        # the frontend. Legacy requests without overrides are gated too.
+        cfg = load_config(dataset, variant, overrides=overrides)
+        problem = load(dataset, **cfg.get("loader", {}))
+        require_hosted_epde(dataset, problem.shape, len(problem.variables),
+                            resolve_for_problem(cfg, problem))
     record = run_one(dataset, variant, noise, seed, overrides=overrides)
     record["effort"] = effort
     return record
 
 
-def _run_upload(req, folder):
+def _run_upload(req, folder, *, hosted=False):
     import yaml
     import numpy as np
     from epde_bench import env, metrics
@@ -128,6 +140,9 @@ def _run_upload(req, folder):
     search_cfg = resolve_for_problem({"search": settings["search"]}, problem)
     from support.discovery_lab.lab_settings import validate_public_search
     validate_public_search(search_cfg, problem.shape)
+    if hosted and method == "epde":
+        from support.discovery_lab.execution_policy import require_hosted_epde
+        require_hosted_epde(None, problem.shape, len(problem.variables), search_cfg)
     record["search_config"] = search_cfg
     data = problem.noisy(noise, seed)
     start = time.perf_counter()
@@ -384,9 +399,9 @@ def main(folder):
         if method == "llm":
             record = _run_llm(job, folder)
         elif job["source"] == "record":
-            record = _run_record(job)
+            record = _run_record(job, hosted=True)
         else:
-            record = _run_upload(job, folder)
+            record = _run_upload(job, folder, hosted=True)
         record = contract.normalize(_sanitize(_finite_objectives(record)), method)
     except Exception as exc:
         # Never write repr/traceback containing remote request URLs/credentials.
