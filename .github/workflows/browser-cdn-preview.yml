@@ -1,0 +1,63 @@
+name: Free static preview — actual public browser smoke
+on:
+  push:
+    branches: [demo/streamlit-community-cloud]
+    paths:
+      - 'projects/pic/browser_demo/**'
+      - '.github/workflows/browser-cdn-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  public-preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - id: deps
+        name: Install browser test runner
+        working-directory: projects/pic/browser_demo
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - id: public
+        name: Verify external zero-install site from a public GitHub-source CDN
+        timeout-minutes: 10
+        working-directory: projects/pic/browser_demo
+        env:
+          BROWSER_BASE: https://raw.githack.com/MakSoS1/EPDE/${{ github.sha }}/projects/pic/browser_demo/index.html
+        run: |
+          set -o pipefail
+          npm run smoke 2>&1 | tee /tmp/epde-public-cdn.log
+      - name: Persist public preview verification report
+        if: always()
+        env:
+          DEPS: ${{ steps.deps.outcome }}
+          PUBLIC: ${{ steps.public.outcome }}
+        run: |
+          python - <<'PY'
+          import json,os,pathlib,datetime
+          p=pathlib.Path('/tmp/epde-public-cdn.log')
+          data={
+            "revision":os.environ["GITHUB_SHA"],
+            "run_id":int(os.environ["GITHUB_RUN_ID"]),
+            "timestamp":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "dependencies":os.environ.get("DEPS"),
+            "public_browser":os.environ.get("PUBLIC"),
+            "verified":os.environ.get("PUBLIC")=="success",
+            "url":f'https://raw.githack.com/MakSoS1/EPDE/{os.environ["GITHUB_SHA"]}/projects/pic/browser_demo/index.html',
+            "log":p.read_text(errors='replace')[-12000:] if p.exists() else "",
+          }
+          pathlib.Path("/tmp/public-cdn.json").write_text(json.dumps(data,indent=2))
+          PY
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          blob=$(git hash-object -w /tmp/public-cdn.json)
+          tree=$(printf '100644 blob %s\tresult.json\n' "$blob" | git mktree)
+          commit=$(printf 'Public browser preview verification\n' | git commit-tree "$tree")
+          git push --force origin "$commit:refs/heads/ci/browser-public-preview"
