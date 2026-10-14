@@ -26,7 +26,7 @@ $env:EPDE_PUBLIC_DEMO = "1"
 uv run --locked --extra cpu --extra app streamlit run app/Home.py --server.address 127.0.0.1
 ```
 
-The default interface (local or hosted) shows four pages: Lab, Results, Compare and How it works (EPDE + SINDy). To expose the legacy research navigation **only on a local trusted server**, set `EPDE_SHOW_RESEARCH_PAGES=1` and leave `EPDE_PUBLIC_DEMO` unset. Never expose legacy pages on a public instance.
+The public interface shows Lab · EPDE, PySINDy · your PC, Results · server, Compare · server and How it works (EPDE + SINDy). To expose the legacy research navigation **only on a local trusted server**, set `EPDE_SHOW_RESEARCH_PAGES=1` and leave `EPDE_PUBLIC_DEMO` unset. Never expose legacy pages on a public instance.
 
 Docker Compose (requires local Docker resources):
 
@@ -128,13 +128,24 @@ Community Cloud demonstration. The full resolved scientific settings travel
 with the job manifest to the worker and are checked again there, rather than
 being displayed but ignored; the stored run record contains their identity.
 
-**Execution location:** Lab defaults to My computer, which connects
-to an explicitly user-installed native EPDE/PySINDy loopback worker through
-a Streamlit v2 browser component. A Demo server fallback still computes
-on the free Streamlit Cloud VM. The native worker needs one-time setup
-and an access code (see LOCAL_WORKER_README.md), and the live desktop-browser
-integration remains to be verified. It is not installation-free and does not
-enable arbitrary OS commands from the website.
+**Execution location (2026-10-15):** EPDE Lab defaults to **Demo server**,
+subject to a conservative CPU policy enforced in both the UI and scientific
+worker: 8000 grid cells, <=2 variables, <=24 candidates, <=8 epochs and
+cells × candidates × epochs <=250000. Heavy PDE records including Navier–Stokes
+are blocked before loading and offered **local native EPDE** instead.
+
+**PySINDy · your PC** is a separate zero-install browser page INSIDE the same
+Streamlit website. Official PySINDy 2.1.0 computes on the visitor's CPU in
+a WebAssembly Web Worker. All app JavaScript and HTML are supplied by this
+Streamlit app (no external GitHub HTML host). Pyodide wheels and scientific
+packages still require online CDN/PyPI access and accessibility from Russian
+networks has not been measured. Browser history uses IndexedDB, separate from
+the server's ephemeral EPDE Results and Compare history.
+
+The browser PySINDy is a limited five-ODE/CSV demonstration, NOT the full
+PDEComp/native mode from Vlad's benchmark. DeepMoD and DISCOVER are benchmarked
+using their own historical incompatible Docker environments. Exact EPDE
+continues to run via optional user-approved native worker for large PDEs.
 
 ## Scientific principles
 
