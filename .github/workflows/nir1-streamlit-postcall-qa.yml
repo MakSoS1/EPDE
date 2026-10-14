@@ -35,6 +35,10 @@ jobs:
       - name: Real tiny EPDE evolution with 1/x coordinate token
         run: |
           projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_streamlit_reciprocal_token.py' -v
+      - name: Execute real PySINDy baseline through shared benchmark CLI
+        run: |
+          projects/pic/.venv/bin/python projects/pic/bench.py run ode --variant pysindy --noise 0 --seed 0 --out /tmp/pysindy-demo-record.json
+          projects/pic/.venv/bin/python -c 'import json; x=json.load(open("/tmp/pysindy-demo-record.json")); assert x["status"] in ("ok","unsupported"), x'
       - name: Original Streamlit page smoke and equation-comparison tests
         run: |
           projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_app.py' -v
