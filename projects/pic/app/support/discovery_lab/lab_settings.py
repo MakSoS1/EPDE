@@ -69,6 +69,10 @@ def validate_public_search(search, shape, *, override=False):
     if any(not isinstance(x, dict) or x.get("family") not in PUBLIC_TOKEN_FAMILIES
            for x in tokens):
         raise ValueError("Only approved declarative token families may be used")
+    # A 1/x token is invalid on a spatial axis containing zero: enforce the
+    # full numerical check in the data-bound worker as well as in the UI.
+    if any(x.get("family") == "inverse_space_coordinate" for x in tokens) and len(shape) < 2:
+        raise ValueError("1/x requires a spatial coordinate axis")
     if p.get("default_preprocessor_type", "FD") not in DERIVATIVES:
         raise ValueError("Unsupported public differentiator")
     orders = p.get("max_deriv_order", "auto")
@@ -165,7 +169,7 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
             st.caption("PySINDy uses the same data, derivative estimator and candidate "
                        "features in this experiment; its STLSQ optimizer and "
                        "selection procedure remain separate.")
-        context = f"Saved record: {record_name} ({variant})"
+        context = f"Saved record: configs/{record_name}.yaml + {variant} variant"
     else:
         variant = "default"
         if arrays is None:
@@ -175,6 +179,13 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
                                        for k in arrays)))
         dim = len(shape) - 1
         base = _custom_base(dim, generated=source == "Generate an ODE")
+        tokens = list(base["search_space"].get("tokens") or [])
+        if not space.get("time_terms", True):
+            tokens = [x for x in tokens if x.get("family") != "grid"]
+        if space.get("frequency") is not None:
+            tokens.append({"family": "fixed_trigonometric",
+                           "freq": float(space["frequency"]), "meaningful": True})
+        base["search_space"]["tokens"] = tokens
         context = "Universal bounded starting profile for new data"
         st.caption("Universal starting settings, not tuned to your unknown equation. "
                    "Change the derivative orders, term library and optimization budget "
@@ -374,6 +385,16 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
     search.setdefault("solver", {})["use_solver"] = False
     search["solver"]["device"] = "cpu"
     validate_public_search(search, shape)
+    inverse = any(t.get("family") == "inverse_space_coordinate"
+                  for t in search.get("search_space", {}).get("tokens", []))
+    if inverse:
+        import numpy as np
+        if built_in:
+            x_coordinates = np.asarray(problem.grids[1])
+        else:
+            x_coordinates = np.asarray(arrays["axis_1"])
+        if np.any(np.isclose(x_coordinates, 0, atol=1e-12)):
+            raise ValueError("The 1/x token cannot be used on a spatial grid containing x=0")
     if built_in:
         # For both EPDE and PySINDy use the SAME complete search space and
         # differentiator. No other baseline configuration is overwritten.
