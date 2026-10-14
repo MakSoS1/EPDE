@@ -67,6 +67,21 @@ jobs:
         run: |
           set -o pipefail
           npm run smoke 2>&1 | tee /tmp/epde-browser.log
+      - name: Prepare first-party Streamlit HTML bundle and serve without external HTML CDN
+        run: |
+          python projects/pic/app/support/discovery_lab/browser_inline.py --output /tmp/epde-inline-site/index.html
+          python -m http.server 8767 --directory /tmp/epde-inline-site > /tmp/inline-http.log 2>&1 &
+          sleep 2
+          curl --fail http://127.0.0.1:8767/ > /dev/null
+      - id: inline
+        name: REAL PySINDy WASM from first-party Streamlit HTML
+        timeout-minutes: 10
+        working-directory: projects/pic/browser_demo
+        env:
+          BROWSER_INLINE_BASE: http://127.0.0.1:8767
+        run: |
+          set -o pipefail
+          node smoke_inline.mjs 2>&1 | tee /tmp/epde-inline.log
       - name: Publish verification outcomes for inspection
         if: always()
         env:
@@ -75,6 +90,7 @@ jobs:
           SETUP: ${{ steps.browser_setup.outcome }}
           SERVER: ${{ steps.serve.outcome }}
           BROWSER: ${{ steps.browser.outcome }}
+          INLINE: ${{ steps.inline.outcome }}
         run: |
           python - <<'PY'
           import json,os,datetime
@@ -86,9 +102,10 @@ jobs:
               "browser_setup":os.environ.get("SETUP"),
               "server":os.environ.get("SERVER"),
               "chromium_wasm":os.environ.get("BROWSER"),
+              "streamlit_inline_wasm":os.environ.get("INLINE"),
           }
           values["verified"] = all(values[k]=="success" for k in
-                                   ("numerical","javascript","chromium_wasm"))
+                                   ("numerical","javascript","chromium_wasm","streamlit_inline_wasm"))
           from pathlib import Path
           numeric_log = Path("/tmp/epde-numerical.log")
           values["numerical_log_tail"] = numeric_log.read_text(errors="replace")[-12000:] if numeric_log.exists() else ""
@@ -98,6 +115,8 @@ jobs:
           values["setup_log_tail"] = setup_log.read_text(errors="replace")[-10000:] if setup_log.exists() else ""
           server_log = Path("/tmp/browser-demo-http.log")
           values["server_log_tail"] = server_log.read_text(errors="replace")[-2000:] if server_log.exists() else ""
+          inline_log=Path("/tmp/epde-inline.log")
+          values["inline_log_tail"] = inline_log.read_text(errors="replace")[-12000:] if inline_log.exists() else ""
           with open("/tmp/epde-browser-verification.json","w") as f:
               json.dump(values,f,indent=2)
           PY
@@ -107,18 +126,6 @@ jobs:
           tree=$(printf '100644 blob %s\tresult.json\n' "$blob" | git mktree)
           commit=$(printf 'Browser smoke report for %s\n' "$GITHUB_SHA" | git commit-tree "$tree")
           git push --force origin "$commit:refs/heads/ci/browser-demo-verification"
-      - name: Prepare first-party Streamlit HTML bundle and serve without external HTML CDN
-        run: |
-          python projects/pic/app/support/discovery_lab/browser_inline.py --output /tmp/epde-inline-site/index.html
-          python -m http.server 8767 --directory /tmp/epde-inline-site > /tmp/inline-http.log 2>&1 &
-          sleep 2
-          curl --fail http://127.0.0.1:8767/ > /dev/null
-      - name: REAL PySINDy WASM from first-party Streamlit HTML
-        timeout-minutes: 10
-        working-directory: projects/pic/browser_demo
-        env:
-          BROWSER_INLINE_BASE: http://127.0.0.1:8767
-        run: npm exec -- node smoke_inline.mjs
       - name: Preserve failed browser screenshot and logs
         if: failure()
         uses: actions/upload-artifact@v4
