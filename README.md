@@ -21,7 +21,7 @@ are external: a registered dataset is not necessarily a downloaded file.
 
 ### Run the complete site on your own computer
 
-Clone this branch, then from the repository root:
+**No Git installation is required:** open the repository branch, select **Code → Download ZIP**, extract it, and start the script from the extracted root. Alternatively clone the branch using Git.
 
 | System | Command |
 | --- | --- |
