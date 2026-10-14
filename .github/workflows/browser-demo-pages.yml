@@ -32,8 +32,9 @@ jobs:
       - id: numerical
         name: Compile and numerically test the browser scientific engine
         run: |
-          python -m py_compile projects/pic/browser_demo/science.py projects/pic/browser_demo/test_science.py
-          python -m unittest discover -s projects/pic/browser_demo -p 'test_science.py' -v
+          set -o pipefail
+          python -m py_compile projects/pic/browser_demo/science.py projects/pic/browser_demo/test_science.py 2>&1 | tee /tmp/epde-numerical.log
+          python -m unittest discover -s projects/pic/browser_demo -p 'test_science.py' -v 2>&1 | tee -a /tmp/epde-numerical.log
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -78,6 +79,9 @@ jobs:
           }
           values["verified"] = all(values[k]=="success" for k in
                                    ("numerical","javascript","chromium_wasm"))
+          from pathlib import Path
+          numeric_log = Path("/tmp/epde-numerical.log")
+          values["numerical_log_tail"] = numeric_log.read_text(errors="replace")[-12000:] if numeric_log.exists() else ""
           with open("/tmp/epde-browser-verification.json","w") as f:
               json.dump(values,f,indent=2)
           PY
