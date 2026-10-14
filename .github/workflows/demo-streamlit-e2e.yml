@@ -93,10 +93,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
           blob=$(git hash-object -w /tmp/streamlit-e2e-report.json)
-          tree=$(printf '100644 blob %s	result.json
-' "$blob" | git mktree)
-          commit=$(printf 'Actual Streamlit browser-CPU integration report
-' | git commit-tree "$tree")
+          tree=$(printf '100644 blob %s\tresult.json\n' "$blob" | git mktree)
+          commit=$(printf 'Actual Streamlit browser-CPU integration report\n' | git commit-tree "$tree")
           git push --force origin "$commit:refs/heads/ci/demo-streamlit-browser-e2e"
       - uses: actions/upload-artifact@v4
         if: failure()
