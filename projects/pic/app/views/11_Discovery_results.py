@@ -15,7 +15,7 @@ st.title("🗂️ Results")
 owner = current_owner()
 st.caption("All your saved Lab searches appear here, including their data, methods, "
            "status and scientific results. Open a result to inspect or download it.")
-st.page_link("views/10_Discovery_lab.py", label="New experiment in Lab", icon="🧪")
+st.page_link("views/10_Discovery_lab.py", label="Run a search", icon="🚀")
 
 # ------------------------------------------------------------------ results
 STATE_TEXT = {"queued": "⏳ waiting", "running": "⚙️ running", "finished": "✅ done",
@@ -46,12 +46,12 @@ def live_status():
         st.rerun(scope="app")                     # something finished: refresh the whole page
     if active:
         st.dataframe(job_table(active), hide_index=True, width="stretch")
-        st.caption("Searches run on the server; you can leave or reload the page.")
+        st.caption("You can leave this page while searches are running.")
 
 
 rows = queue.list_jobs(owner)
 if not rows:
-    st.info("No experiments yet. Start one in **① New experiment**.")
+    st.info("No experiments yet. Start one in **Run a search**.")
 else:
     live_status()
     st.dataframe(job_table(rows), hide_index=True, width="stretch")
@@ -61,8 +61,14 @@ else:
                       f"noise {r.get('noise', 0):g} % · {STATE_TEXT.get(r.get('state'), '')}"
              for r in rows}
     current = st.session_state.get("discovery_selected_job")
-    chosen = st.selectbox("Open a result", ids, index=ids.index(current) if current in ids else 0,
-                          format_func=names.get)
+    if len(ids) <= 6:
+        chosen = st.pills("Open a result", ids,
+                          default=current if current in ids else ids[0],
+                          selection_mode="single", format_func=names.get) or ids[0]
+    else:
+        chosen = st.selectbox("Open a result", ids,
+                              index=ids.index(current) if current in ids else 0,
+                              format_func=names.get)
     st.session_state["discovery_selected_job"] = chosen
     job = next(r for r in rows if r["id"] == chosen)
     record = queue.result(owner, chosen)
