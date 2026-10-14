@@ -44,6 +44,22 @@ class PolynomialSafety(unittest.TestCase):
             polynomial_kwargs(9, 5, [1, 4], (8, 31))
         self.assertEqual(polynomial_kwargs(11, 5, [1, 4], (31, 31))["poly_order"], 5)
 
+    def test_real_polynomial_derivative_preprocessor(self):
+        import numpy as np
+        from epde_bench.config import load_config, resolve_for_problem
+        from epde_bench.datasets import load
+        from epde_bench.preprocessing import prepare_data
+        from epde_bench.poly_options import polynomial_kwargs
+        p = load("ode")
+        cfg = resolve_for_problem(load_config("ode", "poly"), p)
+        orders = cfg["preprocessing"]["max_deriv_order"]
+        cfg["preprocessing"]["preprocessor_kwargs"] = polynomial_kwargs(
+            11, max(4, max(orders)), orders, p.shape)
+        fields, stacks = prepare_data(p, p.data, cfg)
+        self.assertIn("u", fields)
+        self.assertEqual(stacks["u"].shape[0], p.data["u"].size)
+        self.assertTrue(np.isfinite(stacks["u"]).all())
+
     def test_fd_not_affected(self):
         from epde_bench.poly_options import validate_polynomial_options
         validate_polynomial_options({"preprocessing": {
