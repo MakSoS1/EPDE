@@ -144,3 +144,40 @@ jobs:
           path: /tmp/equation-browser-site
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  deployment-report:
+    name: Confirm free Pages publication
+    needs: [validate, publish]
+    if: always()
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record independently verified deployment outcome
+        env:
+          VALIDATE_STATE: ${{ needs.validate.result }}
+          PUBLISH_STATE: ${{ needs.publish.result }}
+        run: |
+          python - <<'PY'
+          import json, os, datetime
+          report = {
+              "revision": os.environ["GITHUB_SHA"],
+              "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              "validation": os.environ["VALIDATE_STATE"],
+              "github_pages": os.environ["PUBLISH_STATE"],
+              "published": (os.environ["VALIDATE_STATE"] == "success"
+                            and os.environ["PUBLISH_STATE"] == "success"),
+              "expected_url": "https://maksos1.github.io/EPDE/",
+          }
+          with open("/tmp/browser-page-published.json","w") as f:
+              json.dump(report,f,indent=2)
+          PY
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          blob=$(git hash-object -w /tmp/browser-page-published.json)
+          tree=$(printf '100644 blob %s	deployment.json
+' "$blob" | git mktree)
+          commit=$(printf 'Browser Pages deployment for %s
+' "$GITHUB_SHA" | git commit-tree "$tree")
+          git push --force origin "$commit:refs/heads/ci/browser-demo-deployment"
