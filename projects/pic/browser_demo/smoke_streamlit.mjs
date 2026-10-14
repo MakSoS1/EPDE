@@ -8,7 +8,17 @@ const BASE = process.env.STREAMLIT_URL || "http://127.0.0.1:8501";
 const browser = await chromium.launch({headless: true});
 const page = await browser.newPage({viewport: {width: 1440, height: 1000}});
 const errors = [];
+const failedRequests = [];
+const httpErrors = [];
+const consoleErrors = [];
 page.on("pageerror", err => errors.push(err.message));
+page.on("requestfailed", req => failedRequests.push([req.url(),req.failure()?.errorText]));
+page.on("response", response => {
+  if(response.status() >= 400) httpErrors.push([response.status(),response.url()]);
+});
+page.on("console", message => {
+  if(message.type() === "error") consoleErrors.push(message.text());
+});
 try {
   await page.goto(BASE, {waitUntil:"domcontentloaded", timeout:45000});
   const sindyNav = page.getByRole("link", {name:/PySINDy.*your PC/i}).first();
@@ -19,6 +29,16 @@ try {
     console.error("LIVE_SITE_BODY "+(await page.locator("body").innerText()).slice(0,4500));
     const controls=await page.getByRole("button").allTextContents();
     console.error("LIVE_SITE_BUTTONS "+JSON.stringify(controls.slice(0,30)));
+    console.error("LIVE_SITE_REQUEST_FAILURES "+JSON.stringify(failedRequests.slice(-40)));
+    console.error("LIVE_SITE_HTTP_ERRORS "+JSON.stringify(httpErrors.slice(-40)));
+    console.error("LIVE_SITE_JS_EXCEPTIONS "+JSON.stringify(errors.slice(-30)));
+    console.error("LIVE_SITE_CONSOLE_ERRORS "+JSON.stringify(consoleErrors.slice(-35)));
+    console.error("LIVE_SITE_DOM "+JSON.stringify(await page.evaluate(() => ({
+      ready:document.readyState,
+      root:document.querySelector("#root")?.innerHTML?.slice(0,600),
+      scripts:[...document.scripts].map(x=>x.src||"inline").slice(0,20),
+      frames:document.querySelectorAll("iframe").length,
+    }))));
     throw err;
   }
   await sindyNav.click();
