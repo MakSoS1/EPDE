@@ -13,6 +13,9 @@ if errorlevel 1 (
   echo.
   echo EPDE setup or launch failed. Check the message above.
   echo This program never needs Administrator permissions.
+  if "%EPDE_SETUP_ONLY%"=="1" exit /b 1
   pause
+  exit /b 1
 )
 endlocal
+exit /b 0
