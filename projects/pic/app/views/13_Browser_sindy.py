@@ -24,7 +24,9 @@ st.info(
 )
 st.warning(
     "Your browser must be able to download Pyodide and its scientific packages. "
-    "In some Russian networks CDNs or PyPI may be inaccessible. "
+    "The page itself is delivered directly by this Streamlit site, which "
+    "avoids a dependency on GitHub HTML CDNs in Russia. However some Russian "
+    "networks may block Pyodide/PyPI dependency downloads. "
     "This does not prove the method failed — use a different available "
     "network or try the separately installed native execution. "
     "No VPN bypass or disabled browser security is necessary."
@@ -39,7 +41,16 @@ st.link_button("Open browser lab in a separate tab", BROWSER_URL)
 st.caption("The embedded browser lab has its own Results and Compare. "
            "For now browser-local records are not transferred to the "
            "Streamlit server's Results page. Download their JSON to retain them.")
-st.iframe(BROWSER_URL, height=1190, alt="Zero-install browser-side PySINDy scientific lab")
+from support.discovery_lab.browser_inline import build_browser_html
+
+# Trusted repository code, inlined into a first-party Streamlit iframe.
+# Heavy Python/WebAssembly calculations happen inside the visitor browser.
+try:
+    st.iframe(build_browser_html(embedded=True), height=1210,
+              alt="PySINDy 2.1.0 scientific lab computing on this browser's CPU")
+except (OSError, ValueError, RuntimeError) as exc:
+    st.error("The bundled browser scientific engine is unavailable in this deployment. "
+             "Use the standalone browser version from the link above.")
 
 st.divider()
 st.markdown(
