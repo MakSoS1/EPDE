@@ -45,6 +45,9 @@ jobs:
       - name: Original interface and benchmark presentation tests
         run: |
           projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_app_interfaces.py' -v
+      - name: Existing real subprocess evolution and isolation regression
+        run: |
+          projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_app_optimizer_process.py' -v
       - name: Original input validation tests
         run: |
           projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_app_inputs.py' -v
