@@ -227,7 +227,7 @@ def _evo_educational(X, dX, names, degree, cut, population, epochs, seed):
         all_coef.append(coef)
         equations.append(_format_equation(names, target, labels, coef))
     prediction = features @ np.asarray(all_coef, dtype=float).T
-    return prediction, equations, sum(np.count_nonzero(c) for c in all_coef), {
+    return prediction, equations, int(sum(np.count_nonzero(c) for c in all_coef)), {
         "implementation": "EvoSparse educational subset selector — NOT EPDE",
         "features": labels,
         "coefficients": [c.tolist() for c in all_coef],
