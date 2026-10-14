@@ -141,7 +141,7 @@ if source == "Built-in equation":
     default_group = next(
         (group for group, names in groups.items()
          if requested in names and group != "All registered datasets"),
-        "All registered datasets",
+        "Core benchmark",
     )
     group_labels = {
         "All registered datasets": "All",
