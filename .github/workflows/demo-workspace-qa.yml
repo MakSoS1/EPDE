@@ -83,6 +83,18 @@ jobs:
       - name: Verify EPDE free-server admission and visitor-browser routing
         run: |
           projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_demo_execution_routing.py' -v
+      - name: Extended scientific contracts — real ODE, fourth-order PDE, generated upload and queue isolation
+        timeout-minutes: 12
+        run: |
+          projects/pic/.venv/bin/python -m unittest -v \
+            test_discovery_lab.ContractTests \
+            test_discovery_lab.EquationGeneratorTests \
+            test_discovery_lab.QueueTests \
+            test_discovery_lab.ReferenceLawTests \
+            test_discovery_lab.WorkerAndPage.test_ode_record_is_found_and_solved \
+            test_discovery_lab.WorkerAndPage.test_fourth_order_pde_is_solved \
+            test_discovery_lab.WorkerAndPage.test_generated_ode_is_scored_against_its_law
+        working-directory: projects/pic/tests
       - name: Smoke-test PySINDy native local scientific adapter
         run: |
           projects/pic/.venv/bin/python - <<'PY'
