@@ -41,7 +41,7 @@ jobs:
         run: |
           python projects/nir1_stability/nir1/mdl_factorial_analyze.py --input downloaded --out audited
           cat audited/REPORT_RU.md
-      - name: Artifact provenance: checksum all raw JSONs
+      - name: 'Artifact provenance: checksum all raw JSONs'
         if: always()
         run: |
           mkdir -p audited
