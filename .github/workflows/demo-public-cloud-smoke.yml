@@ -1,0 +1,68 @@
+name: Public Streamlit Cloud — external visitor verification
+on:
+  push:
+    branches: [demo/streamlit-community-cloud]
+    paths:
+      - '.github/workflows/demo-public-cloud-smoke.yml'
+      - 'projects/pic/app/Home.py'
+      - 'projects/pic/app/views/13_Browser_sindy.py'
+      - 'projects/pic/browser_demo/smoke_streamlit.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  public-site:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser client
+        working-directory: projects/pic/browser_demo
+        run: |
+          npm install --no-fund --no-audit
+          npx playwright install --with-deps chromium
+      - id: public
+        name: Open deployed Streamlit app over internet and compute visitor-side PySINDy
+        timeout-minutes: 12
+        working-directory: projects/pic/browser_demo
+        env:
+          STREAMLIT_URL: https://epde-explorer-demo.streamlit.app/
+        run: |
+          set -o pipefail
+          node smoke_streamlit.mjs 2>&1 | tee /tmp/cloud-browser.log
+      - name: Report actual deployment status, not just a local build
+        if: always()
+        env:
+          PUBLIC: ${{ steps.public.outcome }}
+        run: |
+          python - <<'PY'
+          import json,os,pathlib,datetime
+          p=pathlib.Path("/tmp/cloud-browser.log")
+          data={
+            "revision":os.environ["GITHUB_SHA"],
+            "run_id":int(os.environ["GITHUB_RUN_ID"]),
+            "checked_url":"https://epde-explorer-demo.streamlit.app/",
+            "timestamp":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "public_browser":os.environ.get("PUBLIC"),
+            "verified":os.environ.get("PUBLIC")=="success",
+            "log":p.read_text(errors="replace")[-12000:] if p.exists() else "",
+          }
+          pathlib.Path("/tmp/cloud-result.json").write_text(json.dumps(data,indent=2))
+          PY
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          blob=$(git hash-object -w /tmp/cloud-result.json)
+          tree=$(printf '100644 blob %s\tresult.json\n' "$blob" | git mktree)
+          commit=$(printf 'Public Streamlit visitor browser verification\n' | git commit-tree "$tree")
+          git push --force origin "$commit:refs/heads/ci/demo-public-cloud"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: public-streamlit-cloud-failed-browser
+          path: projects/pic/browser_demo/streamlit-e2e.png
+          if-no-files-found: ignore
