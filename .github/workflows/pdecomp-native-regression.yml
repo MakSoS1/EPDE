@@ -46,10 +46,10 @@ jobs:
           mkdir -p reports
           cd pdecomp
           python clean_run_metrics.py pysindy --protocol native --algorithm-seed 0 \
-            --datasets ode_data.npy vdp_data.npy lotka_data.npy burgers_data.mat \
+            --datasets ode_data.npy vdp_data.npy lotka_data.npy burgers_data.mat ac_data.npy pde_divide_data.npy wave_data.csv \
             --output ../reports/native-1.csv 2>&1 | tee /tmp/pdecomp-native.log
           python clean_run_metrics.py pysindy --protocol native --algorithm-seed 0 \
-            --datasets ode_data.npy vdp_data.npy lotka_data.npy burgers_data.mat \
+            --datasets ode_data.npy vdp_data.npy lotka_data.npy burgers_data.mat ac_data.npy pde_divide_data.npy wave_data.csv \
             --output ../reports/native-2.csv 2>&1 | tee -a /tmp/pdecomp-native.log
           cd ..
           python projects/pic/tests/pdecomp_native_csv_audit.py --framework pysindy \
