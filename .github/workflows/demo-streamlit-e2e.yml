@@ -1,0 +1,109 @@
+name: Actual Streamlit website — browser CPU end-to-end
+on:
+  push:
+    branches: [demo/streamlit-community-cloud]
+    paths:
+      - 'projects/pic/app/Home.py'
+      - 'projects/pic/app/views/10_Discovery_lab.py'
+      - 'projects/pic/app/views/13_Browser_sindy.py'
+      - 'projects/pic/app/support/discovery_lab/**'
+      - 'projects/pic/browser_demo/**'
+      - '.github/workflows/demo-streamlit-e2e.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  real-site:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      PYTHONPATH: '.:projects/pic:projects/pic/app'
+      STREAMLIT_BROWSER_GATHER_USAGE_STATS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+      - id: env
+        name: Install pinned, genuine Streamlit EPDE and PySINDy environment
+        run: |
+          set -o pipefail
+          uv sync --project projects/pic --extra cpu --extra app --locked 2>&1 | tee /tmp/streamlit-deps.log
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Chromium for real website user flow
+        working-directory: projects/pic/browser_demo
+        run: |
+          npm install --no-fund --no-audit
+          npx playwright install --with-deps chromium
+      - id: server
+        name: Launch the actual Streamlit app (no test mocks)
+        run: |
+          projects/pic/.venv/bin/streamlit run projects/pic/app/Home.py \
+            --server.headless=true --server.address=127.0.0.1 --server.port=8501 \
+            > /tmp/streamlit-server.log 2>&1 &
+          echo $! > /tmp/streamlit-server.pid
+          for i in $(seq 1 45); do
+            if curl --fail --silent http://127.0.0.1:8501/_stcore/health > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/streamlit-server.log
+          exit 1
+      - id: browser
+        name: User opens Streamlit → computes with PySINDy → refreshes → EPDE Lab
+        timeout-minutes: 9
+        working-directory: projects/pic/browser_demo
+        run: |
+          set -o pipefail
+          node smoke_streamlit.mjs 2>&1 | tee /tmp/streamlit-e2e.log
+      - name: Publish real website integration status
+        if: always()
+        env:
+          DEPS: ${{ steps.env.outcome }}
+          HOST: ${{ steps.server.outcome }}
+          BROWSER: ${{ steps.browser.outcome }}
+        run: |
+          python - <<'PY'
+          import json,os,pathlib,datetime
+          data={
+            "revision":os.environ["GITHUB_SHA"],
+            "run_id":int(os.environ["GITHUB_RUN_ID"]),
+            "timestamp":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "dependencies":os.environ.get("DEPS"),
+            "streamlit":os.environ.get("HOST"),
+            "browser":os.environ.get("BROWSER"),
+          }
+          data["verified"]=all(data[n]=="success" for n in ("dependencies","streamlit","browser"))
+          for k,p in [("browser_log","/tmp/streamlit-e2e.log"),
+                      ("streamlit_log","/tmp/streamlit-server.log"),
+                      ("install_log","/tmp/streamlit-deps.log")]:
+              f=pathlib.Path(p)
+              data[k]=f.read_text(errors="replace")[-12000:] if f.exists() else ""
+          pathlib.Path("/tmp/streamlit-e2e-report.json").write_text(json.dumps(data,indent=2))
+          PY
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          blob=$(git hash-object -w /tmp/streamlit-e2e-report.json)
+          tree=$(printf '100644 blob %s	result.json
+' "$blob" | git mktree)
+          commit=$(printf 'Actual Streamlit browser-CPU integration report
+' | git commit-tree "$tree")
+          git push --force origin "$commit:refs/heads/ci/demo-streamlit-browser-e2e"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: actual-streamlit-browser-debug
+          path: |
+            projects/pic/browser_demo/streamlit-e2e.png
+            /tmp/streamlit-e2e.log
+            /tmp/streamlit-server.log
+          if-no-files-found: ignore
