@@ -61,7 +61,7 @@ class HostedResourcePolicyTests(unittest.TestCase):
         self.assertIn("st.iframe(build_browser_html(embedded=True)", browser)
         self.assertNotIn("queue.submit", browser)
         self.assertIn("if is_local_only(record_name) and not local_full:", lab)
-        self.assertIn("if location == \"Demo server\" and \"epde\" in methods:", lab)
+        self.assertIn('if location == SERVER_MODE and not LOCAL_FULL and "epde" in methods:', lab)
 
 
 if __name__ == "__main__":
