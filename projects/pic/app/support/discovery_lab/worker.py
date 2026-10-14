@@ -61,7 +61,7 @@ def _run_record(req, *, hosted=False):
             raise ValueError("Search overrides must contain a mapping")
         cfg = load_config(dataset, variant, overrides=overrides)
         problem = load(dataset, **cfg.get("loader", {}))
-        validate_public_search(resolve_for_problem(cfg, problem), problem.shape)
+        validate_public_search(resolve_for_problem(cfg, problem), problem.shape, override=not hosted)
     else:
         overrides = None
         if method == "epde" and EFFORTS[effort] is not None:
@@ -139,7 +139,7 @@ def _run_upload(req, folder, *, hosted=False):
         record["problem"]["title"] = str(settings["label"])[:160]
     search_cfg = resolve_for_problem({"search": settings["search"]}, problem)
     from support.discovery_lab.lab_settings import validate_public_search
-    validate_public_search(search_cfg, problem.shape)
+    validate_public_search(search_cfg, problem.shape, override=not hosted)
     if hosted and method == "epde":
         from support.discovery_lab.execution_policy import require_hosted_epde
         require_hosted_epde(None, problem.shape, len(problem.variables), search_cfg)
