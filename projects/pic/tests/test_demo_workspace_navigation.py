@@ -32,14 +32,17 @@ class DemoNavigationTests(unittest.TestCase):
         content = (APP / "Home.py").read_text(encoding="utf-8")
         public_pages = content.split("# Preserve the old exploratory interface")[0]
         for view in ("10_Discovery_lab.py", "11_Discovery_results.py",
-                     "12_Discovery_compare.py", "13_Browser_sindy.py",
+                     "12_Discovery_compare.py",
                      "14_Data_catalog.py"):
             self.assertEqual(public_pages.count(view), 1)
         self.assertEqual(public_pages.count("default=True"), 1)
-        self.assertIn('title="Lab · EPDE"', public_pages)
-        self.assertIn('title="Results · server"', public_pages)
+        self.assertIn('title="Run a search"', public_pages)
+        self.assertIn('title="Results"', public_pages)
         self.assertIn('title="All datasets · 59+"', public_pages)
-        self.assertIn('title="Compare · server"', public_pages)
+        self.assertNotIn("13_Browser_sindy.py", public_pages)
+        self.assertNotIn(" · server", public_pages)
+        self.assertNotIn("My computer", public_pages)
+        self.assertIn('title="Compare"', public_pages)
         self.assertEqual(public_pages.count("9_How_EPDE_works.py"), 1)
         self.assertIn('title="How it works · EPDE & SINDy"', public_pages)
 
