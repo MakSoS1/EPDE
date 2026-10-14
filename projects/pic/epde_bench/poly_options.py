@@ -19,7 +19,7 @@ def validate_polynomial_options(search: dict, shape=None) -> None:
         raise ValueError("Polynomial derivative orders must be nonnegative")
     window = kw.get("polynomial_window", 9)
     if isinstance(window, bool) or not isinstance(window, int) or window < 5 or window % 2 != 1:
-        raise ValueError("Polynomial window must be an odd integer >= 5")
+        raise ValueError("Polynomial window must be an odd window length (integer >= 5)")
     degree = kw.get("poly_order")
     if degree is None:
         degree = max(orders) + 1
