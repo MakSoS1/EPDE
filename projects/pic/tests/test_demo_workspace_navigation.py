@@ -18,6 +18,7 @@ class DemoNavigationTests(unittest.TestCase):
             APP / "Home.py",
             APP / "views/10_Discovery_lab.py",
             APP / "views/11_Discovery_results.py",
+            APP / "views/13_Browser_sindy.py",
             APP / "views/12_Discovery_compare.py",
             APP / "views/9_How_EPDE_works.py",
             APP / "support/sindy_guide.py",
@@ -29,12 +30,13 @@ class DemoNavigationTests(unittest.TestCase):
     def test_default_sidebar_keeps_lab_and_restores_learning(self):
         content = (APP / "Home.py").read_text(encoding="utf-8")
         public_pages = content.split("# Preserve the old exploratory interface")[0]
-        for view in ("10_Discovery_lab.py", "11_Discovery_results.py", "12_Discovery_compare.py"):
+        for view in ("10_Discovery_lab.py", "11_Discovery_results.py",
+                     "12_Discovery_compare.py", "13_Browser_sindy.py"):
             self.assertEqual(public_pages.count(view), 1)
         self.assertEqual(public_pages.count("default=True"), 1)
-        self.assertIn('title="Lab"', public_pages)
-        self.assertIn('title="Results"', public_pages)
-        self.assertIn('title="Compare"', public_pages)
+        self.assertIn('title="Lab · EPDE"', public_pages)
+        self.assertIn('title="Results · server"', public_pages)
+        self.assertIn('title="Compare · server"', public_pages)
         self.assertEqual(public_pages.count("9_How_EPDE_works.py"), 1)
         self.assertIn('title="How it works · EPDE & SINDy"', public_pages)
 
@@ -42,7 +44,7 @@ class DemoNavigationTests(unittest.TestCase):
         lab = (APP / "views/10_Discovery_lab.py").read_text(encoding="utf-8")
         results = (APP / "views/11_Discovery_results.py").read_text(encoding="utf-8")
         compare = (APP / "views/12_Discovery_compare.py").read_text(encoding="utf-8")
-        self.assertIn("queue.submit(owner, request)", lab)
+        self.assertIn("queue.submit(owner, req)", lab)
         self.assertNotIn("st.tabs(", lab)
         self.assertNotIn("queue.submit(", results)
         self.assertNotIn("queue.submit(", compare)
