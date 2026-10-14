@@ -44,8 +44,8 @@ class BrowserScienceTests(unittest.TestCase):
             self.run_case("decay","epde")
 
     def test_savgol_derivatives_are_finite(self):
-        record = self.run_case("logistic","evo_demo",derivatives="savgol")
-        self.assertGreater(record["validation"]["r2"], 0.8)
+        record = self.run_case("decay","evo_demo",derivatives="savgol",degree=1)
+        self.assertGreater(record["validation"]["r2"], 0.9)
 
     def test_csv_upload_and_bad_inputs(self):
         text = "time,x\n" + "\n".join(
