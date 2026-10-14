@@ -1,0 +1,61 @@
+name: Optional one-click EPDE Windows launcher
+on:
+  push:
+    branches: [demo/streamlit-community-cloud]
+    paths:
+      - 'projects/pic/native_launcher/**'
+      - '.github/workflows/native-one-click-windows.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows-native:
+    runs-on: windows-2025
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - id: native
+        name: Bootstrap from cmd with no preinstalled Git, Python or uv prerequisite
+        shell: pwsh
+        env:
+          EPDE_SETUP_ONLY: '1'
+          EPDE_SOURCE_OVERRIDE: ${{ github.workspace }}
+        run: |
+          & cmd.exe /c "projectspic
+ative_launcherEPDE-Start.cmd" *> native-log.txt
+          $log = Get-Content native-log.txt -Raw
+          $log | Select-Object -Last 30
+          if ($LASTEXITCODE -ne 0) { throw "Native launcher failed with code $LASTEXITCODE" }
+          if ($log -notmatch "EPDE,") {
+            if ($log -notmatch "PINNED" -and $log -notmatch "1") { throw "Native import smoke result missing" }
+          }
+      - name: Store one-click Windows launcher as artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: EPDE-Windows-OneClick-Launcher
+          path: projects/pic/native_launcher/EPDE-Start.cmd
+          retention-days: 30
+      - name: Publish Windows launcher verification
+        if: always()
+        shell: pwsh
+        env:
+          RESULT: ${{ steps.native.outcome }}
+        run: |
+          $data = @{
+            revision = $env:GITHUB_SHA
+            run_id = $env:GITHUB_RUN_ID
+            windows_native = $env:RESULT
+            verified = ($env:RESULT -eq "success")
+            log = if(Test-Path native-log.txt) { (Get-Content native-log.txt -Raw | Select-Object -Last 1) } else { "" }
+          }
+          $data | ConvertTo-Json -Depth 4 | Out-File -Encoding UTF8 native-result.json
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          $blob = git hash-object -w native-result.json
+          $treeInput = "100644 blob $blob" + [char]9 + "result.json" + [char]10
+          $tree = $treeInput | git mktree
+          $commit = "Native launcher verification" | git commit-tree $tree
+          git push --force origin "$($commit):refs/heads/ci/windows-native-launcher"
