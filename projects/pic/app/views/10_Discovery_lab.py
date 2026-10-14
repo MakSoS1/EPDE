@@ -27,17 +27,10 @@ from support.discovery_lab.ode import compile_rhs, generate, reference_law, uses
 from support.discovery_lab.uploads import parse_upload
 from support.equations import equation_latex, system_latex
 
-page("Equation Discovery Lab", "🧪")
-LOCAL_FULL = os.environ.get("EPDE_LOCAL_FULL_RUN") == "1"
-if LOCAL_FULL:
-    st.success("Full local EPDE environment: the original engine and entire "
-               "scientific catalogue are available on this machine. "
-               "Load very large data only when needed.")
-else:
-    st.caption("Light EPDE runs on this free shared server; heavy PDEs are "
-               "listed but must be computed locally. PySINDy runs in your browser.")
-st.page_link("views/13_Browser_sindy.py", label="⚡ Open PySINDy — compute on my CPU", icon=None)
-st.page_link("views/14_Data_catalog.py", label="📚 Browse all ODE/PDE datasets", icon=None)
+page("Run a search", "🚀")
+st.caption("Choose one input, select EPDE, PySINDy or both, and compare their "
+           "equations from the same data, noise and random seed.")
+st.page_link("views/14_Data_catalog.py", label="📚 Browse the full equation catalogue")
 
 from support.common import link as safe_page_link
 safe_page_link("views/9_How_EPDE_works.py",
@@ -150,45 +143,53 @@ if source == "Built-in equation":
          if requested in names and group != "All registered datasets"),
         "All registered datasets",
     )
-    group = st.selectbox("Group", list(groups), index=list(groups).index(default_group))
+    group_labels = {
+        "All registered datasets": "All",
+        "Ordinary differential equations": "ODE",
+        "ODE systems": "Systems",
+        "PDE · 1 spatial dimension": "PDE 1D",
+        "PDE · 2 spatial dimensions": "PDE 2D",
+        "PDE · 3 spatial dimensions": "PDE 3D",
+        "Core benchmark": "Core",
+        "Extended benchmark": "Extended",
+        "Measured data": "Measured",
+        "Other data": "Other",
+    }
+    group = st.pills("Dataset group", list(groups), default=default_group,
+                     selection_mode="single",
+                     format_func=lambda x: group_labels.get(x, x)) or default_group
     names = groups[group]
-    record_name = st.selectbox("Equation", names,
-                               index=names.index(requested) if requested in names else 0,
-                               format_func=dataset_label)
+    if len(names) <= 16:
+        record_name = st.pills(
+            "Equation", names,
+            default=requested if requested in names else names[0],
+            selection_mode="single",
+            format_func=lambda x: x,
+        ) or names[0]
+    else:
+        record_name = st.selectbox(
+            "Equation (search all titles)", names,
+            index=names.index(requested) if requested in names else 0,
+            format_func=lambda x: f"{dataset_label(x)} · {x}")
+    st.caption(f"Selected: **{dataset_label(record_name)}**")
     local_full = LOCAL_FULL
     if is_local_only(record_name) and not local_full:
         from epde_bench.datasets import REGISTRY
         spec = REGISTRY[record_name]
         label = dataset_label(record_name)
-        st.info("**Full database record:** " + label)
-        st.caption("Scientific class: " + spec.kind + " · Dataset suite: " +
-                   spec.suite + " · Source: " + spec.source)
-        st.code(spec.files, language=None)
+        st.info("**" + label + "** · " + spec.kind + " · " + spec.suite)
+        st.caption("Original scientific files: " + spec.files)
         laws = declared_equations(record_name)
         if laws:
-            st.markdown("**Declared governing equation(s)**")
+            st.markdown("**Declared equation(s)**")
             for law in laws:
                 st.code(law, language=None)
-        else:
-            st.caption("This record's law must be read from its original "
-                       "dataset loader; it may be data-dependent or unknown.")
-        st.warning("This full-resolution dataset is kept in the catalogue, "
-                   "but it must be executed on a local scientific environment. "
-                   "The free shared server will not load it.")
-        st.markdown("**Run the entire EPDE interface on your computer:**")
-        st.code(
-            "git clone --branch demo/streamlit-community-cloud https://github.com/MakSoS1/EPDE.git\n"
-            "cd EPDE\n"
-            "bash run-epde.sh  # macOS / Linux; Windows: run-epde.cmd",
-            language="bash")
-        st.page_link("views/14_Data_catalog.py", label="View the complete scientific catalogue")
-        st.info("Using a phone/tablet? Open the GitHub repository → "
-                "Code → Codespaces → Create codespace on the demo branch. "
-                "The full Streamlit UI starts on private forwarded port 8501 "
-                "(GitHub account and available Codespaces compute required).")
-        st.link_button(
-            "Open complete EPDE in GitHub Codespaces ↗",
-            "https://codespaces.new/MakSoS1/EPDE/tree/demo/streamlit-community-cloud")
+        st.warning("This record is too resource-intensive for an interactive "
+                   "demo. Its scientific description remains available in the "
+                   "full catalogue. You can run the complete project from GitHub.")
+        st.page_link("views/14_Data_catalog.py", label="Inspect the complete dataset")
+        st.link_button("Open EPDE repository", 
+                       "https://github.com/MakSoS1/EPDE/tree/demo/streamlit-community-cloud")
         st.stop()
     if is_local_only(record_name) and local_full:
         permission_key = "lab_load_heavy_" + record_name
@@ -302,20 +303,24 @@ else:
         noise = st.number_input("Extra noise, % of the standard deviation", 0.0, 10.0, 0.0, 0.5,
                                 help="Usually 0 for measured data.")
 
-st.subheader("2 · Compute method")
-st.markdown("**EPDE** uses the original scientific engine on the demo server "
-            "for light jobs. **PySINDy** runs in your browser from the separate "
-            "tab above and does not use the server CPU.")
-options = ["epde"] + (["llm"] if LLM_READY else [])
-methods = st.pills("Methods", options, default=["epde"],
-                    selection_mode="multi", format_func=METHOD_LABELS.get)
-if not LLM_READY:
-    st.caption("The LLM agent slot is ready but no service is configured on this server.")
-elif "llm" in methods:
-    st.warning("The LLM service receives a sample of these data. Do not send private measurements.")
+st.subheader("2 · Choose methods")
+options = ["epde", "pysindy"] + (["llm"] if LLM_READY else [])
+methods = st.pills(
+    "Discovery methods", options, default=["epde", "pysindy"],
+    selection_mode="multi", format_func=METHOD_LABELS.get,
+    help="Choose one or both. Each method receives identical input data, "
+         "noise and seed; their optimizers and scoring criteria remain distinct."
+)
+if len(methods) == 2 and set(methods) == {"epde", "pysindy"}:
+    st.caption("Both algorithms will be saved as separate experiments in one "
+               "comparison group.")
+if "llm" in methods:
+    st.warning("The configured LLM service receives a sample of your data; "
+               "do not send private measurements.")
 
 st.subheader("3 · Scientific settings")
-st.caption("The same scientific settings are used locally and on the server.")
+st.caption("Stored equation presets are loaded automatically. Essential controls "
+           "are shown first; switch to Advanced for the full configuration.")
 from support.discovery_lab.lab_settings import render_settings
 
 variant, overrides, settings, selected_budget = "default", {}, None, "Preset"
@@ -337,144 +342,71 @@ budget_code = {
     "Custom": "custom",
 }.get(selected_budget, "standard")
 
-st.subheader("4 · Compute")
-SERVER_MODE = "This app · local CPU" if LOCAL_FULL else "Demo server"
-location = st.segmented_control("Execution",
-    [SERVER_MODE, "My computer"], default=SERVER_MODE,
-    key="lab_execution_location",
-    help="This app uses the original EPDE engine. On Community Cloud there "
-         "are hard CPU limits; a locally launched app runs the full scientific "
-         "configuration. My computer uses an independently approved worker.")
-if location == "My computer":
-    st.caption("Native EPDE and PySINDy run on your computer. The demo site is hosted for free.")
-    with st.popover("Install and start local worker"):
-        st.code(
-            "git clone --branch demo/streamlit-community-cloud https://github.com/MakSoS1/EPDE.git\n"
-            "cd EPDE/projects/pic\n"
-            "uv sync --locked --extra cpu --extra app\n"
-            "uv run --locked --extra cpu --extra app python app/local_worker_service.py",
-            language="bash")
-        st.caption("Install uv once: https://docs.astral.sh/uv/getting-started/installation/ "
-                   "Start this worker yourself and keep its terminal open. "
-                   "The browser may ask for permission to access a local service.")
-    access = st.text_input("Local worker access code", type="password", key="lab_worker_code")
-    if "llm" in methods:
-        st.info("Local execution currently supports EPDE and PySINDy, not the private LLM service.")
-else:
-    access = ""
-    if LOCAL_FULL:
-        st.caption("Original EPDE computes on this machine; the free Cloud limits "
-                   "do not apply. Very large datasets may exhaust local memory.")
-    else:
-        st.caption("Only small inputs and bounded search budgets may use the free CPU. "
-                   "Bigger data and Navier–Stokes always run locally.")
-
-# Show the decision before the user clicks Run; the worker verifies it again.
-hosted_allowed, hosted_reason, hosted_diag = True, "", {}
-if settings_valid and "epde" in methods:
+st.subheader("4 · Run the search")
+ready = settings_valid and bool(methods) and (record_name is not None or arrays is not None)
+if ready:
     from support.discovery_lab.execution_policy import classify_epde
     from epde_bench.config import load_config, resolve_for_problem
     try:
         if record_name:
+            # Check geometry once before any job is submitted. The worker
+            # independently enforces admission on every request.
             effective = load_config(record_name, variant, overrides=overrides)
             resolved = resolve_for_problem(effective, problem)
             shape, nvars = problem.shape, len(problem.variables)
-        elif arrays is not None and settings is not None:
+        else:
             resolved = settings["search"]
             field_keys = [k for k in arrays if k.startswith("var_")]
             shape = tuple(np.asarray(arrays[field_keys[0]]).shape)
             nvars = len(field_keys)
-        else:
-            resolved, shape, nvars = {}, (), 0
-        hosted_allowed, hosted_reason, hosted_diag = classify_epde(
-            record_name, shape, nvars, resolved)
-    except (ValueError, KeyError, TypeError, IndexError) as exc:
-        hosted_allowed, hosted_reason = False, "Invalid scientific settings."
-if location == SERVER_MODE and not LOCAL_FULL:
-    if hosted_allowed:
-        if "epde" in methods:
-            st.caption("Server admission: " + hosted_reason)
-    else:
-        st.warning("This configuration must run locally: " + hosted_reason)
-        st.caption("Choose My computer for the original EPDE search or reduce "
-                   "the dataset and search budget. Heavy jobs are never queued.")
-ready = settings_valid and bool(methods) and (record_name is not None or arrays is not None)
-if location == SERVER_MODE and not LOCAL_FULL and "epde" in methods:
-    ready = ready and hosted_allowed
-if location == "My computer":
-    ready = ready and bool(access.strip()) and all(m in ("epde","pysindy") for m in methods)
-if st.button("Prepare local runs" if location == "My computer" else
-             "Run EPDE here" if LOCAL_FULL else "Run on demo server",
+        allowed, reason, _ = classify_epde(record_name, shape, nvars, resolved)
+        if not allowed:
+            ready = False
+            st.warning("This scientific configuration exceeds the interactive "
+                       "demo budget: " + reason +
+                       " Choose a smaller dataset or search budget.")
+    except (ValueError, KeyError, TypeError, IndexError, AttributeError):
+        ready = False
+        st.warning("Please correct the scientific configuration before running.")
+
+if st.button("Run " + " & ".join(METHOD_LABELS[m] for m in methods)
+             if methods else "Choose a method",
              type="primary", disabled=not ready, key="lab_start"):
     try:
         if record_name:
             key = f"record|{record_name}|{noise:g}|{seed}"
-            requests = [{"method": m, "source": "record", "dataset": record_name,
-                "variant": ("pysindy" if m == "pysindy" else variant if m == "epde" else "default"),
+            requests = [{
+                "method": m, "source": "record", "dataset": record_name,
+                "variant": "pysindy" if m == "pysindy" else
+                           variant if m == "epde" else "default",
                 "overrides": overrides if m != "llm" else {},
                 "noise": float(noise), "seed": seed, "effort": budget_code,
-                "display": {"label": label, "input_key": key}} for m in methods]
+                "display": {"label": label, "input_key": key},
+            } for m in methods]
         else:
-            key = f"upload|{arrays_digest(arrays)}|{noise:g}"
-            requests = [{"method": m, "source": "upload", "dataset": "custom",
+            key = f"upload|{arrays_digest(arrays)}|{noise:g}|{seed}"
+            requests = [{
+                "method": m, "source": "upload", "dataset": "custom",
                 "noise": float(noise), "seed": seed, "effort": budget_code,
-                "display": {"label": label, "input_key": key}} for m in methods]
-            if location == "My computer":
-                buffer = io.BytesIO()
-                np.savez_compressed(buffer, **arrays)
-                b64 = base64.b64encode(buffer.getvalue()).decode("ascii")
-                if len(b64) > 4_000_000:
-                    raise ValueError("Local transfer exceeds 3 MiB")
-                for request in requests:
-                    request["data_b64"] = b64
-                    request["settings"] = settings
-            else:
-                data_path, config_path = queue.save_upload(owner, arrays, settings)
-                for request in requests:
-                    request["data_path"] = str(data_path)
-                    request["config_path"] = str(config_path)
-        if location == "My computer":
-            st.session_state["lab_local_pending"] = [
-                {"id": secrets.token_hex(12), "request": req} for req in requests]
-            st.success("Ready. Start the first local search below.")
-        else:
-            for m in methods:
-                queue.check_capacity(owner, m, count=len(methods))
-            ids = [queue.submit(owner, req) for req in requests]
-            st.session_state["discovery_selected_job"] = ids[0]
-            st.session_state["discovery_compare_key"] = key
-            st.success("Server searches queued. Check Results.")
+                "display": {"label": label, "input_key": key},
+            } for m in methods]
+            data_path, config_path = queue.save_upload(owner, arrays, settings)
+            for request in requests:
+                request["data_path"] = str(data_path)
+                request["config_path"] = str(config_path)
+        # A joint capacity check avoids partially submitting paired runs.
+        for m in methods:
+            queue.check_capacity(owner, m, count=len(methods))
+        ids = [queue.submit(owner, req) for req in requests]
+        st.session_state["discovery_selected_job"] = ids[0]
+        st.session_state["discovery_compare_key"] = key
+        st.success(f"{len(ids)} search(es) started for the same input. "
+                   "Open Results to track progress or Compare to view the equations.")
+        st.page_link("views/11_Discovery_results.py", label="See results", icon="🗂️")
+        if len(ids) > 1:
+            st.page_link("views/12_Discovery_compare.py", label="Compare methods", icon="⚖️")
     except (ValueError, OSError, TypeError) as exc:
         st.error(f"Cannot submit the search: {exc}")
-
-pending = st.session_state.get("lab_local_pending") or []
-if pending:
-    active = pending[0]
-    st.markdown("**Run on your computer**")
-    st.caption(f"{len(pending)} job(s) remaining. "
-               f"Next: {METHOD_LABELS.get(active['request']['method'], active['request']['method'])}")
-    if st.button("Discard prepared local jobs", key="discard_local"):
-        st.session_state["lab_local_pending"] = []
-        st.rerun()
-    if not access.strip():
-        st.warning("Enter the local worker code to continue.")
-    else:
-        from support.discovery_lab.local_browser import local_bridge
-        output = local_bridge(job=active["request"], token=access.strip(),
-                              key="local_job_" + active["id"])
-        if output.result is not None:
-            try:
-                result_id = queue.save_client_result(owner, active["request"], output.result)
-                st.session_state["discovery_selected_job"] = result_id
-                st.session_state["discovery_compare_key"] = (
-                    active["request"].get("display") or {}).get("input_key")
-                st.session_state["lab_local_pending"] = pending[1:]
-                st.toast("Saved local result in Results", icon="✅")
-                st.rerun()
-            except (ValueError, OSError, TypeError) as exc:
-                st.error(f"Cannot store local result: {exc}")
-        if output.failed:
-            st.warning("Worker reported a failure. Check the local terminal and retry.")
 
 st.divider()
 st.subheader("Your latest experiments")
