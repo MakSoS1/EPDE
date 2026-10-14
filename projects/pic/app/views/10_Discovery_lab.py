@@ -32,6 +32,7 @@ st.caption("Real EPDE on the free demo server for light experiments; "
            "full EPDE locally for heavy problems. PySINDy runs on your "
            "computer in a separate browser tab without an installer.")
 st.page_link("views/13_Browser_sindy.py", label="⚡ Open PySINDy — compute on my CPU", icon=None)
+st.page_link("views/14_Data_catalog.py", label="📚 Browse all ODE/PDE datasets", icon=None)
 
 from support.common import link as safe_page_link
 safe_page_link("views/9_How_EPDE_works.py",
@@ -43,24 +44,11 @@ owner = current_owner()
 
 LLM_READY = bool(os.environ.get("EPDE_LLM_SERVICE_URL"))
 
-# Records light enough for an interactive demo, grouped for the selector.
-RECORD_GROUPS = {
-    "Ordinary differential equations": ["ode", "vdp", "duffing", "nir1_decay", "nir1_logistic",
-                                        "nir1_quadratic", "nir1_cubic", "nir1_harmonic", "pend_single"],
-    "Systems of ODEs": ["lv", "lorenz"],
-    "Partial differential equations": ["burgers", "burgers_inviscid", "ac", "wave", "kdv_cossin",
-                                       "pde_compound", "pde_divide"],
-    "Heavy PDEs — local computer only": ["ns", "ks", "jhtdb"],
-    "Partial differential equations, NIR-1 test set": [
-        "nir1_advection", "nir1_heat", "nir1_reactiondiff", "nir1_wave", "nir1_advdiff",
-        "nir1_h11_gaussian_heat", "nir1_h11_advection_decay", "nir1_h11_viscous_burgers",
-        "nir1_h11_klein_gordon", "nir1_h11_biharmonic", "nir1_h11_airy", "nir1_h11_shear",
-        "nir1_h11_logistic_field", "nir1_h11_gauss_reactdiff", "nir1_h14_damped_wave",
-        "nir1_h14_cole_hopf", "nir1_h14_kpp_front", "nir1_h14_linear_ks", "nir1_h14_beam",
-        "nir1_h14_airy_transport", "nir1_h14_cubic_saturation", "nir1_h14_driven_advection",
-        "nir1_h14_variable_diffusivity", "nir1_h14_liouville_growth",
-        "nir1_h14_hyperdiffusion_growth"],
-}
+# The complete catalogue is derived from the original scientific registry.
+# Never hand-maintain a partial list of PDE/ODE records here.
+from support.discovery_lab.catalog import grouped_catalog, declared_equations
+from support.discovery_lab.execution_policy import is_local_only
+
 EFFORTS = {"quick": "Quick (population 8, 3 epochs)",
            "standard": "Standard (population 16, 5 epochs)",
            "thorough": "Thorough (population 24, 8 epochs)"}
@@ -70,8 +58,7 @@ RESERVED = {"x", "t", "sin", "cos", "tanh"}
 
 @st.cache_data(show_spinner=False)
 def lab_records():
-    from epde_bench.datasets import REGISTRY
-    return {group: [n for n in names if n in REGISTRY] for group, names in RECORD_GROUPS.items()}
+    return grouped_catalog()
 
 
 def preview(problem_or_arrays, title=None):
@@ -152,38 +139,80 @@ space = {}
 
 if source == "Built-in equation":
     groups = lab_records()
-    group = st.selectbox("Group", list(groups))
-    record_name = st.selectbox("Equation", groups[group], format_func=dataset_label)
-    from support.discovery_lab.execution_policy import HEAVY_RECORDS
-    if record_name in HEAVY_RECORDS:
-        st.error("This PDE is too large for the free server. "
-                 "It will not be loaded or queued here.")
-        st.markdown("**Run the unchanged EPDE on your own CPU**")
-        launcher = Path(__file__).resolve().parents[2] / "native_launcher" / "EPDE-Start.cmd"
-        if launcher.exists():
-            st.download_button(
-                "Download Windows setup (experimental, one-time)",
-                launcher.read_bytes(), file_name="EPDE-Start.cmd",
-                mime="application/octet-stream",
-                help="Explicitly run this file on your own Windows x64 PC. "
-                     "Its first launch downloads Python and the original locked EPDE environment.")
+    requested = st.session_state.pop("catalog_requested_record", None)
+    default_group = next(
+        (group for group, names in groups.items()
+         if requested in names and group != "All registered datasets"),
+        "All registered datasets",
+    )
+    group = st.selectbox("Group", list(groups), index=list(groups).index(default_group))
+    names = groups[group]
+    record_name = st.selectbox("Equation", names,
+                               index=names.index(requested) if requested in names else 0,
+                               format_func=dataset_label)
+    local_full = os.environ.get("EPDE_LOCAL_FULL_RUN") == "1"
+    if is_local_only(record_name) and not local_full:
+        from epde_bench.datasets import REGISTRY
+        spec = REGISTRY[record_name]
+        label = dataset_label(record_name)
+        st.info("**Full database record:** " + label)
+        st.caption("Scientific class: " + spec.kind + " · Dataset suite: " +
+                   spec.suite + " · Source: " + spec.source)
+        st.code(spec.files, language=None)
+        laws = declared_equations(record_name)
+        if laws:
+            st.markdown("**Declared governing equation(s)**")
+            for law in laws:
+                st.code(law, language=None)
+        else:
+            st.caption("This record's law must be read from its original "
+                       "dataset loader; it may be data-dependent or unknown.")
+        st.warning("This full-resolution dataset is kept in the catalogue, "
+                   "but it must be executed on a local scientific environment. "
+                   "The free shared server will not load it.")
+        st.markdown("**Run the entire EPDE interface on your computer:**")
         st.code(
-            "git clone --branch demo/streamlit-community-cloud https://github.com/MakSoS1/EPDE.git\n"
-            "cd EPDE/projects/pic\n"
-            "uv sync --locked --extra cpu --extra app\n"
-            "uv run --locked --extra cpu --extra app python app/local_worker_service.py",
+            "git clone --branch demo/streamlit-community-cloud https://github.com/MakSoS1/EPDE.git\\n"
+            "cd EPDE\\n"
+            "uv run --project projects/pic --locked --extra cpu --extra app "
+            "streamlit run projects/pic/app/Home.py",
             language="bash")
-        st.caption("The Windows installer has not yet passed its full cross-machine "
-                   "test. The standard scientific Python runner is independently "
-                   "verified. Heavy jobs will not consume the public server.")
+        st.page_link("views/14_Data_catalog.py", label="View the complete scientific catalogue")
+        st.caption("Alternatively open the repository in GitHub Codespaces to "
+                   "run the interface through any desktop or mobile browser. "
+                   "Full scientific data availability depends on the checkout.")
         st.stop()
+    if is_local_only(record_name) and local_full:
+        permission_key = "lab_load_heavy_" + record_name
+        if not st.session_state.get(permission_key):
+            st.warning("This is a large dataset. Loading it may consume substantial RAM "
+                       "and CPU even on your own device.")
+            if st.button("Load original dataset on this device", type="primary"):
+                st.session_state[permission_key] = True
+                st.rerun()
+            st.stop()
     from epde_bench.config import load_config
-    original_profile = load_config(record_name, "default")
-    problem = load_problem(record_name, json.dumps(original_profile.get("loader", {}), sort_keys=True))
+    try:
+        original_profile = load_config(record_name, "default")
+        problem = load_problem(record_name, json.dumps(
+            original_profile.get("loader", {}), sort_keys=True))
+    except (FileNotFoundError, OSError, ValueError, KeyError) as exc:
+        st.error("The dataset is registered, but the numerical files or "
+                 "its configuration are not available in this checkout: " + str(exc))
+        st.caption("Registration does not guarantee that large or externally "
+                   "distributed scientific data files have been downloaded.")
+        st.stop()
     label = dataset_label(record_name)
-    st.markdown("**Known law** — used only to check the result, the methods do not see it")
-    st.latex(system_latex(problem.truth, problem.axis_names))
-    preview(problem)
+    if problem.truth:
+        st.markdown("**Known law** — used only to evaluate the result, never as input to discovery")
+        st.latex(system_latex(problem.truth, problem.axis_names))
+    else:
+        st.caption("No authoritative reference equation is declared for this record. "
+                   "Reconstruction is evaluated against its numerical data only.")
+    if not is_local_only(record_name):
+        preview(problem)
+    else:
+        st.caption("Large local dataset preview is disabled by default to preserve memory.")
     a, b = st.columns(2)
     noise = a.number_input("Noise, % of the standard deviation", 0.0, 10.0, 0.0, 0.5,
                            help="Gaussian noise added to the data before the search.")
