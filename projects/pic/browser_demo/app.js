@@ -64,6 +64,14 @@ function switchChoice(attribute, chosen) {
   });
 }
 function configureUI() {
+  // The scientific WebAssembly engine remains identical in both layouts.
+  // Embedded mode keeps PySINDy and its local history visible inside Streamlit,
+  // without duplicating EPDE controls or confusing the educational EvoSparse
+  // demonstration with PDEComp's native PySINDy adapter.
+  if (new URLSearchParams(location.search).get("embed") === "1") {
+    document.body.classList.add("embedded");
+    el("method-evo").checked = false;
+  }
   for (const button of document.querySelectorAll("[data-page]")) {
     button.addEventListener("click", () => showPage(button.dataset.page));
   }
