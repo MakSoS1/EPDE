@@ -79,8 +79,10 @@ try {
   await labNav.click();
   await page.getByText("4 · Compute").waitFor({timeout:40000});
   const pageText = await page.locator("body").textContent();
-  if (!pageText?.includes("Demo server") || !pageText.includes("Scientific settings")) {
-    throw new Error("Original EPDE lab or server-execution selector missing");
+  if (!pageText?.includes("Execution") || !pageText.includes("Scientific settings")
+      || !(pageText.includes("Demo server") || pageText.includes("This app · local CPU"))) {
+    throw new Error("Original EPDE lab or execution selector missing: "+
+                    String(pageText).slice(0,1900));
   }
   console.log("STREAMLIT_INTEGRATION_EPDE_LAB_PASS");
   if (errors.length) throw new Error("Browser page exceptions: "+errors.join(" | "));
