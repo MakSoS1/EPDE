@@ -6,8 +6,10 @@ measured, seven supplementary), not a hand-picked set of five browser examples.
 
 ### Open without installing anything
 
-1. Open this branch in GitHub and choose **Code → Codespaces → Create codespace
-   on demo/streamlit-community-cloud**.
+**[Open the complete EPDE Explorer in GitHub Codespaces](https://codespaces.new/MakSoS1/EPDE/tree/demo/streamlit-community-cloud)**
+
+1. Follow the link and confirm creation of a Codespace for the demo branch
+   (or use GitHub → Code → Codespaces → Create codespace).
 2. Wait for the first installation (Python/PyTorch packages are large). The
    **EPDE Explorer** automatically starts on forwarded port **8501**.
 3. Open that port in the browser on a laptop, tablet or phone. The forwarded
