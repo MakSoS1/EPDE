@@ -35,7 +35,7 @@ PAGES = {
 # uploads, jobs and results on the hosted public demonstration.
 if (os.environ.get("EPDE_SHOW_RESEARCH_PAGES") == "1"
         and os.environ.get("EPDE_PUBLIC_DEMO") != "1"):
-    PAGES["Research tools (local only)"] = [
+    PAGES["Research tools (advanced)"] = [
         st.Page("overview.py", title="Overview", icon="🧮"),
         st.Page("views/1_Data_sets.py", title="Data sets", icon="🗂️"),
         st.Page("views/2_Signal_check.py", title="Signal check", icon="🔍"),
