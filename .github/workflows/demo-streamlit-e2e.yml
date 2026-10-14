@@ -46,8 +46,7 @@ jobs:
       - id: server
         name: Launch the actual Streamlit app (no test mocks)
         run: |
-          projects/pic/.venv/bin/streamlit run projects/pic/app/Home.py \
-            --server.headless=true --server.address=127.0.0.1 --server.port=8501 \
+          bash run-epde.sh --server.headless=true --browser.gatherUsageStats=false \
             > /tmp/streamlit-server.log 2>&1 &
           echo $! > /tmp/streamlit-server.pid
           for i in $(seq 1 45); do
