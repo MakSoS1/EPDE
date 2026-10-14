@@ -186,6 +186,9 @@ if source == "Built-in equation":
                 "Code → Codespaces → Create codespace on the demo branch. "
                 "The full Streamlit UI starts on private forwarded port 8501 "
                 "(GitHub account and available Codespaces compute required).")
+        st.link_button(
+            "Open complete EPDE in GitHub Codespaces ↗",
+            "https://codespaces.new/MakSoS1/EPDE/tree/demo/streamlit-community-cloud")
         st.stop()
     if is_local_only(record_name) and local_full:
         permission_key = "lab_load_heavy_" + record_name
