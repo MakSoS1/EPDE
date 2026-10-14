@@ -1,0 +1,107 @@
+name: NIR1 MDL | Repaired utopia control (216 full)
+on:
+  push:
+    branches: [research/nir1-mdl-factorial-2026-10-14]
+    paths:
+      - '.github/workflows/nir1-mdl-repaired-utopia-followup.yml'
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      NIR1_DISABLE_GRAM_CACHE: '1'
+      NIR1_CHI2_PREFIX_CACHE: '0'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+      - run: uv sync --project projects/pic --extra cpu --locked
+      - run: |
+          projects/pic/.venv/bin/python -m py_compile projects/nir1_stability/nir1/mdl_repaired_utopia.py
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.mdl_repaired_utopia --dataset ode --arm anchor_utopia_repair --seed 0 --smoke --output /tmp/anchor.json
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.mdl_repaired_utopia --dataset ode --arm mdl_utopia_repair --seed 0 --smoke --output /tmp/mdl.json
+  full:
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 105
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        dataset:
+          - ac
+          - burgers
+          - duffing
+          - lv
+          - ode
+          - vdp
+          - nir1_decay
+          - nir1_harmonic
+          - nir1_logistic
+          - nir1_quadratic
+          - nir1_cubic
+          - nir1_advection
+          - nir1_heat
+          - nir1_reactiondiff
+          - nir1_wave
+          - nir1_advdiff
+          - nir1_h11_gaussian_heat
+          - nir1_h11_advection_decay
+          - nir1_h11_viscous_burgers
+          - nir1_h11_klein_gordon
+          - nir1_h11_biharmonic
+          - nir1_h11_airy
+          - nir1_h11_shear
+          - nir1_h11_logistic_field
+          - nir1_h11_gauss_reactdiff
+          - nir1_h14_damped_wave
+          - nir1_h14_cole_hopf
+          - nir1_h14_kpp_front
+          - nir1_h14_linear_ks
+          - nir1_h14_beam
+          - nir1_h14_airy_transport
+          - nir1_h14_cubic_saturation
+          - nir1_h14_driven_advection
+          - nir1_h14_variable_diffusivity
+          - nir1_h14_liouville_growth
+          - nir1_h14_hyperdiffusion_growth
+        arm: [anchor_utopia_repair, mdl_utopia_repair]
+        seed: [0, 1, 2]
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      NIR1_DISABLE_GRAM_CACHE: '1'
+      NIR1_CHI2_PREFIX_CACHE: '0'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+      - run: uv sync --project projects/pic --extra cpu --locked
+      - name: Full EPDE with H12 guard and original utopia selector
+        run: |
+          mkdir -p output
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.mdl_repaired_utopia --dataset '${{ matrix.dataset }}' --arm '${{ matrix.arm }}' --seed '${{ matrix.seed }}' --data-seed 0 --output output/native-full.json
+      - name: Immutable source and scope
+        if: always()
+        run: |
+          mkdir -p output
+          git rev-parse HEAD > output/source-sha.txt
+          printf 'Post-hoc repair follow-up of two formerly crash-prone unmodified-utopia variants; these 216 cases do NOT replace any original 756 results. Identical dataset-specific budget, one data seed, 3 optimizer seeds. Both arms use H12 repair; H10 MDL is the only difference.\n' > output/SCIENTIFIC_SCOPE.txt
+      - name: Upload all success and failure records
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: mdl-repair-followup-${{ matrix.dataset }}-${{ matrix.arm }}-s${{ matrix.seed }}-${{ github.sha }}
+          path: output/
+          if-no-files-found: warn
+          retention-days: 90

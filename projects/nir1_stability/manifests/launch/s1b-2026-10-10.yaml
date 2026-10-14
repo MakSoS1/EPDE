@@ -1,0 +1,16 @@
+# S1b prospective validation of selector only; tuned on DIFFERENT S1 systems.
+# Distinct from original S1 (run #38076377893); no confirmatory claim.
+# No tuning is allowed after results are seen. All failures stay in denominators.
+# Same EPDE population/epochs/preprocessing for default and sparsefront.
+stage: S1
+cases: [lorenz, burgers_inviscid, kdv, kdv_cossin, wave]
+methods: [default, nir1_sparsefront]
+data_seeds: [0]
+optimizer_seeds: [0, 1, 2, 3, 4]
+noise: 0.0
+shards: 4
+estimated_minutes_per_run: 10
+max_run_minutes: 30
+soft_deadline_minutes: 300
+hard_deadline_minutes: 340
+max_infrastructure_retries: 2

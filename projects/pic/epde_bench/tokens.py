@@ -77,7 +77,36 @@ def fixed_trigonometric(freq: float = 2.0, dimensionality: int = 0, meaningful: 
     return FixedTrigonometricTokens()
 
 
+# ---------------------------------------------------------------------------
+# Explicit 1/x coordinate token for rational-coefficient PDEs (PDEDivide).
+# This is a declarative, allowlisted function, NEVER evaluated from arbitrary
+# user Python or an untrusted expression passed to eval().
+# ---------------------------------------------------------------------------
+def inverse_space_coordinate(dimensionality: int = 1, axis: int = 1,
+                             meaningful: bool = True):
+    from epde.interface.prepared_tokens import CustomTokens
+    from epde.evaluators import CustomEvaluator
+
+    axis = int(axis)
+    if dimensionality < 1 or axis < 1 or axis > dimensionality:
+        raise ValueError("1/x requires an existing spatial axis")
+    def inverse_axis(*grids, power=1):
+        x = np.asarray(grids[axis], dtype=float)
+        if not np.isfinite(x).all() or np.any(np.isclose(x, 0.0, atol=1e-12)):
+            raise ValueError("1/x undefined at x=0; crop or shift the physical grid before discovery")
+        return (1.0 / x) ** power
+    evaluator = CustomEvaluator({"1/x": inverse_axis},
+                                eval_fun_params_labels=["power"],
+                                native_vectorized=True)
+    return CustomTokens(token_type="inverse_space_coordinate",
+                        token_labels=["1/x"], evaluator=evaluator,
+                        params_ranges={"power": (1, 1)},
+                        params_equality_ranges={"power": 0},
+                        dimensionality=dimensionality,
+                        meaningful=meaningful)
+
 #: Token families declared in YAML that EPDE's own registry does not know;
 #: ``config.resolve_for_problem`` builds them and passes them via
 #: ``additional_tokens``.
-BENCH_FAMILIES = {'fixed_trigonometric': fixed_trigonometric}
+BENCH_FAMILIES = {'fixed_trigonometric': fixed_trigonometric,
+                  'inverse_space_coordinate': inverse_space_coordinate}

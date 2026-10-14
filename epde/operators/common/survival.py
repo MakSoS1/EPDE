@@ -278,7 +278,9 @@ def tile_scores(features, target, sample_weights, grid_shape,
 
 def _het_components(features, target, sample_weights, grid_shape,
                     fit_intercept: bool = True,
-                    n_blocks: int = _DEFAULT_N_BLOCKS_HET):
+                    n_blocks: int = _DEFAULT_N_BLOCKS_HET,
+                    return_full_gram: bool = False,
+                    precomputed_grams=None):
     """Per-term calibrated heterogeneity: Q-calibrated excess variance.
 
     One refit of the fixed structure per contiguous block, PLUS the
@@ -338,9 +340,16 @@ def _het_components(features, target, sample_weights, grid_shape,
             f'width w={_reference_width(p)} (equation_terms_max_number)')
     n_blocks = max(3, min(int(n_blocks), max_blocks))
 
-    G_blocks, Gy_blocks, yy_blocks = block_gram_partition(
-        features, target, sample_weights, grid_shape, n_blocks,
-        return_yy=True)
+    if precomputed_grams is None:
+        G_blocks, Gy_blocks, yy_blocks = block_gram_partition(
+            features, target, sample_weights, grid_shape, n_blocks,
+            return_yy=True)
+    else:
+        G_blocks, Gy_blocks, yy_blocks = precomputed_grams
+        if (G_blocks.ndim != 3 or G_blocks.shape != (n_blocks, p + 1, p + 1)
+                or Gy_blocks.shape != (n_blocks, p + 1)
+                or yy_blocks.shape != (n_blocks,)):
+            raise ValueError("Cached NIR1 block Grams are not aligned with the requested design")
     n_blocks = G_blocks.shape[0]
     sl = slice(None) if fit_intercept else slice(0, p)
     eye = np.eye(k)
@@ -388,6 +397,16 @@ def _het_components(features, target, sample_weights, grid_shape,
     with np.errstate(divide='ignore', invalid='ignore'):
         tau2 = (Q - df) / C
     tau2 = np.clip(np.nan_to_num(tau2), 0.0, None)
+    if return_full_gram:
+        # The blockwise Gram stack was already computed for heterogeneity.
+        # Summing its augmented (intercept-aware) blocks is algebraically
+        # identical to a second A.T @ W @ A; the few FP rounding differences
+        # from reassociation are explicitly covered by NIR1 parity tests.
+        # No new O(n * p^2) matrix multiplication or n-by-(p+1) copy.
+        full = np.sum(G_blocks, axis=0)
+        if not fit_intercept:
+            full = full[:p, :p]
+        return tau2, theta_bar, S1, full
     return tau2, theta_bar, S1
 
 
@@ -705,8 +724,157 @@ def chi2_centered_scores(features, target, sample_weights, grid_shape=None,
 #: It lives here rather than in ``objectives`` so that ``sparsity`` can reach
 #: it without importing ``objectives`` -- that edge would close a cycle,
 #: since ``subset_selection`` imports ``sparsity``.
+def nir1_excess_scores(features, target, sample_weights, grid_shape,
+                       fit_intercept: bool = True,
+                       n_blocks: int = _DEFAULT_N_BLOCKS_HET,
+                       quality_policy: str = "penalize_low_q",
+                       precomputed_grams=None):
+    """Research-only joint coefficient-drift and non-identifiability score.
+
+    For each term ``j``:
+
+    * ``E_j`` is the previously calibrated between-block excess dispersion
+      from :func:`heterogeneity_scores` (bounded in [0,1]);
+    * ``Q_j`` is the unique weighted Gram energy of column j after projecting
+      away every other column; ``Q=0`` means a duplicate term, ``Q=1`` an
+      orthogonal term, and both quantities are invariant to rescaling.
+
+    ``(E_j + (1-Q_j))/2`` exposes one dimensionless research metric. These
+    weights are a prespecified engineering hypothesis, not an inferred
+    probability of incorrectness nor a calibrated p-value. Zero-energy
+    columns are explicitly unresolved (score 1), never "stable".
+
+    ``fit_intercept`` mirrors the objective-vs-keep-rule alignment: when True,
+    the ones column is appended internally and omitted from the output; when
+    False, an explicitly supplied last column is treated like any other term.
+    """
+    X = np.asarray(features, dtype=float)
+    if X.ndim == 1:
+        X = X[:, None]
+    n, p = X.shape
+    w = (np.ones(n) if sample_weights is None
+         else np.asarray(sample_weights, dtype=float).reshape(-1))
+    if n != w.size or not np.isfinite(w).all() or np.any(w < 0) or not w.sum() > 0:
+        raise ValueError("NIR1 requires finite, nonnegative, nonzero sample weights")
+    tau2, theta_bar, S1, gram = _het_components(
+        X, target, w, grid_shape, fit_intercept=fit_intercept,
+        n_blocks=n_blocks, return_full_gram=True,
+        precomputed_grams=precomputed_grams)
+    denom = tau2 + theta_bar ** 2
+    excess = np.where(denom > 0.0, tau2 / denom, 0.0)
+    excess = np.where(_het_unresolved(theta_bar, S1), 1.0, excess)
+    # Guard near-singular Gram rounding: assembling from block submatrices
+    # is algebraically identical to the full matmul, but a tiny
+    # reassociation error could be amplified by near-dependent columns.
+    # The protected direct path intentionally trades speed for accuracy.
+    gram_condition = np.linalg.cond(gram)
+    if not np.isfinite(gram_condition) or gram_condition > 1e8:
+        A = np.column_stack((X, np.ones(n))) if fit_intercept else X
+        gram = A.T @ (w[:, None] * A)
+        _loop_stats.record('nir1.precision_direct_gram_fallback', 1, 1)
+    norm = np.sqrt(np.maximum(np.diag(gram), 0))
+    safe = np.where(norm > 0, norm, 1)
+    scaled = gram / np.outer(safe, safe)
+    quality = np.zeros(p)
+    for j in range(p):
+        if norm[j] == 0:
+            continue
+        other = np.arange(scaled.shape[0]) != j
+        if not other.any():
+            quality[j] = 1.
+            continue
+        cross = scaled[other, j]
+        coef = np.linalg.lstsq(scaled[np.ix_(other, other)], cross, rcond=1e-10)[0]
+        quality[j] = np.clip(1.0 - cross @ coef / scaled[j, j], 0.0, 1.0)
+    if quality_policy == "penalize_low_q":
+        # Original NIR1 v1: low identifiability is incorrectly treated as
+        # evidence of a false term, and can eliminate true correlated terms.
+        combined = 0.5 * (np.asarray(excess) + (1.0 - quality))
+    elif quality_policy == "protect_low_q":
+        # NIR1 v2 hypothesis: no additional evidence of structural falsity
+        # follows from collinearity alone. Instability is penalized only
+        # to the extent that the fitted term is individually identifiable.
+        # WARNING: this may retain collinear false positives; test directly.
+        combined = np.asarray(excess) * quality
+    else:
+        raise ValueError(f"Unknown NIR1 identifiability policy: {quality_policy}")
+    return np.where(norm[:p] > 0, np.clip(combined, 0., 1.), 1.)
+
+
+def nir1_protected_scores(features, target, sample_weights, grid_shape,
+                          fit_intercept: bool = True,
+                          n_blocks: int = _DEFAULT_N_BLOCKS_HET,
+                          precomputed_grams=None):
+    """Experimental guarded RFE score; not a validated improvement."""
+    return nir1_excess_scores(features, target, sample_weights, grid_shape,
+                              fit_intercept=fit_intercept, n_blocks=n_blocks,
+                              quality_policy="protect_low_q",
+                              precomputed_grams=precomputed_grams)
+
+
+def nir1_conditional_scores(features, target, sample_weights, grid_shape,
+                            fit_intercept: bool = True,
+                            n_blocks: int = _DEFAULT_N_BLOCKS_HET,
+                            precomputed_grams=None):
+    """Exploratory NIR1 v3: prune only unstable terms without partial evidence.
+
+    For current support S, nested WLS gives an extra weighted residual cost
+    Delta_j when j is removed while other coefficients are refitted. Protect
+    a term whose deletion is strongly contradicted by current observations:
+
+        penalty_j = (E_j Q_j) * 4 / (4 + Delta_j / sigma2)
+
+    with sigma2 = weighted RSS / residual df, plus an explicit numeric floor.
+    This is *not* a significance test with calibrated p-values for temporally
+    correlated PDE errors. In rank-deficient cases the minimum-norm inverse
+    can be misleading; retain the original protected metric instead.
+    """
+    X = np.asarray(features, dtype=float)
+    if X.ndim == 1:
+        X = X[:, None]
+    n, p = X.shape
+    w = (np.ones(n) if sample_weights is None
+         else np.asarray(sample_weights, dtype=float).reshape(-1))
+    base = nir1_protected_scores(
+        X, target, w, grid_shape, fit_intercept=fit_intercept,
+        n_blocks=n_blocks, precomputed_grams=precomputed_grams)
+    A = np.column_stack((X, np.ones(n))) if fit_intercept else X
+    yy = float(np.dot(w, np.asarray(target, dtype=float).reshape(-1)**2))
+    if precomputed_grams is None:
+        gram = A.T @ (w[:, None] * A)
+        gy = A.T @ (w * np.asarray(target, dtype=float).reshape(-1))
+    else:
+        blocks, gyblocks, yyblocks = precomputed_grams
+        # Every block cache carries one bookkeeping intercept in its LAST
+        # slot, even when the estimator is called fit_intercept=False with
+        # only explicitly active columns. The conditional F calculation
+        # must use exactly the fitted columns, not the extra dummy slot.
+        fitted_columns = A.shape[1]
+        gram = np.sum(blocks, axis=0)[:fitted_columns, :fitted_columns]
+        gy = np.sum(gyblocks, axis=0)[:fitted_columns]
+        yy = float(np.sum(yyblocks))
+    if not np.isfinite(gram).all() or not np.isfinite(gy).all():
+        return base
+    gram_condition = np.linalg.cond(gram)
+    if not np.isfinite(gram_condition) or gram_condition > 1e8:
+        return base  # Non-identifiable: data cannot justify a deletion test.
+    precision = np.linalg.pinv(gram, rcond=1e-10)
+    beta = precision @ gy
+    residual = max(float(yy - 2 * beta @ gy + beta @ gram @ beta), 0.)
+    floor = max(np.finfo(float).eps * max(yy, 1.), 1e-12 * max(yy, 1.))
+    effective_df = max(float(w.sum() - gram.shape[0]), 1.)
+    sigma2 = max(residual, floor) / effective_df
+    diag = np.diag(precision)[:p]
+    contribution = np.where(diag > 0, (beta[:p]**2) / diag, 0.)
+    relative_contribution = np.maximum(contribution, 0.) / sigma2
+    attenuation = 4. / (4. + relative_contribution)
+    return np.clip(base * attenuation, 0., 1.)
+
+
 _BASIS_FREE_METRICS = {
     'survival': survival_scores, 'tile': tile_scores,
     'het': heterogeneity_scores, 'het_raw': heterogeneity_raw_scores,
     'chi2': chi2_scores, 'chi2_centered': chi2_centered_scores,
+    'nir1_excess': nir1_excess_scores, 'nir1_protected': nir1_protected_scores,
+    'nir1_conditional': nir1_conditional_scores,
 }

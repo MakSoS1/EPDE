@@ -1,0 +1,57 @@
+name: NIR1 | smoke and invariants
+
+on:
+  push:
+    branches: [nir1]
+    paths:
+      - 'projects/nir1_stability/**'
+      - '.github/workflows/nir1-smoke.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nir1-smoke-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  cpu-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      UV_CACHE_DIR: /tmp/uv-cache-nir1
+    steps:
+      - name: Checkout exact research SHA
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Install UV
+        uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+      - name: Install locked PIC/EPDE CPU environment with test runner
+        run: |
+          uv sync --project projects/pic --extra cpu --locked
+          uv pip install --python projects/pic/.venv/bin/python pytest
+      - name: Run NIR1 and PIC contract tests
+        run: |
+          projects/pic/.venv/bin/python -m pytest projects/nir1_stability/tests projects/pic/tests/test_runner_identity.py projects/pic/tests/test_metrics.py -q
+      - name: Real EPDE baseline and NIR1 smoke (one bounded generation)
+        run: |
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli epde --dataset ode --variant default --seed 0 --smoke --output artifacts/epde-default.json
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli epde --dataset ode --variant nir1_combined --seed 0 --smoke --output artifacts/epde-nir1.json
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli epde --dataset ode --variant nir1_conditional_regulator --seed 0 --smoke --output artifacts/epde-nir1-conditional-v3.json
+      - name: Small real S0 fixed-candidate run
+        run: |
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli audit --cases T1,T2 --seeds 0-1 --methods baseline_ols,lasso,identifiability --output artifacts/smoke-fixed-candidates.jsonl
+      - name: Preserve smoke evidence even after test failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nir1-smoke-${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 30

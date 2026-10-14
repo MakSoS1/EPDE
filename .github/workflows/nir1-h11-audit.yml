@@ -1,0 +1,54 @@
+name: NIR1 | H11 full-result scientific audit
+on:
+  push:
+    branches: [nir1]
+    paths:
+      - '.github/workflows/nir1-h11-audit.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify-entire-heldout-matrix:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      UV_CACHE_DIR: /tmp/nir1-h11-audit-uv
+    steps:
+      - name: Checkout auditable analysis code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Setup UV
+        uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+      - name: Lock isolated PIC environment
+        run: uv sync --project projects/pic --extra cpu --locked
+      - name: Retrieve immutable entire 9x2x2 original EPDE matrix
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: 38133505561
+          pattern: nir1-h11-*
+          path: original/
+      - name: Validate ALL 36 source identities and causal postselection
+        run: |
+          mkdir -p output
+          # Preserve a complete scientific record even when some predeclared
+          # H11 methods fail. Exit status 2 means COMPLETE_WITH_FAILURES,
+          # not missing/corrupt evidence. Other statuses remain fatal.
+          rc=0
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.analyze_h11 --records original/ --source-sha eaae9063e625c93a43dc724b2070c0e4b3c9bb4d --output output/H11_VERIFIED.json || rc=$?
+          if [ "$rc" != 0 ] && [ "$rc" != 2 ]; then exit "$rc"; fi
+          git rev-parse HEAD > output/analysis-source-sha.txt
+          printf '%s\n' 'Validation is synthetic, nine physically different but not random iid physical systems. Report native baseline, equal-physics-prior postfilter, H11; cluster by physical system. No class-based omission, no post-hoc tuning.' > output/SCIENTIFIC_LIMITS.txt
+      - name: Preserve verified summary and explicit failures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nir1-h11-independent-audit-${{ github.sha }}
+          path: output/
+          if-no-files-found: warn
+          retention-days: 30

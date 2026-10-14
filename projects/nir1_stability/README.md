@@ -1,0 +1,228 @@
+# NIR-1: coefficient instability and adaptive regularization in EPDE
+
+This is a separate, opt-in scientific research workspace based on
+`MakSoS1/EPDE` branch `pic/review-ready` at
+`bd6babc8d2cf9b69bcb878ead7048a962ab08cf8`.
+Its working branch is **`nir1`**. Nothing here changes the ITMO upstream or
+the existing PIC benchmark defaults.
+
+Read the preregistered protocol at
+[`../../docs/research/NIR1_EPDE_Research_Protocol_2026-10-10.md`](../../docs/research/NIR1_EPDE_Research_Protocol_2026-10-10.md)
+and the technical design at
+[`../../docs/superpowers/specs/2026-10-10-epde-nir1-implementation-design.md`](../../docs/superpowers/specs/2026-10-10-epde-nir1-implementation-design.md).
+
+Run identity includes the source revision, dataset and configuration hashes,
+data/optimizer seeds and fixed split. A missing run is **never** a success.
+Exact weighted-Gram reuse is the default optimization; subsampling and
+reduced evolution budgets are **not** silently enabled.
+
+Results in this directory must distinguish controlled fixed-candidate
+experiments from full EPDE discovery runs. Historic comparison counts are
+external references until replayed against this branch.
+
+## Quick verification
+
+From the repository root, on a CPU machine with Python 3.12 and `uv`:
+
+```bash
+uv sync --project projects/pic --extra cpu --locked
+uv pip install --python projects/pic/.venv/bin/python pytest
+OPENBLAS_NUM_THREADS=1 MPLCONFIGDIR=/tmp/nir1-mpl projects/pic/.venv/bin/python -m pytest projects/nir1_stability/tests projects/pic/tests/test_runner_identity.py projects/pic/tests/test_metrics.py -q
+```
+
+Full-search regression with standard PIC budget (one fresh EPDE process):
+
+```bash
+OPENBLAS_NUM_THREADS=1 projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli epde --dataset ode --variant default --seed 0 --data-seed 0 --output /tmp/nir1-ode-baseline.json
+OPENBLAS_NUM_THREADS=1 projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli epde --dataset ode --variant nir1_combined --seed 0 --data-seed 0 --output /tmp/nir1-ode-combined.json
+```
+
+The `--smoke` flag explicitly replaces the 16×5 PIC budget with 4×1 and
+marks its record `nir1_smoke_only=true`; smoke accuracy is **never** S1
+evidence. Full PIC experiments preserve baseline preprocessing, token pool,
+evolution budget, seed and split. The standalone synthetic S0 elastic-net
+regularizer and the real EPDE `nir1_adaptive` RFE per-term penalty are distinct
+implementations, not falsely equated.
+
+For immutable S0 Actions/local shards:
+
+```bash
+OPENBLAS_NUM_THREADS=1 projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli plan --launch projects/nir1_stability/manifests/launch/s0-2026-10-10.yaml --output /tmp/nir1-planned.json
+OPENBLAS_NUM_THREADS=1 projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli shard --manifest /tmp/nir1-planned.json --id 0 --output /tmp/nir1-shard-0
+```
+
+Repeat `shard` for IDs `1`, `2`, `3`, then reconcile with `cli summarize`
+using a directory that contains all per-shard JSON records. The output
+enumerates every planned `ok`, `crash`, `timeout`, `unsupported` and
+`incomplete` identity; infrastructure retries are bounded and preserved.
+
+For **S1 real full EPDE**, `manifests/s1-pilot-proposed.yaml` freezes the
+six systems × four factorial methods × five paired optimizer seeds (120 IDs),
+the unchanged standard PIC evolution budget, and a four-VM limit. Move a
+reviewed snapshot to `manifests/launch/*.yaml` **once** to trigger the
+research workflow. A job that hits its soft deadline exits as retryable,
+uploads its checksummed raw progress, and can be rerun; the final aggregate
+labels all missing/failed identities. `analyze-s1` generates an optional
+paired, whole-system clustered CI and Holm correction **only** when the
+preregistered full cohort is sufficiently complete:
+
+```bash
+projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli analyze-s1 \
+  --manifest /path/to/planned.json --records /path/to/all-shards/ \
+  --output /path/to/aggregated/
+```
+
+## Extended scientific materials
+
+- [`S1_VERIFIED_RU.md`](S1_VERIFIED_RU.md) — detailed Russian verification of all 120 full-search records, per-system outcomes and corrected clustered inference.
+- [`PAPER_DRAFT_RU.md`](PAPER_DRAFT_RU.md) — academic manuscript draft with formulas, preliminary real-search negatives, literature and explicit evidence boundary.
+- [`RESEARCH_COMPLETENESS.md`](RESEARCH_COMPLETENESS.md) — full plan audit: implemented vs scientifically established vs outstanding.
+- [`S2_S3_PREREGISTRATION.md`](S2_S3_PREREGISTRATION.md) — independent-system confirmation/transfer gate, not an automatic launch.
+- **Frozen S1 research data were reanalyzed after completion:** the original source revision had pooled McNemar p-values over repeated seeds. Current `nir1/metrics.py` and `nir1/s1_aggregate.py` use independent-system sign flips and Holm; the corrected report is under `reports/actions_s1/corrected/`. The original S1 aggregate is archival only, never confirmatory p-value evidence.
+
+## Status and review
+
+- [`REVIEW_RU.md`](REVIEW_RU.md) is the **one-page Russian briefing** for scientific review.
+- [`REVIEW.md`](REVIEW.md) is the entry point for reviewers.
+- [`RESULTS.md`](RESULTS.md) separates method diagnostics from actual full search.
+- [`METHODS.md`](METHODS.md) documents assumptions, heldout gates and caveats.
+- `reports/s0/fixtures.jsonl.gz` is complete raw fixed-candidate evidence.
+- `reports/s0/ledger-records-local.tar.gz` retains the checksummed S0 ledger
+  checkpoints, with `ledger-summary-local.json` for reconciliation.
+- [`reports/actions_s0/README.md`](reports/actions_s0/README.md) documents the
+  **successful full S0 GitHub Actions replay** (240 IDs, 236 `ok`, 4 recorded
+  crashes), its original SHA256-verified shard archives and byte-for-byte
+  verified aggregate. [Actions run #38075541420](https://github.com/MakSoS1/EPDE/actions/runs/38075541420).
+- [`reports/actions_s1/README.md`](reports/actions_s1/README.md) preserves the
+  frozen **120-run S1 manifest**, verified artifact hashes, archival original
+  aggregate and corrected independent-system analysis. All 120 runs completed;
+  the proposed variants did not improve the frozen baseline in exploratory S1.
+  See also the detailed [Russian verification report](S1_VERIFIED_RU.md).
+- `reports/s1_pilot/` and `reports/real_smoke/` retain unaggregated real EPDE
+  run records; nine local full searches across `ode`/`vdp` expose negative
+  feasibility observations, not a statistically powered method claim.
+
+GitHub Actions workflows are restricted to this fork's `nir1` branch. The
+inherited ITMO GitLab mirroring workflow has also been restricted on `nir1`:
+research pushes do not trigger it. Early zero-job failures were caused by
+using unavailable `runner.temp` in job-level `env`; that syntax was fixed and
+both smoke and sharded S0 now execute successfully on real GitHub VMs.
+
+
+## NIR1 v2 — exploratory follow-up to verified negative S1 (2026-10-10)
+
+The complete 120-run S1 revealed two independent failure mechanisms: the
+original NIR1 criterion lost correct models *during final front selection*
+(19/30 truth-on-front versus 4/30 PIC-selected), and the original adaptive
+regularizer often removed correct models *before selection* (6/30 on-front).
+The full unmodified baseline was 25/30 on-front, 18/30 PIC-selected.
+
+New work is **opt-in**, with two preregistered experiments and no claim of
+improvement before they are verified:
+
+- [S1b Pareto selector hypothesis](FRONT_SELECTOR_V2.md): `nir1_sparsefront`
+  (unchanged 16×5 evolution and VWSR, only truth-free final selection altered);
+  [50-run launch](manifests/launch/s1b-2026-10-10.yaml) on different systems.
+  Retrospective 23/30 vs 18/30 baseline selections was tuned on S1 and is
+  NOT an independent validation result. Wave has now been used in this
+  validation experiment; do not re-use it as untouched S3.
+- [S1c protected-regularizer hypothesis](REGULARIZER_V2.md):
+  `nir1_protected_regulator`, using `E_j*Q_j` rather than
+  `(E_j+(1-Q_j))/2`; [30-run launch](manifests/launch/s1c-2026-10-10.yaml).
+  This reuses original S1 systems and is **development-only**.
+
+Both experiments are triggered by additions of their frozen launch manifests
+in this branch. The immutable S1 and the production defaults remain intact.
+GitHub Actions may require hours for sharded full-budget completion; missing
+or timed-out jobs remain visible instead of being omitted. CI status, run IDs
+and new success rates must be checked before any claim of improvement.
+
+## NIR-1 v2: quality and E1 performance research
+
+S1 showed **18/30** selected-exact for native EPDE, **4/30** for the new
+criterion alone, **6/30** for the initial adaptive regulator and **4/30** for
+their combined variant. These numbers are confirmed full search, NOT positive
+new-method evidence. The new hypotheses are independent:
+
+- [FRONT_SELECTOR_V2.md](FRONT_SELECTOR_V2.md): `nir1_sparsefront`, original
+  EPDE search plus a frozen data-only final Pareto compromise. Retrospective
+  S1-development result was 23/30 vs native 18/30; this has **not** been
+  independently confirmed. [S1b exploratory validation manifest](manifests/launch/s1b-2026-10-10.yaml).
+- [REGULARIZER_V2.md](REGULARIZER_V2.md): `nir1_protected_regulator` protects
+  non-identifiable coefficients from spurious excessive pruning. This is a
+  development hypothesis, not an observed improvement.
+  [S1c development pilot manifest](manifests/launch/s1c-2026-10-10.yaml).
+- [OPTIMIZATION_TRACK.md](OPTIMIZATION_TRACK.md): E1 elimination of duplicate
+  full-data Gram passes, one block-Gram cache across recursive supports,
+  numerical parity and ill-conditioning fallbacks, no second evolution for a
+  purely post-selection experiment. Independent CPU measurement workflows
+  `nir1-perf.yml` and `nir1-full-e1-parity.yml` produce raw evidence.
+- [S2_S3_PREREGISTRATION.md](S2_S3_PREREGISTRATION.md): independent confirmation
+  gate. The S1b/S1c studies are *not* automatically S2 or S3.
+- [PAPER_DRAFT_RU.md](PAPER_DRAFT_RU.md): preliminary scientific manuscript
+  with explicit negative results and limitations; not a finished publication.
+
+**E1 acceleration is opt-in for NIR1**: unchanged native EPDE uses neither
+the new score nor its Gram cache. Numerical parity must pass on full EPDE
+before declaring the optimization quality-preserving. No workflow silently
+shortens the 16×5 PIC budget.
+
+
+## H9–H11: innovation in the evolutionary logic (not extra restarts/data)
+
+The original instability penalties and multi-initial-condition H8 did not
+improve structural accuracy of unrestricted EPDE. In H8 full EPDE selected
+0/4 exact for both one and three initial conditions. The original search
+could prefer purely spatial identities over governing time evolution.
+
+H9 **temporal anchoring**:
+`epde/operators/common/dynamic_target.py` restricts the candidate
+right-part target *during evolution* to a bare temporal derivative. No
+true physical equation, coefficient or exact derivative order is supplied.
+On 4 development PDE ×2 optimizer seeds, H9 selected 2/8 exact vs native
+2/8, and an equal-prior postfilter of the original Pareto fronts 2/8.
+Corrected [H9 scientific audit](https://github.com/MakSoS1/EPDE/actions/runs/38133407889).
+H9 is therefore not a quality improvement, though it prevents spatial
+identities from becoming the explanatory time-evolution law.
+
+H10 **minimum dynamical description**:
+`epde/operators/common/causal_mdl.py` adds
+`log(N_time)/N_time` per active RHS term and extra high-derivative order
+to *both* RPS and evolutionary first objective, with original VWSR and
+full token library unchanged. In 8 **previously viewed development**
+full EPDE searches, the true structure appeared on the Pareto front
+**8/8**, compared with **2/8** under original EPDE and H9.
+[H10 raw run](https://github.com/MakSoS1/EPDE/actions/runs/38132787691).
+The native two-axis PIC selector chose truth only 2/8.
+
+H11 **fitness-consistent final decision**:
+`nir1/causal_mdl_selector.py` chooses the complete finite Pareto
+candidate minimizing the *first, MDL-adjusted objective*. On the already
+inspected 8 development searches this would choose 8/8 correctly,
+**post-hoc**, so it cannot be treated as scientific validation.
+The variant `nir1_dynamic_mdl_select` now applies exactly this
+predeclared truth-blind rule. [Frozen prospective study
+protocol](H11_PROSPECTIVE_MINIMUM_CAUSAL_DESCRIPTION_RU.md) tests 9
+different-physics analytic PDEs (including real nonlinear Burgers, variable
+advection and true 3rd/4th spatial derivatives) against unchanged native
+EPDE and an equal-physics-prior Pareto postfilter.
+
+[H11 new-physics experiment](https://github.com/MakSoS1/EPDE/actions/runs/38133505561)
+runs 36 *comparison* searches: 9 physical PDE ×2 paired seeds ×2 variants,
+with the **same** one trajectory, 81×96 observations, 16 individuals,
+5 epochs, preprocessing, token pool and original optimization disabled.
+No result from these heldout laws may be used to retune the model.
+The experiments compare scientific approaches, NOT increasing seeds,
+training epochs or trajectories per selected equation.
+
+Independent scientific audit code: `nir1/analyze_h11.py` and
+`.github/workflows/nir1-h11-audit.yml`. Always audit 36/36 original
+identity/status records; the GitHub Actions API requires `per_page=100`
+to retrieve the full job and artifact matrix (default first page only 30).
+
+**Important scope:** H9 and H10/H11 impose an explicit prior that x0 is
+time and governing laws should contain a bare temporal derivative. This
+does not disclose the true RHS or order, but is a different hypothesis class
+from fully unrestricted EPDE. The equal-prior postfilter control is
+essential to isolate the *in-evolution* learning effect. Work remains
+exclusive to `MakSoS1/EPDE:nir1`; E1 speed work is frozen.

@@ -1,0 +1,41 @@
+name: NIR1 | H12 repaired temporal invariant smoke
+on:
+  push:
+    branches: [nir1]
+    paths:
+      - '.github/workflows/nir1-h12-repair-smoke.yml'
+permissions:
+  contents: read
+jobs:
+  causal-target-repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        dataset: [nir1_h11_shear, nir1_h11_gauss_reactdiff, nir1_h11_viscous_burgers, nir1_h11_biharmonic]
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      UV_CACHE_DIR: /tmp/nir1-h12
+      NIR1_DISABLE_GRAM_CACHE: '1'
+      NIR1_CHI2_PREFIX_CACHE: '0'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+      - run: uv sync --project projects/pic --extra cpu --locked
+      - name: Full EPDE operator smoke, no second trajectory/epochs
+        run: |
+          mkdir -p output
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli epde --dataset '${{ matrix.dataset }}' --variant nir1_dynamic_mdl_repair --seed 0 --data-seed 0 --smoke --output output/native.json
+          git rev-parse HEAD > output/source-sha.txt
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nir1-h12-smoke-${{ matrix.dataset }}-${{ github.sha }}
+          path: output/
+          if-no-files-found: warn

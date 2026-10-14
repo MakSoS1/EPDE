@@ -713,8 +713,22 @@ class Trajectory(object): # Pass around in evo. operators or init in globals. Us
 
     def checkShapes(self, domain: Domain) -> bool:
         sample_tensor = self._cache.get(subcache_ID = self._cache_id)
-        print('In check shapes: ', domain.inner_shape, type(domain.inner_shape), sample_tensor.shape, type(sample_tensor.shape))
-        return (domain.inner_shape == sample_tensor.shape)
+        # inner_shape is a NumPy array, whereas ndarray.shape is a tuple.
+        # Array equality returns a *vector* of booleans, which raises
+        # ValueError in the manager's assertion for second trajectories.
+        # Compare complete integer shapes, not a single element or an
+        # ambiguous truth value.
+        domain_shape = tuple(int(dim) for dim in domain.inner_shape)
+        cached_shape = tuple(int(dim) for dim in sample_tensor.shape)
+        # Cached inner-domain values are stored either in grid geometry
+        # or flattened to a 1-D point vector after trajectory.build().
+        # A second sample on the same Domain legitimately follows the latter
+        # convention. Verify the total number of points strictly; rejecting
+        # flattened observations makes multi-trajectory EPDE impossible.
+        if cached_shape == domain_shape:
+            return True
+        return (len(cached_shape) == 1 and
+                cached_shape[0] == int(np.prod(domain_shape)))
 
     @property
     def ID(self) -> int:
@@ -809,7 +823,14 @@ class TrajectoriesManager(object):
         if domain._ID not in self._domains.keys():
             self._domains[domain._ID] = domain
         else:
-            assert trajectory.checkShapes(self._domains[domain._ID])
+            if not trajectory.checkShapes(self._domains[domain._ID]):
+                prior = tuple(map(int, self._domains[domain._ID].inner_shape))
+                actual = tuple(trajectory._cache.get(
+                    subcache_ID=trajectory._cache_id).shape)
+                raise ValueError(
+                    f"Multiple trajectories must match the registered domain: "
+                    f"domain inner_shape={prior}, cached trajectory {trajectory.ID} "
+                    f"shape={actual}. Distinct sample IDs must not alias cache state.")
 
     @property
     def inner_shapes(self):

@@ -1,0 +1,4 @@
+# Frozen by entire system: no trajectories from one system cross splits.
+development: [ode, vdp, duffing, lv, lorenz, ac, burgers]
+validation: [burgers_inviscid, kdv, kdv_cossin]
+heldout: [wave, ks, pde_compound, pde_divide, ns]

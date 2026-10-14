@@ -33,6 +33,8 @@ def make_preprocessor(search):
                 'ANN': setup.build_ANN_preprocessing}
     if prep.default_preprocessor_type not in builders:
         raise ValueError(f'Unsupported EPDE preprocessor: {prep.default_preprocessor_type}')
+    from .poly_options import validate_polynomial_options
+    validate_polynomial_options(search)
     builders[prep.default_preprocessor_type](**(prep.preprocessor_kwargs or {}))
     return setup.builder.prep_pipeline
 
@@ -56,6 +58,9 @@ def validate_data(problem, data):
 def validate_derivatives(problem, data, search):
     """Validate the axis-major schema before either checking or searching."""
     orders = derivative_orders(search, len(problem.grids))
+    from .poly_options import validate_polynomial_options
+    if problem.derivs is None:
+        validate_polynomial_options(search, problem.shape)
     if problem.derivs is None:
         return
     if problem.deriv_orders is None or list(problem.deriv_orders) != orders:

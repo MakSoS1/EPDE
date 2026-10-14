@@ -1,0 +1,17 @@
+services:
+  equation-discovery:
+    build:
+      context: ../../..
+      dockerfile: projects/pic/app/Dockerfile.demo
+    environment:
+      EPDE_PUBLIC_DEMO: "1"
+      EPDE_DEMO_WORKERS: "2"
+      EPDE_DEMO_TIMEOUT_SECONDS: "180"
+    ports:
+      - "127.0.0.1:8501:8501"
+    mem_limit: 6g
+    cpus: 4
+    volumes:
+      - discovery_jobs:/workspace/projects/pic/results/app/discovery_lab
+volumes:
+  discovery_jobs:

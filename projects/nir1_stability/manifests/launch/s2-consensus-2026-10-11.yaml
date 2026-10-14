@@ -1,0 +1,18 @@
+# Pre-registered prospective ensemble; ONE decision per five complete PIC searches.
+# Confirmation algorithm and finite-system limitations frozen in:
+# projects/nir1_stability/CONSENSUS_CONFIRMATION_DECISION.md
+# Decision commit 9af0bdbf174e6d26ab60c6b4998033a8d81ef70f
+# NO reduced generations, no edited search library, no oracle-guided choice.
+stage: S2
+cases: [ks, pde_compound, pde_divide, ns]
+methods: [default]
+data_seeds: [0]
+optimizer_seeds: [0, 1, 2, 3, 4]
+noise: 0.0
+shards: 4
+estimated_minutes_per_run: 35
+max_run_minutes: 60
+soft_deadline_minutes: 300
+hard_deadline_minutes: 340
+max_infrastructure_retries: 2
+frozen_confirmation_sha: 9af0bdbf174e6d26ab60c6b4998033a8d81ef70f

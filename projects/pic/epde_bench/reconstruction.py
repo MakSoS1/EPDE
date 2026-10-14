@@ -232,7 +232,7 @@ def simulate_ode(problem, system, search, data=None, horizon=None, start_fractio
 def simulate_pde(problem, system, search, data=None):
     """Method-of-lines reconstruction for explicit first-time-order 1-D PDEs.
 
-    Spatial derivatives up to order two use the supplied spatial grid. End
+    Spatial derivatives up to order four use the supplied spatial grid. End
     values stay at the initial condition (Dirichlet); future observed fields
     never enter the solver. Unsupported forms return None. This checks a
     fitted equation, and does not claim a held-out training protocol.
@@ -279,6 +279,13 @@ def simulate_pde(problem, system, search, data=None):
                                - (field[1:-1] - field[:-2]) / left) / (left + right)
             second[0], second[-1] = second[1], second[-2]
             arrays[f'd^2{v}/dx1^2'] = second
+            # third and fourth orders: the same stencils applied to the second derivative
+            arrays[f'd^3{v}/dx1^3'] = np.gradient(second, x, edge_order=2)
+            fourth = np.empty_like(field, dtype=float)
+            fourth[1:-1] = 2 * ((second[2:] - second[1:-1]) / right
+                               - (second[1:-1] - second[:-2]) / left) / (left + right)
+            fourth[0], fourth[-1] = fourth[1], fourth[-2]
+            arrays[f'd^4{v}/dx1^4'] = fourth
         outputs = []
         for var in variables:
             terms, constant, coef_target = forms[var]

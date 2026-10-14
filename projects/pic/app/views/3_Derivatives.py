@@ -37,6 +37,26 @@ def derivative_latex(i):
 
 col = c5.selectbox('derivative', range(len(columns)),
                    format_func=lambda i: f"order {columns[i][1]} along {problem.axis_names[columns[i][0]]}")
+if 'poly' in chosen:
+    st.markdown('**Polynomial fit settings** (Chebyshev least-squares in a local window)')
+    pc1, pc2 = st.columns(2)
+    min_degree = max(2, max(int(x) for x in orders))
+    degree = int(pc1.number_input('polynomial degree', min_value=1, max_value=12,
+                                   value=max(3, min_degree), step=1))
+    window = int(pc2.select_slider('polynomial window (odd points)',
+                                   options=list(range(5, 34, 2)), value=9))
+    from epde_bench.poly_options import polynomial_kwargs
+    try:
+        poly_kw = polynomial_kwargs(window, degree, orders, problem.shape)
+    except ValueError as exc:
+        st.error(str(exc))
+        st.stop()
+    st.caption('Higher derivatives require sufficient polynomial degree; '
+               'near the window edges, EPDE may still use finite differences.')
+else:
+    poly_kw = {}
+st.caption('**Different questions:** Derivatives measures numerical derivative error; '
+           'Signal check tests whether each term of a known physical law remains identifiable.')
 st.markdown(f'Compared derivative: ${derivative_latex(col)}$. Reference: finite differences of the '
             '**clean** data. Each method below works on the **noisy** data, as a search would.')
 
@@ -53,13 +73,13 @@ if st.button('Compute', type='primary') and chosen:
         for prep in chosen:
             c = copy.deepcopy(base)
             c['preprocessing']['default_preprocessor_type'] = prep
-            c['preprocessing']['preprocessor_kwargs'] = {'mp_poolsize': 1} if prep == 'poly' else {}
+            c['preprocessing']['preprocessor_kwargs'] = poly_kw if prep == 'poly' else {}
             try:
                 _, stacks = prepare_data(problem, noisy, c)
                 results[prep] = stacks[var][:, col].reshape(problem.shape)
             except Exception as exc:              # noqa: BLE001
                 st.warning(f'{PREPROCESSORS[prep]}: {exc}')
-    st.session_state['derivatives'] = ((name, noise, var, col), results,
+    st.session_state['derivatives'] = ((name, noise, var, col, tuple(sorted(poly_kw.items()))), results,
                                        clean[var][:, col].reshape(problem.shape), noisy[var])
 
 
@@ -72,7 +92,7 @@ def judge(err):
 
 
 state = st.session_state.get('derivatives')
-if state and state[0] == (name, noise, var, col):
+if state and state[0] == (name, noise, var, col, tuple(sorted(poly_kw.items()))):
     import matplotlib.pyplot as plt
     _, results, reference, noisy_field = state
     if not results:

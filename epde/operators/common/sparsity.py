@@ -9,6 +9,7 @@ Created on Fri Jun  4 13:35:18 2021
 import numpy as np
 from sklearn.linear_model import Lasso
 import time
+import os
 from sklearn.base import BaseEstimator, RegressorMixin
 
 from functools import partial
@@ -67,7 +68,8 @@ def _minmax_normalize_columns(features: np.ndarray) -> np.ndarray:
 
 
 def instability_scores(metric, X, y, sw, grid_shape, active_mask, n_features,
-                       *, gram_setup=None, cv_reducer=None, weights=None):
+                       *, gram_setup=None, cv_reducer=None, weights=None,
+                       nir1_full_blocks=None, chi2_prefix=None):
     """Per-active-COLUMN instability score for a support mask.
 
     THE SAME estimator the ``Instability`` objective uses, and the single
@@ -92,11 +94,39 @@ def instability_scores(metric, X, y, sw, grid_shape, active_mask, n_features,
         return gram_setup.score(active_mask)
     if metric == 'cv':
         return cv_reducer(weights)
+    if metric == 'chi2' and chi2_prefix is not None:
+        from epde.operators.common.chi2_prefix import scores_from_chi2_prefix
+        cached = scores_from_chi2_prefix(chi2_prefix, active_mask)
+        if cached is not None:
+            return cached
+        _loop_stats.record('nir1.chi2_prefix_numerical_fallback', 1, 1)
     cols = np.where(active_mask)[0]
     feat_cols = cols[cols < n_features]
     Xa = X[:, feat_cols]
     if cols.size and cols[-1] == n_features:
         Xa = np.hstack([Xa, np.ones((X.shape[0], 1))])
+    if metric in {'nir1_excess', 'nir1_protected', 'nir1_conditional'} and nir1_full_blocks is not None:
+        # Full-library block Grams were formed once in PhysicsInformedLasso.fit.
+        # Every recursive support is a SUBMATRIX of the same sufficient stats.
+        # The last entry is the internal bookkeeping intercept of the
+        # augmented Gram (even if the actual model intercept was eliminated).
+        G, Gy, yy = nir1_full_blocks
+        full_last = G.shape[1] - 1
+        selected = np.append(cols, full_last)
+        # The estimator chooses its block count based on the reference
+        # library width. If this differs (e.g. very small data, active p
+        # crossing the global max), use the existing full-data path.
+        from epde.operators.common.survival import (_DEFAULT_N_BLOCKS_HET,
+                                                      _reference_width)
+        max_blocks = len(X) // (4 * (_reference_width(len(cols)) + 1))
+        expected_blocks = max(3, min(_DEFAULT_N_BLOCKS_HET, max_blocks))
+        if G.shape[0] == expected_blocks:
+            sub = (G[:, selected][:, :, selected],
+                   Gy[:, selected], yy)
+            return _KEEP_RULE_ESTIMATORS[metric](
+                Xa, y, sw, grid_shape, fit_intercept=False,
+                precomputed_grams=sub)
+        _loop_stats.record('nir1.block_gram_partition_fallback', 1, 1)
     return _KEEP_RULE_ESTIMATORS[metric](Xa, y, sw, grid_shape,
                                          fit_intercept=False)
 
@@ -218,7 +248,7 @@ class PhysicsInformedLasso(BaseEstimator, RegressorMixin):
         # Pareto axis; the Gram is built only when that statistic is computed
         # from one (``None`` for the basis-free estimators).
         objectives_cfg = active_config().objectives
-        metric = objectives_cfg.instability_metric
+        metric = objectives_cfg.regularizer_metric
         gram_mode = objectives_cfg.gram_mode
         # Hoisted out of the outer RFE loop below: it used to be re-read per
         # iteration, per trajectory, per equation, per generation.
@@ -248,6 +278,32 @@ class PhysicsInformedLasso(BaseEstimator, RegressorMixin):
         # 'survival'): those score straight from the active columns, so
         # neither the varying-coefficient mode solve nor the sliding-window
         # stack is built at all.
+
+        # E1 opt-in acceleration. The cache is per fit / per trajectory,
+        # never global. The first N-by-P block Gram is reused by all RFE
+        # supports, including their actual intercept column. The NIR1 metrics
+        # are the ONLY clients; production chi2/VWSR remains untouched.
+        nir1_full_blocks = None
+        if (metric in {'nir1_excess', 'nir1_protected', 'nir1_conditional'}
+                and os.environ.get('NIR1_DISABLE_GRAM_CACHE') != '1'):
+            from epde.operators.common.survival import (
+                block_gram_partition, _DEFAULT_N_BLOCKS_HET, _reference_width)
+            max_blocks = n_samples // (4 * (_reference_width(total_features) + 1))
+            if max_blocks >= 3:
+                nr_blocks = max(3, min(_DEFAULT_N_BLOCKS_HET, max_blocks))
+                nir1_full_blocks = block_gram_partition(
+                    Xf, y, sw, grid_shape, nr_blocks, return_yy=True)
+                _loop_stats.record('nir1.block_gram_build_once', 1, 1)
+
+        # Experimental E1 chi2 acceleration. No behavior change unless
+        # explicitly opted into NIR1_CHI2_PREFIX_CACHE=1.
+        chi2_prefix = None
+        if (metric == 'chi2' and
+                os.environ.get('NIR1_CHI2_PREFIX_CACHE') == '1'):
+            from epde.operators.common.chi2_prefix import prepare_chi2_prefix
+            chi2_prefix = prepare_chi2_prefix(Xf, y, sw, grid_shape, G_w, Gy_w)
+            if chi2_prefix is not None:
+                _loop_stats.record('nir1.chi2_prefix_build_once', 1, 1)
 
         is_vcoef = getattr(gram_setup, 'is_vcoef', False)
 
@@ -289,7 +345,8 @@ class PhysicsInformedLasso(BaseEstimator, RegressorMixin):
             # the one the Pareto axis reads.
             active_cv = self._keep_rule_scores(metric, gram_setup, weights, Xf, y,
                                             sw, grid_shape, active_mask,
-                                            n_features)
+                                            n_features, nir1_full_blocks=nir1_full_blocks,
+                                            chi2_prefix=chi2_prefix)
 
             # Tackle the most physically unstable feature first.
             active_thresholds = active_cv * max_corr
@@ -432,14 +489,17 @@ class PhysicsInformedLasso(BaseEstimator, RegressorMixin):
         return self
 
     def _keep_rule_scores(self, metric, gram_setup, weights, X, y, sw,
-                       grid_shape, active_mask, n_features):
+                       grid_shape, active_mask, n_features,
+                       nir1_full_blocks=None, chi2_prefix=None):
         """This estimator's view of :func:`instability_scores` -- the L1
         threshold's per-column scale. Kept as a method because the ``'cv'``
         branch reduces the window stack through :meth:`get_cv`, which is
         this class's own reduction."""
         return instability_scores(metric, X, y, sw, grid_shape, active_mask,
                                   n_features, gram_setup=gram_setup,
-                                  cv_reducer=self.get_cv, weights=weights)
+                                  cv_reducer=self.get_cv, weights=weights,
+                                  nir1_full_blocks=nir1_full_blocks,
+                                  chi2_prefix=chi2_prefix)
 
     def predict(self, X):
         return X @ self.coef_ + self.intercept_
@@ -703,6 +763,22 @@ class VWSRSparsity(CompoundOperator):
 
     def use_default_tags(self):
         self._tags = {'sparsity', 'gene level', 'no suboperators', 'inplace'}
+
+
+class Nir1AdaptiveSparsity(VWSRSparsity):
+    """Opt-in EPDE keep-rule with NIR1 per-term excess/identifiability weights.
+
+    Reuses VWSR's exact weighted-Gram, recursive feature elimination and
+    per-trajectory coefficient averaging; only its per-term adaptive L1
+    penalty statistic differs. The stand-alone L1+L2 elastic-net ablation is
+    a distinct S0 experiment and is not misrepresented as this operator.
+    """
+    key = 'NIR1AdaptiveSparsity'
+
+    def apply(self, objective: Equation, arguments: dict):
+        if active_config().objectives.regularizer_metric not in {'nir1_excess', 'nir1_protected', 'nir1_conditional'}:
+            raise ValueError("Nir1AdaptiveSparsity requires an opt-in NIR1 research metric")
+        return super().apply(objective, arguments)
 
 
 def build_sparsity_operator(sparsity_cls=None, sparsity_kwargs=None):

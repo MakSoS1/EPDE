@@ -1,0 +1,12 @@
+study: nir1_coefficient_stability
+base_commit: bd6babc8d2cf9b69bcb878ead7048a962ab08cf8
+random_seeds: [0, 1, 2, 3, 4]
+case_ids: [T1, T2, T3, T4, T5, T6, T7, T8]
+correlation_strata: [0.0, 0.5, 0.9, 0.99, 0.999]
+noise_strata: [0.0, 0.005, 0.01, 0.02]
+stage_gates: [S0, S1, S2, S3]
+soft_deadline_minutes: 300
+hard_deadline_minutes: 340
+max_infrastructure_retries: 2
+exact_speedups: true
+approximate_speedups: false

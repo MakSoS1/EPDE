@@ -1,6 +1,11 @@
 name: Mirror repo to GitLab
 
-on: [push, pull_request, delete]
+# Research-fork safety: this inherited production mirroring job must NEVER
+# copy the unreviewed `nir1` branch into the ITMO GitLab mirror. The protected
+# upstream workflow remains unchanged; this scope exists only on our fork.
+on:
+  push:
+    branches: [master]
 
 jobs:
   call-nss-ops-mirror-workflow:

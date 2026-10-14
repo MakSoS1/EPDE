@@ -564,7 +564,7 @@ class Instability(EquationObjective):
     flag_attr = 'stability_calculated'
 
     def compute(self, equation, ctx: FitContext) -> float:
-        metric = active_config().objectives.instability_metric
+        metric = active_config().objectives.objective_metric
         if metric == 'vcoef':
             cached = getattr(equation, '_cached_vc_score', None)
             if cached is not None:

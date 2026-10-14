@@ -1,0 +1,13 @@
+# Immutable S0 launch contract (synthetic fixed candidate study; NOT EPDE evolution).
+# A push adding exactly this one launch file triggers the research workflow.
+stage: S0
+cases: [T1, T2, T3, T4, T5, T6, T7, T8]
+methods: [baseline_ols, lasso, instability, identifiability, hybrid, historical_proxy]
+data_seeds: [0, 1, 2, 3, 4]
+optimizer_seeds: [0]
+noise: 0.0
+shards: 4
+estimated_minutes_per_run: 1
+soft_deadline_minutes: 300
+hard_deadline_minutes: 340
+max_infrastructure_retries: 2

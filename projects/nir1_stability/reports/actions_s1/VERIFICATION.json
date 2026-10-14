@@ -1,0 +1,32 @@
+{
+  "workflow_run_id": 38076377893,
+  "workflow_run_url": "https://github.com/MakSoS1/EPDE/actions/runs/38076377893",
+  "workflow_conclusion": "success",
+  "search_code_sha": "8d3aa947bc074000dee6d8acf96c4862eb74d81c",
+  "analysis_snapshot_sha": "0246ed2fba663cb15b71ea68786aa17aa9a02f4f",
+  "cluster_signflip_fix_sha": "e71ee64c3440e724b2b55c121054bcd693917033",
+  "cluster_holm_fix_sha": "6602e35c00aea06fe418edd600b70e2864204bbd",
+  "manifest_sha": "7993e0811e9cc9f14f7a3ff79aeab76d618b4144d8a002c9ae1b45cf413ce4e7",
+  "planned_ids": 120,
+  "unique_raw_ids": 120,
+  "missing_ids": [],
+  "extra_ids": [],
+  "invalid_records": [],
+  "record_checksums_valid": true,
+  "record_manifest_sha_consistent": true,
+  "status_counts": {
+    "ok": 120,
+    "crash": 0,
+    "timeout": 0,
+    "unsupported": 0,
+    "incomplete": 0
+  },
+  "infrastructure_retry_count": 0,
+  "archive_sha256_verified": true,
+  "corrected_report_json_sha256": "0a3570f81d718f843412c4adf1f054c30b091cf70eb7f6330b61cd252d558d34",
+  "corrected_report_replay_byte_identical": true,
+  "original_aggregate_inference_status": "archival_only_pooled_mcnemar_invalid_for_system_level_inference",
+  "corrected_inference_unit": "independent_system_equal_weight",
+  "corrected_p_method": "exact_cluster_signflip",
+  "inference_gate": "PROVISIONAL_S1_ONLY"
+}

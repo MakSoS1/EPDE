@@ -1,0 +1,50 @@
+name: NIR1 | H8 multi-trajectory identifiability
+on:
+  push:
+    branches: [nir1]
+    paths:
+      - '.github/workflows/nir1-h8-identifiability.yml'
+      - 'projects/nir1_stability/nir1/multitrajectory_identifiability.py'
+      - 'projects/nir1_stability/nir1/identifiability_certificate.py'
+      - 'projects/nir1_stability/tests/test_multitrajectory_identifiability.py'
+permissions:
+  contents: read
+jobs:
+  fixed-target-analytic-h8:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      UV_CACHE_DIR: /tmp/uv-cache-nir1-h8
+    steps:
+      - name: Checkout frozen source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Install UV
+        uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+      - name: Install exact locked CPU deps
+        run: |
+          uv sync --project projects/pic --extra cpu --locked
+          uv pip install --python projects/pic/.venv/bin/python pytest
+      - name: Check scientific invariants (no model truth used in choice)
+        run: projects/pic/.venv/bin/python -m pytest projects/nir1_stability/tests/test_multitrajectory_identifiability.py -q
+      - name: Evaluate 10 systems with 5 independent initial-condition seeds
+        run: |
+          mkdir -p output
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.multitrajectory_identifiability --seeds 5 --output output/H8_FIXED_TARGET_RESULTS.json
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.identifiability_certificate --seed 0 --output output/H8_GRAM_CERTIFICATE.json
+          git rev-parse HEAD > output/research-code-sha.txt
+          printf '%s\n' 'This study assumes known time-derivative order and a smaller fixed library. Do NOT compare as an equal-information improvement of unrestricted EPDE.' > output/NO_UNRESTRICTED_EPDE_CLAIM.txt
+      - name: Preserve all raw cases and failures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nir1-h8-fixed-target-${{ github.sha }}
+          path: output/
+          if-no-files-found: warn
+          retention-days: 30

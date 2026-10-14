@@ -1,0 +1,6 @@
+metrics: [chi2, vcoef, cv, nir1_excess]
+penalties: [production_vwsr, lasso, adaptive_lasso, instability_lasso, identifiability_en, historical_vclog_swap]
+selectors: [production, normalized_utopia]
+penalty_bounds: [0.25, 4.0]
+gamma: [0.5, 1.0, 2.0]
+search_penalty_grid: [0.0001, 0.001, 0.01, 0.1]

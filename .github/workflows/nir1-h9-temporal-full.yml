@@ -1,0 +1,51 @@
+name: NIR1 | H9 temporal-law full EPDE ablation
+on:
+  push:
+    branches: [nir1]
+    paths:
+      - '.github/workflows/nir1-h9-temporal-full.yml'
+permissions:
+  contents: read
+jobs:
+  full-epde-one-trajectory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        dataset: [nir1_heat, nir1_advdiff, nir1_reactiondiff, nir1_wave]
+        arm: [default, nir1_dynamic_anchor]
+        seed: [0, 1]
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      NIR1_DISABLE_GRAM_CACHE: '1'
+      NIR1_CHI2_PREFIX_CACHE: '0'
+      UV_CACHE_DIR: /tmp/nir1-h9-full-uv
+    steps:
+      - name: Checkout identical frozen source for both arms
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Install uv
+        uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+      - name: Isolate locked PIC+EPDE CPU environment
+        run: uv sync --project projects/pic --extra cpu --locked
+      - name: Full 16 individuals x 5 epochs, original VWSR+chi2, identical data
+        run: |
+          mkdir -p output
+          projects/pic/.venv/bin/python -m projects.nir1_stability.nir1.cli epde --dataset '${{ matrix.dataset }}' --variant '${{ matrix.arm }}' --seed '${{ matrix.seed }}' --data-seed 0 --output output/native-full.json
+          git rev-parse HEAD > output/source-sha.txt
+          printf '%s\n' 'DEVELOPMENT PILOT: both arms same dataset/seed/epochs/library; H9 is a prior-assisted search restricting RPS target to time derivative (x0). Restriction is NOT a new coefficient-stability regularizer. H9 postfilter equal-prior control will use the same baseline Pareto fronts WITHOUT a second evolution. All prior NIR1 S2e data were observed before designing H9.' > output/SCIENTIFIC_SCOPE.txt
+      - name: Preserve successes, failures, timeouts and raw Pareto fronts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nir1-h9-full-${{ matrix.dataset }}-${{ matrix.arm }}-seed${{ matrix.seed }}-${{ github.sha }}
+          path: output/
+          if-no-files-found: warn
+          retention-days: 30

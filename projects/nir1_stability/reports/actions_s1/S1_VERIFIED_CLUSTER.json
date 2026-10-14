@@ -1,0 +1,89 @@
+{
+  "protocol": "nir1-s1-system-cluster-reanalysis-v1",
+  "source_run": 38076377893,
+  "source_commit": "8d3aa947bc074000dee6d8acf96c4862eb74d81c",
+  "manifest_sha": "7993e0811e9cc9f14f7a3ff79aeab76d618b4144d8a002c9ae1b45cf413ce4e7",
+  "integrity": {
+    "planned": 120,
+    "verified": 120,
+    "ok": 120,
+    "crash": 0,
+    "timeout": 0,
+    "unsupported": 0,
+    "incomplete": 0,
+    "corrupted": 0,
+    "duplicates": 0,
+    "missing": 0
+  },
+  "note": "Unmodified S1 search raw inputs; corrected system-level analysis, original pooled McNemar excluded from inference",
+  "methods": {
+    "default": {
+      "selected_exact": 18,
+      "front_exact": 25,
+      "planned": 30,
+      "mean_wall_seconds": 80.51375964813332
+    },
+    "nir1_criterion_only": {
+      "selected_exact": 4,
+      "front_exact": 19,
+      "planned": 30,
+      "mean_wall_seconds": 79.79924397273332
+    },
+    "nir1_regulator_only": {
+      "selected_exact": 6,
+      "front_exact": 6,
+      "planned": 30,
+      "mean_wall_seconds": 116.0413109718
+    },
+    "nir1_combined": {
+      "selected_exact": 4,
+      "front_exact": 7,
+      "planned": 30,
+      "mean_wall_seconds": 128.0854828840667
+    }
+  },
+  "paired_vs_default": {
+    "nir1_criterion_only": {
+      "delta_pp": -46.6667,
+      "ci_95_pp": [
+        -80,
+        -13.3333
+      ],
+      "cluster_signflip_exact_p": 0.125,
+      "holm_adjusted_p": 0.375,
+      "n_systems": 6,
+      "n_pairs": 30
+    },
+    "nir1_regulator_only": {
+      "delta_pp": -40,
+      "ci_95_pp": [
+        -80,
+        0.0833
+      ],
+      "cluster_signflip_exact_p": 0.1875,
+      "holm_adjusted_p": 0.375,
+      "n_systems": 6,
+      "n_pairs": 30
+    },
+    "nir1_combined": {
+      "delta_pp": -46.6667,
+      "ci_95_pp": [
+        -83.3333,
+        -10
+      ],
+      "cluster_signflip_exact_p": 0.125,
+      "holm_adjusted_p": 0.375,
+      "n_systems": 6,
+      "n_pairs": 30
+    }
+  },
+  "inference": "EXPLORATORY_ONLY_NO_SIGNIFICANT_HOLM_COMPARISON",
+  "artifact_sha256": {
+    "ledger": "5d84a2726a3f5dabe5be36ca8b71846b5f095b493803154ce60b4c467d3aefff",
+    "shard0": "452439658e3b4e05680158c4bb07c99c46635f7f8cb17bc493f040b9f7b38005",
+    "shard1": "1606b73e21cf9050bcd3bd2ef7da3eb925f46f704dc0e75d342c0f9271b8ec81",
+    "shard2": "578f7af4c04caa108d20a62a78937513cd693d42cb63b0466f91b69af870fd12",
+    "shard3": "223845ee78e1b9dae2ca13b12f9cfc7976b107708ddd624d34b5d0f0c8892cb8",
+    "original_summary": "6275981924fca622e4cc8139b3367f50d3ffecca9f44db85f138b73c14f8ae8e"
+  }
+}
