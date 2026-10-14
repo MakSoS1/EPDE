@@ -35,8 +35,8 @@ def _run_record(req, *, hosted=False):
     method = req["method"]
     dataset, variant = req["dataset"], req["variant"]
     if hosted and method == "epde":
-        from support.discovery_lab.execution_policy import HEAVY_RECORDS
-        if dataset in HEAVY_RECORDS:
+        from support.discovery_lab.execution_policy import is_local_only
+        if is_local_only(dataset):
             raise ValueError("Hosted EPDE refused: heavy datasets must run locally.")
     if dataset not in REGISTRY or variant not in variants():
         raise ValueError("Unregistered record/variant")
@@ -396,12 +396,15 @@ def main(folder):
     method = job["method"]
     start = time.perf_counter()
     try:
+        # Opt-in on localhost for full scientific EPDE: hosted mode keeps its
+        # strict CPU gate and cannot load expensive 2D/3D PDE input files.
+        hosted = os.environ.get("EPDE_LOCAL_FULL_RUN") != "1"
         if method == "llm":
             record = _run_llm(job, folder)
         elif job["source"] == "record":
-            record = _run_record(job, hosted=True)
+            record = _run_record(job, hosted=hosted)
         else:
-            record = _run_upload(job, folder, hosted=True)
+            record = _run_upload(job, folder, hosted=hosted)
         record = contract.normalize(_sanitize(_finite_objectives(record)), method)
     except Exception as exc:
         # Never write repr/traceback containing remote request URLs/credentials.
