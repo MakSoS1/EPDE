@@ -1,11 +1,11 @@
 # Equation Discovery Lab — development branch
 
-**Branch:** `feature/discovery-lab-demo-2026-10-14` in `MakSoS1/EPDE`  
+**Deployed demo source branch:** `demo/streamlit-community-cloud` in `MakSoS1/EPDE`  
 **Based on:** `research/nir1-mdl-factorial-2026-10-14`, source revision `0127710ed80d41df1aac514ea1619bca6b266b57`.
 
 The development branch adds an opt-in Streamlit research demo for running EPDE and PySINDy on built-in data, uploaded numerical arrays and a restricted scalar ODE generator. It also defines a transport and result contract for Yaroslav's future private LLM agent. It does not replace the scientific EPDE implementation or benchmark protocol and does not include the closed LLM model.
 
-No pull request or deployment is required to work with this branch. Existing research pages remain intact. In demo mode the legacy pages are hidden because the original app has globally visible job records.
+The existing hosted demo at https://epde-explorer-demo.streamlit.app reads this branch. Its default navigation consists of **Lab**, **Results** and **Compare**. Legacy research pages remain in the repository but are hidden on the public app because their previous job/result directories were shared between visitors. No pull request to the upstream EPDE repository is required.
 
 ## Start locally
 
@@ -26,7 +26,7 @@ $env:EPDE_PUBLIC_DEMO = "1"
 uv run --locked --extra cpu --extra app streamlit run app/Home.py --server.address 127.0.0.1
 ```
 
-For local research pages without the visitor-only navigation, leave `EPDE_PUBLIC_DEMO` unset.
+The default interface (local or hosted) shows three pages: Lab, Results and Compare. To expose the legacy research navigation **only on a local trusted server**, set `EPDE_SHOW_RESEARCH_PAGES=1` and leave `EPDE_PUBLIC_DEMO` unset. Never expose legacy pages on a public instance.
 
 Docker Compose (requires local Docker resources):
 
@@ -40,7 +40,10 @@ Then visit `http://127.0.0.1:8501`. The Compose port is bound only to localhost.
 
 | File | Purpose |
 | --- | --- |
-| `app/Home.py` | Navigation: the Lab is the first page; public mode exposes only the Lab |
+| `app/Home.py` | Three-page sidebar navigation with Lab as the landing page |
+| `app/views/11_Discovery_results.py` | Current session's history, status and detailed results |
+| `app/views/12_Discovery_compare.py` | Matched-input comparison and read-only published archive |
+| `app/support/discovery_lab/session.py` | Shared session capability and recovery across all three pages |
 | `app/views/10_Discovery_lab.py` | Three tabs: new experiment, results, comparison |
 | `app/support/discovery_lab/ui.py` | Rendering of one result and of several results side by side |
 | `app/support/discovery_lab/contract.py` | Versioned result contract |
@@ -54,7 +57,7 @@ Then visit `http://127.0.0.1:8501`. The Compose port is bound only to localhost.
 
 ## Using the Lab
 
-1. **New experiment.** Choose the data: one of 43 built-in equations (ODEs, systems, PDEs,
+1. **Lab (landing page).** Choose the data: one of 43 built-in equations (ODEs, systems, PDEs,
    the NIR-1 test set) with a known law; a generated ODE `du/dt = f(t, u)` whose law is
    converted to EPDE form so the result can be checked; or an uploaded CSV/NPZ/NPY file
    (examples can be downloaded on the page). Pick one or several methods: they run on
@@ -76,6 +79,13 @@ with the data. Both are in-sample checks on the record the method saw.
 The session code is kept in the page address, so a reload or a bookmark reopens the same
 experiments; anyone with the address sees them.
 
+
+## Streamlit Community Cloud update
+
+The hosted entrypoint remains `projects/pic/app/Home.py`; the application URL does not change. The repo `MakSoS1/EPDE`, branch `demo/streamlit-community-cloud`, and deployment settings remain unchanged. The push ordinarily triggers a rebuild. If the old navigation persists, open https://share.streamlit.io, select the existing `epde-explorer-demo` app and use **Reboot**; do not create a second app.
+
+The navigation smoke suite is in `projects/pic/tests/test_demo_workspace_navigation.py`, and `.github/workflows/demo-workspace-qa.yml` is scoped to the demo branch. Historical anonymous run files from the old shared application are deliberately **not** mixed into private session history, because ownership cannot be established; prepublished benchmark campaigns appear separately in Compare.
+
 ## Scientific principles
 
 A benchmark-quality comparison needs the same input arrays, grids, noise realization, boundary cropping, differentiation strategy and declared budgets. EPDE returns multiple candidates and configurable multiobjective scores; the current PySINDy baseline returns a single selected candidate and objectives (held-out normalized MSE and active term count). **Do not combine their scores into one Pareto front or publish a cross-framework ranking based on these unrelated numbers.**
@@ -84,7 +94,7 @@ The UI provides a descriptive pair of EPDE/default and PySINDy/pysindy runs on t
 
 The result stores the native `front: list[list[str]]`, `objectives`, `selected`, `metrics`, method, settings, timing and method-specific `criterion_labels`. It displays the selected law and candidate scatter, then attempts to reconstruct from data via `epde_bench.reconstruction`. Reconstruction on a fitted record must not be presented as held-out forecasting.
 
-The generated ODE's RHS is shown only as metadata; until it is translated into a canonical EPDE truth representation, the site must not claim structural recovery accuracy.
+A generated ODE receives a structural benchmark truth only when the restricted expression is successfully translated into an EPDE-compatible representation; unsupported expressions must be evaluated against their data without claiming structural recovery.
 
 ## LLM service contract (Yaroslav)
 
