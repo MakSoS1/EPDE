@@ -1,0 +1,10 @@
+# CPU-only, controlled local demo; no LLM keys baked into image.
+FROM python:3.13-slim
+WORKDIR /workspace
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 EPDE_PUBLIC_DEMO=1
+COPY . /workspace
+RUN python -m pip install --no-cache-dir --upgrade pip \
+    && python -m pip install --no-cache-dir -e . \
+    && python -m pip install --no-cache-dir -r projects/pic/app/requirements.txt
+EXPOSE 8501
+CMD ["streamlit", "run", "projects/pic/app/Home.py", "--server.address=0.0.0.0", "--server.port=8501", "--server.headless=true"]
