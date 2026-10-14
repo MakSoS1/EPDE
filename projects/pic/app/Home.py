@@ -23,6 +23,7 @@ PAGES = {
     "Workspace": [
         st.Page("views/10_Discovery_lab.py", title="Lab · EPDE", icon="🧪", default=True),
         st.Page("views/13_Browser_sindy.py", title="PySINDy · your PC", icon="⚡"),
+        st.Page("views/14_Data_catalog.py", title="All datasets · 59+", icon="📚"),
         st.Page("views/11_Discovery_results.py", title="Results · server", icon="🗂️"),
         st.Page("views/12_Discovery_compare.py", title="Compare · server", icon="⚖️"),
     ],
@@ -47,7 +48,8 @@ if (os.environ.get("EPDE_SHOW_RESEARCH_PAGES") == "1"
         st.Page("views/8_Benchmark.py", title="Benchmark (legacy)", icon="🏁"),
     ]
 
-st.sidebar.caption("EPDE: short experiments on this free server, heavy jobs locally. "
+st.sidebar.caption("Complete ODE/PDE catalogue is available in All datasets. "
+                   "EPDE: short experiments on this free server, heavy jobs locally. "
                    "PySINDy: runs in your browser without installation. "
                    "Browser and server results are currently stored separately.")
 st.navigation(PAGES).run()
