@@ -44,12 +44,15 @@ jobs:
           node --check projects/pic/browser_demo/app.js
           node --check projects/pic/browser_demo/science_worker.js
           node --check projects/pic/browser_demo/smoke.mjs
-      - name: Install Chromium test runner
+      - id: browser_setup
+        name: Install Chromium test runner
         working-directory: projects/pic/browser_demo
         run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
-      - name: Run browser site with bundled original LikeC4 model
+          set -o pipefail
+          npm install --no-audit --no-fund 2>&1 | tee /tmp/epde-browser-setup.log
+          npx playwright install --with-deps chromium 2>&1 | tee -a /tmp/epde-browser-setup.log
+      - id: serve
+        name: Run browser site with bundled original LikeC4 model
         run: |
           cp projects/pic/app/static/likec4-views.js projects/pic/browser_demo/likec4-views.js
           python -m http.server 8766 --directory projects/pic/browser_demo > /tmp/browser-demo-http.log 2>&1 &
@@ -68,6 +71,8 @@ jobs:
         env:
           NUMERICAL: ${{ steps.numerical.outcome }}
           JS_SYNTAX: ${{ steps.syntax.outcome }}
+          SETUP: ${{ steps.browser_setup.outcome }}
+          SERVER: ${{ steps.serve.outcome }}
           BROWSER: ${{ steps.browser.outcome }}
         run: |
           python - <<'PY'
@@ -77,6 +82,8 @@ jobs:
               "timestamp":datetime.datetime.now(datetime.timezone.utc).isoformat(),
               "numerical":os.environ.get("NUMERICAL"),
               "javascript":os.environ.get("JS_SYNTAX"),
+              "browser_setup":os.environ.get("SETUP"),
+              "server":os.environ.get("SERVER"),
               "chromium_wasm":os.environ.get("BROWSER"),
           }
           values["verified"] = all(values[k]=="success" for k in
@@ -86,6 +93,10 @@ jobs:
           values["numerical_log_tail"] = numeric_log.read_text(errors="replace")[-12000:] if numeric_log.exists() else ""
           browser_log = Path("/tmp/epde-browser.log")
           values["browser_log_tail"] = browser_log.read_text(errors="replace")[-12000:] if browser_log.exists() else ""
+          setup_log = Path("/tmp/epde-browser-setup.log")
+          values["setup_log_tail"] = setup_log.read_text(errors="replace")[-10000:] if setup_log.exists() else ""
+          server_log = Path("/tmp/browser-demo-http.log")
+          values["server_log_tail"] = server_log.read_text(errors="replace")[-2000:] if server_log.exists() else ""
           with open("/tmp/epde-browser-verification.json","w") as f:
               json.dump(values,f,indent=2)
           PY
