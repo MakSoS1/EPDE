@@ -11,11 +11,17 @@ from pathlib import Path
 APP = Path(__file__).resolve().parents[2]
 PIC = APP.parent
 REPO = PIC.parent.parent
+# Run as a script, this folder would come first on sys.path and its module
+# names could shadow the standard library; import it only as a package.
+sys.path[:] = [p for p in sys.path if Path(p or '.').resolve() != Path(__file__).resolve().parent]
 sys.path[:0] = [str(APP), str(PIC), str(REPO)]
-from support.discovery_lab import queue
+from support.discovery_lab import job_queue as queue
 
-MAX_WORKERS = max(1, min(2, int(os.environ.get("EPDE_DEMO_WORKERS", "2"))))
-TIMEOUT = max(30, min(600, int(os.environ.get("EPDE_DEMO_TIMEOUT_SECONDS", "180"))))
+# One search per two CPU cores (at least one, at most two): a small cloud
+# machine runs searches one at a time, a laptop two side by side.
+MAX_WORKERS = max(1, min(2, int(os.environ.get("EPDE_DEMO_WORKERS",
+                                               str(max(1, (os.cpu_count() or 2) // 2))))))
+TIMEOUT = max(30, min(1800, int(os.environ.get("EPDE_DEMO_TIMEOUT_SECONDS", "600"))))
 
 
 def _terminate(proc):

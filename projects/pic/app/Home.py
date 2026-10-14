@@ -24,8 +24,11 @@ if os.environ.get("EPDE_PUBLIC_DEMO") == "1":
                            icon="🧪", default=True)]).run()
 else:
     PAGES = {
+        "Experiments": [
+            st.Page("views/10_Discovery_lab.py", title="Equation Discovery Lab", icon="🧪", default=True),
+        ],
         "Start": [
-            st.Page("overview.py", title="Overview", icon="🧮", default=True),
+            st.Page("overview.py", title="Overview", icon="🧮"),
             st.Page("views/9_How_EPDE_works.py", title="How EPDE works", icon="🧭"),
         ],
         "Explore data": [
@@ -34,7 +37,6 @@ else:
             st.Page("views/3_Derivatives.py", title="Derivatives", icon="📈"),
         ],
         "Find equations": [
-            st.Page("views/10_Discovery_lab.py", title="Equation Discovery Lab", icon="🧪"),
             st.Page("views/5_Run_search.py", title="Run a search (legacy)", icon="🚀"),
             st.Page("views/4_SINDy.py", title="SINDy baseline", icon="🧩"),
             st.Page("views/6_Your_data.py", title="Your data (legacy)", icon="📤"),

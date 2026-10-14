@@ -70,6 +70,70 @@ def compile_rhs(expression: str) -> Callable[[float, float], float]:
     return checked
 
 
+def uses_time(expression: str) -> bool:
+    """Whether the right-hand side depends on t explicitly (non-autonomous)."""
+    compile_rhs(expression)
+    return any(isinstance(node, ast.Name) and node.id == "t"
+               for node in ast.walk(ast.parse(expression, mode="eval")))
+
+
+def _num(value: float) -> str:
+    return repr(float(value))
+
+
+def reference_law(expression: str):
+    """The generated ODE as an EPDE equation, so a search on it can be scored.
+
+    Returns ``(equation_text, frequency, note)``. ``equation_text`` is ``None`` when
+    a term cannot be written with the tokens the Lab offers (u up to the cube,
+    t up to the square, one sine/cosine frequency of t, at most two factors per
+    term); ``frequency`` is the single sin/cos frequency used (or ``None``).
+    The expression is validated by :func:`compile_rhs` first; sympy only parses
+    an already allowlisted syntax.
+    """
+    import sympy as sp
+    compile_rhs(expression)
+    t, u = sp.symbols('t u')
+    expr = sp.expand(sp.sympify(expression, locals={'t': t, 'u': u, 'sin': sp.sin,
+                                                    'cos': sp.cos, 'tanh': sp.tanh}))
+    terms, constant, freqs = [], 0.0, set()
+    for term in sp.Add.make_args(expr):
+        coef, rest = term.as_coeff_Mul()
+        if rest == 1:
+            constant += float(coef)
+            continue
+        factors = []
+        for factor in sp.Mul.make_args(rest):
+            base, power = factor.as_base_exp()
+            if not power.is_Integer or power < 1:
+                return None, None, f'{factor} is not a positive integer power'
+            power = int(power)
+            if base == u and power <= 3:
+                factors.append(f'u{{power: {float(power)}}}')
+            elif base == t and power <= 2:
+                factors.append(f'x{{power: {float(power)}, dim: 0.0}}')
+            elif isinstance(base, (sp.sin, sp.cos)) and power == 1:
+                k = sp.simplify(base.args[0] / t)
+                if not k.is_number or k.free_symbols or float(k) <= 0:
+                    return None, None, f'{base} is not sin/cos of a positive multiple of t'
+                freqs.add(round(float(k), 9))
+                name = 'sin' if isinstance(base, sp.sin) else 'cos'
+                factors.append(f'{name}{{power: 1.0, freq: {float(k)}, dim: 0.0}}')
+            else:
+                return None, None, f'{factor} has no token in the search space'
+        if len(factors) > 2:
+            return None, None, f'{rest} has more than two factors'
+        terms.append(f'{_num(coef)} * ' + ' * '.join(factors))
+    if len(freqs) > 1:
+        return None, None, 'only one sine/cosine frequency can be searched at a time'
+    if constant:
+        terms.append(_num(constant))
+    if not terms:
+        return None, None, 'the right-hand side is zero'
+    equation = ' + '.join(terms) + ' = du/dx0{power: 1.0}'
+    return equation, (next(iter(freqs)) if freqs else None), None
+
+
 def generate(expression: str, t_end: float, u0: float, points: int):
     if not 1 <= float(t_end) <= 30 or not -10 <= float(u0) <= 10:
         raise ValueError("Invalid initial state or horizon")

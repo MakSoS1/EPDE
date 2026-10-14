@@ -19,7 +19,8 @@ ROOT = RESULTS_DIR / "app" / "discovery_lab"
 MANAGER_LOCK = ROOT / "manager.lock"
 OWNER_RE = re.compile(r"^[0-9a-f]{48}$")
 JOB_RE = re.compile(r"^[0-9a-f]{32}$")
-MAX_OWNER_JOBS = 12
+MAX_OWNER_JOBS = 40
+MAX_OWNER_PENDING = 6
 MAX_TOTAL_QUEUED = 30
 MAX_OWNER_UPLOAD_BYTES = 24 * 1024 * 1024
 MAX_LLM_DAILY_JOBS = 50
@@ -61,24 +62,64 @@ def _records():
     return list(ROOT.glob("owners/*/jobs/*/job.json"))
 
 
+def _manager_alive():
+    lock = _read(MANAGER_LOCK)
+    return bool(lock and _pid_alive(lock.get("pid")))
+
+
 def list_jobs(owner: str):
+    """Jobs of one session, newest first.
+
+    A server restart kills the manager and its workers: a job left ``running``
+    with neither alive is marked ``interrupted`` (its result, if already
+    written, is kept), and ``queued`` jobs restart the manager."""
     folder = owner_path(owner) / "jobs"
-    rows = [_read(p) for p in folder.glob("*/job.json")] if folder.exists() else []
-    return sorted((r for r in rows if r), key=lambda r: r.get("created", 0), reverse=True)
+    paths = list(folder.glob("*/job.json")) if folder.exists() else []
+    rows, waiting = [], False
+    alive = None
+    for path in paths:
+        row = _read(path)
+        if not row:
+            continue
+        if row.get("state") == "running":
+            alive = _manager_alive() if alive is None else alive
+            if not alive and not _pid_alive(row.get("pid")):
+                row.update(state="interrupted", ended=time.time())
+                _write(path, row)
+        waiting |= row.get("state") == "queued"
+        rows.append(row)
+    if waiting and not (_manager_alive() if alive is None else alive):
+        ensure_manager()
+    return sorted(rows, key=lambda r: r.get("created", 0), reverse=True)
+
+
+def delete_job(owner: str, job_id: str) -> bool:
+    """Remove a finished job of this session (running jobs are cancelled first)."""
+    import shutil
+    folder = job_path(owner, job_id)
+    job = get_job(owner, job_id)
+    if not job:
+        return False
+    if job.get("state") in ("queued", "running"):
+        return False
+    shutil.rmtree(folder, ignore_errors=True)
+    return True
 
 
 def get_job(owner: str, job_id: str):
     return _read(job_path(owner, job_id) / "job.json")
 
 
-def check_capacity(owner: str, method: str):
+def check_capacity(owner: str, method: str, count: int = 1):
+    """Raise unless ``count`` more searches fit the session and server limits."""
     own_jobs = list_jobs(owner)
-    if sum(r.get("state") in ("queued", "running") for r in own_jobs) >= 3:
-        raise ValueError("At most 3 pending/running searches per session")
-    if len(own_jobs) >= MAX_OWNER_JOBS:
-        raise ValueError("Session reached its stored job limit")
+    if sum(r.get("state") in ("queued", "running") for r in own_jobs) + count > MAX_OWNER_PENDING:
+        raise ValueError(f"At most {MAX_OWNER_PENDING} waiting or running searches per session; "
+                         "wait for some to finish")
+    if len(own_jobs) + count > MAX_OWNER_JOBS:
+        raise ValueError("Session reached its stored result limit; delete old results")
     all_jobs = [_read(p) for p in _records()]
-    if sum((r or {}).get("state") == "queued" for r in all_jobs) >= MAX_TOTAL_QUEUED:
+    if sum((r or {}).get("state") == "queued" for r in all_jobs) + count > MAX_TOTAL_QUEUED:
         raise ValueError("Server queue is full; retry later")
     if method == "llm":
         now = time.time()
@@ -106,9 +147,15 @@ def submit(owner: str, request: dict):
     manifest["owner"] = owner
     manifest["job_id"] = job_id
     _write(folder / "request.json", manifest)
+    display = request.get("display") if isinstance(request.get("display"), dict) else {}
     _write(folder / "job.json", {"id": job_id, "created": time.time(), "state": "queued",
                                 "method": request["method"], "source": request["source"],
-                                "dataset": request["dataset"]})
+                                "dataset": request["dataset"],
+                                "label": str(display.get("label", request["dataset"]))[:160],
+                                "input_key": str(display.get("input_key", ""))[:200],
+                                "noise": float(request.get("noise", 0) or 0),
+                                "seed": int(request.get("seed", 0) or 0),
+                                "effort": str(request.get("effort", "standard"))[:20]})
     ensure_manager()
     return job_id
 

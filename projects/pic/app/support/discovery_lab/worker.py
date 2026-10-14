@@ -10,8 +10,15 @@ from pathlib import Path
 APP = Path(__file__).resolve().parents[2]
 PIC = APP.parent
 REPO = PIC.parent.parent
+# Run as a script, this folder would come first on sys.path and its module
+# names could shadow the standard library; import it only as a package.
+sys.path[:] = [p for p in sys.path if Path(p or '.').resolve() != Path(__file__).resolve().parent]
 sys.path[:0] = [str(APP), str(PIC), str(REPO)]
-from support.discovery_lab import contract, queue
+from support.discovery_lab import contract, job_queue as queue
+
+
+#: Search budgets offered in the Lab: (population, epochs); None keeps the stored setting.
+EFFORTS = {"quick": (8, 3), "standard": None, "thorough": (24, 8)}
 
 
 def _inside(path, base):
@@ -34,7 +41,19 @@ def _run_record(req):
     seed, noise = int(req.get("seed", 0)), float(req.get("noise", 0))
     if not 0 <= seed <= 999 or not 0 <= noise <= 10:
         raise ValueError("Seed or noise outside demo limits")
-    return run_one(dataset, variant, noise, seed)
+    effort = req.get("effort", "standard")
+    if effort not in EFFORTS:
+        raise ValueError("Unknown search effort")
+    # The standard budget is the record's stored setting, so its runs keep the
+    # identity of the published campaign; other budgets are explicit overrides.
+    overrides = None
+    if method == "epde" and EFFORTS[effort] is not None:
+        population, epochs = EFFORTS[effort]
+        overrides = {"search": {"evolution": {"population_size": population,
+                                              "training_epochs": epochs}}}
+    record = run_one(dataset, variant, noise, seed, overrides=overrides)
+    record["effort"] = effort
+    return record
 
 
 def _run_upload(req, folder):
@@ -65,6 +84,13 @@ def _run_upload(req, folder):
         raise ValueError("Invalid noise or seed")
     env.seed_everything(seed)
     problem = problem_from_npz(data_path)
+    # A generated ODE carries its law; uploaded data have none unless the user gave it.
+    truth = settings.get("reference_truth")
+    if truth is not None:
+        if (not isinstance(truth, list) or not 1 <= len(truth) <= 4
+                or not all(isinstance(eq, str) and "=" in eq and len(eq) < 2048 for eq in truth)):
+            raise ValueError("Invalid reference law")
+        problem.truth = list(truth)
     identity = custom_identity(data_path, settings, noise, seed)
     # The original custom identity assumes EPDE; distinguish SINDy and EPDE
     # even when they use identical data and differentiation settings.
@@ -80,8 +106,12 @@ def _run_upload(req, folder):
               "data_sha256": identity["data_sha256"], "identity": identity,
               "problem": {"title": problem.title, "kind": problem.kind,
                           "shape": list(problem.shape), "variables": problem.variables,
-                          "axis_names": list(problem.axis_names), "truth": None},
-              "source": {"kind": "uploaded_npz", "sha256": identity["data_sha256"]}}
+                          "axis_names": list(problem.axis_names), "truth": truth},
+              "source": {"kind": settings.get("origin", "uploaded_npz"),
+                         "sha256": identity["data_sha256"]},
+              "effort": settings.get("effort", "standard")}
+    if settings.get("label"):
+        record["problem"]["title"] = str(settings["label"])[:160]
     search_cfg = resolve_for_problem({"search": settings["search"]}, problem)
     record["search_config"] = search_cfg
     data = problem.noisy(noise, seed)
@@ -96,7 +126,8 @@ def _run_upload(req, folder):
             front, objectives, seconds, info = run_pysindy(problem, data, cfg, seed)
             record["baseline"] = info
         record.update(status="ok", fit_seconds=seconds, front=front, objectives=objectives)
-        record["metrics"] = metrics.score_run(front, objectives, [])
+        record["metrics"] = metrics.score_run(front, objectives,
+                                              [truth] if truth else [])
         selected = record["metrics"].get("selected_index")
         record["selected"] = front[selected] if selected is not None and front else None
     except UnsupportedProblem as exc:
@@ -191,6 +222,140 @@ def _run_llm(req, folder):
     return reply
 
 
+def _sanitize(value):
+    """JSON without NaN/Inf: undefined numbers become null."""
+    import math
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, dict):
+        return {k: _sanitize(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_sanitize(v) for v in value]
+    if hasattr(value, "item") and not isinstance(value, (str, bytes)):
+        try:
+            return _sanitize(value.item())
+        except (ValueError, TypeError):
+            return str(value)
+    return value
+
+
+def _finite_objectives(record):
+    """A candidate whose objectives are not finite keeps its equation, without a point."""
+    import math
+    if isinstance(record.get("objectives"), list):
+        record["objectives"] = [o if isinstance(o, (list, tuple)) and len(o) >= 2 and all(
+            isinstance(v, (int, float)) and math.isfinite(v) for v in o[:2]) else None
+            for o in record["objectives"]]
+    return record
+
+
+def _thin(values, limit):
+    import numpy as np
+    values = np.asarray(values, dtype=float)
+    step = max(1, int(np.ceil(values.shape[0] / limit)))
+    return values[::step]
+
+
+def _clean(values):
+    import numpy as np
+    return [None if not np.isfinite(v) else float(v) for v in np.asarray(values, dtype=float).ravel()]
+
+
+def evaluate(record):
+    """How well the selected equation describes the data, method-independently.
+
+    * balance: R^2 between the left-hand side computed from the data and the
+      value of the right-hand side, per equation (same derivatives as the search);
+    * solution: the equation integrated from the first retained point (ODEs) or
+      by the method of lines (explicit first-order-in-time 1-D PDEs), compared
+      with the data; thinned series are stored for plots.
+    This is an in-sample reconstruction of the record used for the search.
+    """
+    import numpy as np
+    from epde_bench import reconstruction as rc
+    from epde_bench.config import load_config, resolve_for_problem
+    system = record.get("selected")
+    if record.get("status") != "ok" or not system:
+        return None
+    if record.get("dataset") == "custom":
+        from support.custom_run import problem_from_npz
+        problem = problem_from_npz(record["data_file"])
+    else:
+        from epde_bench.datasets import load
+        problem = load(record["dataset"], **(record.get("config") or {}).get("loader", {}))
+    data = problem.noisy(record.get("noise", 0), record.get("seed", 0))
+    search = record.get("search_config")
+    if search is None:
+        cfg = record.get("config") or load_config(record["dataset"], record.get("variant", "default"))
+        search = resolve_for_problem(cfg, problem)
+    search = dict(search)
+    differentiation = (record.get("baseline") or {}).get("differentiation", "epde")
+    if differentiation != "epde":
+        search["_reconstruction_differentiation"] = differentiation
+    out = {"kind": problem.kind, "variables": list(problem.variables),
+           "axis_names": list(problem.axis_names), "balance": {}, "solution": None}
+    for eq in system:
+        try:
+            observed, predicted = rc.equation_fields(problem, eq, search, data)
+            out["balance"][eq.split("=", 1)[1].strip()] = rc.r2_score(observed, predicted)
+        except Exception as exc:                       # noqa: BLE001
+            out["balance"][eq.split("=", 1)[1].strip()] = None
+            out.setdefault("notes", []).append(f"balance: {type(exc).__name__}")
+    try:
+        if problem.dim == 0:
+            simulation = rc.simulate_ode(problem, system, search, data)
+        elif problem.dim == 1:
+            simulation = rc.simulate_pde(problem, system, search, data)
+        else:
+            simulation = None
+    except Exception as exc:                           # noqa: BLE001
+        simulation = None
+        out.setdefault("notes", []).append(f"solution: {type(exc).__name__}")
+    if simulation is None:
+        out["solution_note"] = ("This equation cannot be solved here: it is not written as "
+                                "'time derivative = terms without it' (EPDE may, for example, keep a "
+                                "law multiplied by a common factor such as u_t, or choose a second "
+                                "time derivative), or the data have more than one space dimension. "
+                                "The equation balance R² above still applies.")
+        return out
+    solution = {"success": bool(simulation.success), "coverage": float(simulation.coverage),
+                "message": simulation.message, "r2": {}, "nrmse": {}}
+    if problem.dim == 0:
+        t = np.asarray(simulation.t, dtype=float)
+        solution["t"] = _clean(_thin(t, 600))
+        solution["observed"], solution["simulated"] = {}, {}
+        for var in simulation.simulated:
+            obs = np.asarray(simulation.observed[var], dtype=float)
+            sim = np.asarray(simulation.simulated[var], dtype=float)
+            ok = np.isfinite(sim)
+            solution["r2"][var] = rc.r2_score(obs[ok], sim[ok]) if ok.all() else None
+            spread = float(np.std(obs)) or 1.0
+            solution["nrmse"][var] = (float(np.sqrt(np.mean((obs - sim) ** 2))) / spread
+                                      if ok.all() else None)
+            solution["observed"][var] = _clean(_thin(obs, 600))
+            solution["simulated"][var] = _clean(_thin(sim, 600))
+    else:
+        t = np.asarray(problem.grids[0])[:, 0]
+        x = np.asarray(problem.grids[1])[0, :]
+        rows = max(1, int(np.ceil(len(t) / 80)))
+        cols = max(1, int(np.ceil(len(x) / 80)))
+        solution["t"] = _clean(t[::rows])
+        solution["x"] = _clean(x[::cols])
+        solution["observed"], solution["simulated"] = {}, {}
+        for var, sim in simulation.simulated.items():
+            obs = np.asarray(data[var], dtype=float)
+            sim = np.asarray(sim, dtype=float)
+            ok = np.isfinite(sim)
+            solution["r2"][var] = rc.r2_score(obs[ok], sim[ok]) if ok.all() else None
+            spread = float(np.std(obs)) or 1.0
+            solution["nrmse"][var] = (float(np.sqrt(np.mean((obs - sim) ** 2))) / spread
+                                      if ok.all() else None)
+            solution["observed"][var] = [_clean(r) for r in obs[::rows, ::cols]]
+            solution["simulated"][var] = [_clean(r) for r in sim[::rows, ::cols]]
+    out["solution"] = solution
+    return out
+
+
 def main(folder):
     folder = Path(folder).resolve()
     job = queue._read(folder / "request.json")
@@ -207,13 +372,23 @@ def main(folder):
             record = _run_record(job)
         else:
             record = _run_upload(job, folder)
-        record = contract.normalize(record, method)
+        record = contract.normalize(_sanitize(_finite_objectives(record)), method)
     except Exception as exc:
         # Never write repr/traceback containing remote request URLs/credentials.
         record = contract.normalize({"status": "error", "error": f"{type(exc).__name__}: method execution failed"}, method)
         print(traceback.format_exc(), file=sys.stderr)
     record["wall_seconds"] = round(time.perf_counter()-start, 4)
+    # Save the search result before the (possibly slow) evaluation: if the time
+    # limit stops the evaluation, the discovered equations are not lost.
     queue._write(folder / "result.json", record)
+    if record["status"] == "ok":
+        try:
+            record["evaluation"] = _sanitize(evaluate(record))
+        except Exception:                              # noqa: BLE001
+            record["evaluation"] = {"error": "evaluation failed"}
+            print(traceback.format_exc(), file=sys.stderr)
+        record["evaluation_seconds"] = round(time.perf_counter() - start - record["wall_seconds"], 4)
+        queue._write(folder / "result.json", record)
     return 0 if record["status"] in ("ok", "unsupported") else 1
 
 

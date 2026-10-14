@@ -40,16 +40,41 @@ Then visit `http://127.0.0.1:8501`. The Compose port is bound only to localhost.
 
 | File | Purpose |
 | --- | --- |
-| `app/Home.py` | Navigation; public mode exposes only Discovery Lab |
-| `app/views/10_Discovery_lab.py` | Single method/run interface, plots, history, export |
+| `app/Home.py` | Navigation: the Lab is the first page; public mode exposes only the Lab |
+| `app/views/10_Discovery_lab.py` | Three tabs: new experiment, results, comparison |
+| `app/support/discovery_lab/ui.py` | Rendering of one result and of several results side by side |
 | `app/support/discovery_lab/contract.py` | Versioned result contract |
-| `app/support/discovery_lab/ode.py` | Restricted AST-based ODE builder |
+| `app/support/discovery_lab/ode.py` | Restricted ODE builder and its law in EPDE form |
 | `app/support/discovery_lab/uploads.py` | Numerical-only, bounded CSV/NPY/NPZ ingestion |
-| `app/support/discovery_lab/queue.py` | Capability-scoped jobs, quotas and private paths |
+| `app/support/discovery_lab/job_queue.py` | Session-scoped jobs, quotas, interrupted-job detection, deletion |
 | `app/support/discovery_lab/manager.py` | CPU process supervisor with timeouts |
-| `app/support/discovery_lab/worker.py` | EPDE, PySINDy and LLM service adapters |
+| `app/support/discovery_lab/worker.py` | EPDE, PySINDy and LLM adapters; evaluation of the selected equation |
 | `app/Dockerfile.demo` and `app/compose.demo.yaml` | Local container configuration |
-| `tests/test_discovery_lab.py` | Isolated contract, equation and queue tests |
+| `tests/test_discovery_lab.py` | Contract, generator, queue, real PySINDy runs through the worker, page rendering |
+
+## Using the Lab
+
+1. **New experiment.** Choose the data: one of 43 built-in equations (ODEs, systems, PDEs,
+   the NIR-1 test set) with a known law; a generated ODE `du/dt = f(t, u)` whose law is
+   converted to EPDE form so the result can be checked; or an uploaded CSV/NPZ/NPY file
+   (examples can be downloaded on the page). Pick one or several methods: they run on
+   exactly the same input, noise, seed and derivatives. For generated and uploaded data
+   the search space can be set: derivative estimator, highest time/space derivative,
+   powers, time as a term, sin/cos of a chosen frequency (allowed as a stand-alone forcing).
+2. **Results.** Live status of the searches; for each result the known law next to the
+   found equation, a verdict and a term-by-term table, the equation's solution against
+   the data, the equation balance, all candidates on the Pareto front, a JSON download.
+3. **Compare.** Finished runs are grouped by input; the chosen runs are shown side by side
+   (equations, verdicts, a descriptive table, solutions over the data on one figure).
+
+The worker evaluates every selected equation the same way for every method: R² of the
+left-hand side computed from the data against the right-hand side (balance), and the
+equation integrated from the first retained point (ODEs) or by the method of lines
+(explicit first-order-in-time 1-D PDEs, space derivatives up to order four), compared
+with the data. Both are in-sample checks on the record the method saw.
+
+The session code is kept in the page address, so a reload or a bookmark reopens the same
+experiments; anyone with the address sees them.
 
 ## Scientific principles
 
@@ -115,12 +140,15 @@ The remote service must disclose its objective definitions and perform its own c
 
 ## Verification
 
-The development overlay was checked using:
-
 ```bash
 python -m unittest discover -s projects/pic/tests -p test_discovery_lab.py -v
 ```
 
-Ten isolated unit tests passed; Python syntax checks passed; process life-cycle smoke test used a **stubbed** scientific runner. Streamlit browser tests and full live EPDE/PySINDy runs on the actual repository were **not** executed in the artifact preparation environment, and should not be claimed as successful.
+16 tests, including real PySINDy searches through the worker (an ODE, a fourth-order PDE,
+a generated ODE scored against its law) and the page rendered on their results. Real EPDE
+and PySINDy searches were also run through the queue and the manager on built-in ODEs,
+systems and PDEs, generated ODEs and an uploaded CSV.
 
-Recommended next tasks: full Python dependency install and genuine EPDE/PySINDy smoke runs, cross-device browser checks, file-storage cleanup policy, equality of differentiation settings, Vlad's PDEComp comparison validation, then Yaroslav's private-service integration. No work in `main`, `nir1`, ITMO or another repository is implied by this branch.
+An earlier version of the module that holds the queue was named `queue.py`: started as a
+script, the worker then shadowed the standard library `queue` and every search failed at
+import. It is now `job_queue.py`, and scripts drop their own folder from `sys.path`.
