@@ -5,7 +5,7 @@
 
 The development branch adds an opt-in Streamlit research demo for running EPDE and PySINDy on built-in data, uploaded numerical arrays and a restricted scalar ODE generator. It also defines a transport and result contract for Yaroslav's future private LLM agent. It does not replace the scientific EPDE implementation or benchmark protocol and does not include the closed LLM model.
 
-The existing hosted demo at https://epde-explorer-demo.streamlit.app reads this branch. Its default navigation consists of **Lab**, **Results** and **Compare**. Legacy research pages remain in the repository but are hidden on the public app because their previous job/result directories were shared between visitors. No pull request to the upstream EPDE repository is required.
+The existing hosted demo at https://epde-explorer-demo.streamlit.app reads this branch. Its default navigation includes **Run a search**, **Results**, **Compare**, **All datasets** and **How it works**. Legacy research pages remain in the repository but are hidden on the public app because their previous job/result directories were shared between visitors. No pull request to the upstream EPDE repository is required.
 
 ## Start locally
 
@@ -26,7 +26,7 @@ $env:EPDE_PUBLIC_DEMO = "1"
 uv run --locked --extra cpu --extra app streamlit run app/Home.py --server.address 127.0.0.1
 ```
 
-The public interface shows Lab · EPDE, PySINDy · your PC, Results · server, Compare · server and How it works (EPDE + SINDy). To expose the legacy research navigation **only on a local trusted server**, set `EPDE_SHOW_RESEARCH_PAGES=1` and leave `EPDE_PUBLIC_DEMO` unset. Never expose legacy pages on a public instance.
+The public interface combines native EPDE and PySINDy in **Run a search**. There is no execution-location choice or separate PySINDy page in the public navigation. **All datasets** exposes the complete registry. To expose the legacy research navigation **only on a local trusted server**, set `EPDE_SHOW_RESEARCH_PAGES=1` and leave `EPDE_PUBLIC_DEMO` unset. Never expose legacy pages on a public instance.
 
 Docker Compose (requires local Docker resources):
 
@@ -40,13 +40,13 @@ Then visit `http://127.0.0.1:8501`. The Compose port is bound only to localhost.
 
 | File | Purpose |
 | --- | --- |
-| `app/Home.py` | Four-page sidebar navigation with Lab as the landing page |
+| `app/Home.py` | Unified Run a search, Results, Compare, complete catalogue and learning navigation |
 | `app/views/11_Discovery_results.py` | Current session's history, status and detailed results |
 | `app/views/9_How_EPDE_works.py` | Original interactive EPDE stages, LikeC4 diagrams and short optimizer example, plus a PySINDy selector |
 | `app/support/sindy_guide.py` | PySINDy architecture using the bundled LikeC4 models, stages, STLSQ and algorithm comparison |
 | `app/views/12_Discovery_compare.py` | Matched-input comparison and read-only published archive |
 | `app/support/discovery_lab/session.py` | Shared session capability and recovery across all three pages |
-| `app/views/10_Discovery_lab.py` | Three tabs: new experiment, results, comparison |
+| `app/views/10_Discovery_lab.py` | Single run form: EPDE/PySINDy selection, data, presets and paired execution |
 | `app/support/discovery_lab/ui.py` | Rendering of one result and of several results side by side |
 | `app/support/discovery_lab/contract.py` | Versioned result contract |
 | `app/support/discovery_lab/ode.py` | Restricted ODE builder and its law in EPDE form |
@@ -63,7 +63,7 @@ Then visit `http://127.0.0.1:8501`. The Compose port is bound only to localhost.
 
 ## Using the Lab
 
-1. **Lab (landing page).** Choose the data: one of 43 built-in equations (ODEs, systems, PDEs,
+1. **Run a search (landing page).** Choose EPDE, PySINDy or both, then choose data: one of 59 registered datasets (ODEs, systems, PDEs,
    the NIR-1 test set) with a known law; a generated ODE `du/dt = f(t, u)` whose law is
    converted to EPDE form so the result can be checked; or an uploaded CSV/NPZ/NPY file
    (examples can be downloaded on the page). Pick one or several methods: they run on
@@ -128,24 +128,33 @@ Community Cloud demonstration. The full resolved scientific settings travel
 with the job manifest to the worker and are checked again there, rather than
 being displayed but ignored; the stored run record contains their identity.
 
-**Execution location (2026-10-15):** EPDE Lab defaults to **Demo server**,
-subject to a conservative CPU policy enforced in both the UI and scientific
-worker: 8000 grid cells, <=2 variables, <=24 candidates, <=8 epochs and
-cells × candidates × epochs <=250000. Heavy PDE records including Navier–Stokes
-are blocked before loading and offered **local native EPDE** instead.
+**Unified execution (2026-10-15):** In public Streamlit navigation
+there is one **Run a search** form and no selector labeled server/local.
+Original EPDE and original PySINDy are invoked by the same scientific job queue,
+using one input array, noise realization, random seed and explicit search settings.
+Their results are stored separately but assigned the same input key for
+**Results** and **Compare**. Method objectives are kept distinct and must not
+be ranked as directly interchangeable. The short choices (method, group, preset,
+derivative type, small result groups) use buttons; long dataset lists remain
+searchable.
 
-**PySINDy · your PC** is a separate zero-install browser page INSIDE the same
-Streamlit website. Official PySINDy 2.1.0 computes on the visitor's CPU in
-a WebAssembly Web Worker. All app JavaScript and HTML are supplied by this
-Streamlit app (no external GitHub HTML host). Pyodide wheels and scientific
-packages still require online CDN/PyPI access and accessibility from Russian
-networks has not been measured. Browser history uses IndexedDB, separate from
-the server's ephemeral EPDE Results and Compare history.
+The free public instance enforces a conservative scientific budget (8000 field
+cells, at most two variables, 24 candidates, eight epochs and
+cells × candidates × epochs <=250000). Full expensive 2D/3D PDEs such as
+Navier–Stokes remain in the 59-record catalogue but are not run on the free
+shared VM. The same Streamlit code runs with full local scientific resources
+using the root `run-epde.sh` / `run-epde.cmd`, or in private GitHub Codespaces;
+these deployment details are in the main README rather than a public mode
+switcher.
 
-The browser PySINDy is a limited five-ODE/CSV demonstration, NOT the full
-PDEComp/native mode from Vlad's benchmark. DeepMoD and DISCOVER are benchmarked
-using their own historical incompatible Docker environments. Exact EPDE
-continues to run via optional user-approved native worker for large PDEs.
+The standalone five-ODE PySINDy WebAssembly teaching prototype remains
+versioned at `projects/pic/browser_demo/`, but is not a separate run page or
+a replacement for the original PySINDy adapter in this UI. DeepMoD and
+DISCOVER still require their original independent native-container test environments.
+
+History survives navigation and F5 **while the Streamlit instance stays alive**;
+its per-session filesystem is not permanent Cloud storage and Community Cloud
+restarts may erase it. Download valuable JSON results.
 
 ## Scientific principles
 
