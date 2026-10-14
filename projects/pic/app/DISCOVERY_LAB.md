@@ -97,6 +97,37 @@ benchmark architecture and a SINDy-specific pipeline diagram to explain sparse
 regression, time-tail validation and the single-candidate output. Both link back to the
 same Lab for running methods; no legacy shared-result pages are reintroduced.
 
+## Scientific configurations in the unified Lab
+
+The **Scientific settings** section is part of Lab, not another launcher. It
+uses the old Run a search configuration system, with the 7 EPDE setting groups.
+For built-in data it loads:
+
+1. configs/_base.yaml (original shared scientific protocol);
+2. configs/<dataset>.yaml (equation-specific requirements, when present);
+3. configs/variants.yaml (default, poly, knee, instability CV, legacy, etc.);
+4. explicit user edits, recorded as a reproducible search override.
+
+The initial selection is the repository's **record-specific shipped preset**.
+It is not claimed to be the empirically *best* algorithm configuration on
+every problem or noise level: that claim needs independent matched-budget
+multi-seed experiments. A universal profile with conservative 12 × 4 EPDE
+budget, bounded derivative orders and adjustable candidate library is used
+for uploaded data and generated ODEs.
+
+Lab exposes population, epochs, maximum terms, derivative estimators, polynomial
+degree/window, boundary cropping, powers of variables/derivatives, products,
+1/x tokens (for safe spatial grids), discrepancy and instability metrics,
+second objective, sparsity operator, memory budget, and YAML import/export.
+Solver-based fitness and arbitrary operator classes are disabled in the public
+Community Cloud demonstration. The full resolved scientific settings travel
+with the job manifest to the worker and are checked again there, rather than
+being displayed but ignored; the stored run record contains their identity.
+
+**Execution location:** the current website still computes on Streamlit Cloud.
+The planned opt-in local Python worker is specified in LOCAL_EXECUTION_DESIGN.md,
+but no browser-to-OS execution mechanism has been installed.
+
 ## Scientific principles
 
 A benchmark-quality comparison needs the same input arrays, grids, noise realization, boundary cropping, differentiation strategy and declared budgets. EPDE returns multiple candidates and configurable multiobjective scores; the current PySINDy baseline returns a single selected candidate and objectives (held-out normalized MSE and active term count). **Do not combine their scores into one Pareto front or publish a cross-framework ranking based on these unrelated numbers.**
