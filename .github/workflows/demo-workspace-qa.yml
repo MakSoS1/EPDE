@@ -13,6 +13,7 @@ on:
       - 'projects/pic/app/static/likec4-views.js'
       - 'projects/pic/app/support/discovery_lab/**'
       - 'projects/pic/tests/test_demo_workspace_navigation.py'
+      - 'projects/pic/tests/test_demo_lab_settings.py'
       - '.github/workflows/demo-workspace-qa.yml'
   workflow_dispatch:
 
@@ -22,7 +23,7 @@ permissions:
 jobs:
   navigation:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -34,3 +35,23 @@ jobs:
       - name: Verify minimal sidebar navigation and shared owner
         run: |
           python -m unittest discover -s projects/pic/tests -p 'test_demo_workspace_navigation.py' -v
+  scientific-config:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      PYTHONPATH: .:projects/pic:projects/pic/app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+      - name: Install locked CPU app dependencies
+        run: uv sync --project projects/pic --extra cpu --extra app --locked
+      - name: Validate original record profiles and public search controls
+        run: |
+          projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_demo_lab_settings.py' -v
+
