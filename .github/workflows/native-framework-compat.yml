@@ -1,0 +1,68 @@
+name: Native EPDE and PySINDy — one environment
+on:
+  push:
+    branches: [demo/streamlit-community-cloud]
+    paths:
+      - 'projects/pic/tests/test_native_epde_pysindy_same_env.py'
+      - 'projects/pic/uv.lock'
+      - 'projects/pic/pyproject.toml'
+      - '.github/workflows/native-framework-compat.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  compatibility:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 32
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      PYTHONPATH: '.:projects/pic:projects/pic/app'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+      - id: install
+        name: Install original locked EPDE and PySINDy environment
+        run: |
+          set -o pipefail
+          uv sync --project projects/pic --extra cpu --extra app --locked 2>&1 | tee /tmp/native-install.log
+      - id: scientific
+        name: Real EPDE + PySINDy searches and representation tests
+        timeout-minutes: 18
+        run: |
+          set -o pipefail
+          projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_native_epde_pysindy_same_env.py' -v 2>&1 | tee /tmp/native-science.log
+      - name: Publish independent native compatibility report
+        if: always()
+        env:
+          INSTALLED: ${{ steps.install.outcome }}
+          SCIENCE: ${{ steps.scientific.outcome }}
+        run: |
+          python - <<'PY'
+          import json,os,datetime,pathlib
+          data={
+              "revision":os.environ["GITHUB_SHA"],
+              "run_id":int(os.environ["GITHUB_RUN_ID"]),
+              "timestamp":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              "dependencies":os.environ.get("INSTALLED"),
+              "native_frameworks":os.environ.get("SCIENCE"),
+              "verified":os.environ.get("INSTALLED")=="success" and os.environ.get("SCIENCE")=="success",
+          }
+          for label,fn in [("install_log","/tmp/native-install.log"),("science_log","/tmp/native-science.log")]:
+              p=pathlib.Path(fn);data[label]=p.read_text(errors="replace")[-12000:] if p.exists() else ""
+          pathlib.Path("/tmp/native-compat.json").write_text(json.dumps(data,indent=2))
+          PY
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          blob=$(git hash-object -w /tmp/native-compat.json)
+          tree=$(printf '100644 blob %s	result.json
+' "$blob" | git mktree)
+          commit=$(printf 'Native EPDE/PySINDy compatibility report
+' | git commit-tree "$tree")
+          git push --force origin "$commit:refs/heads/ci/native-epde-pysindy"
