@@ -61,7 +61,12 @@ class HostedResourcePolicyTests(unittest.TestCase):
         self.assertIn("st.iframe(build_browser_html(embedded=True)", browser)
         self.assertNotIn("queue.submit", browser)
         self.assertIn("if is_local_only(record_name) and not local_full:", lab)
-        self.assertIn('if location == SERVER_MODE and not LOCAL_FULL and "epde" in methods:', lab)
+        self.assertIn('"epde", "pysindy"', lab)
+        self.assertIn('default=["epde", "pysindy"]', lab)
+        self.assertNotIn('lab_execution_location', lab)
+        self.assertNotIn('SERVER_MODE', lab)
+        self.assertIn('st.pills("Dataset group"', lab)
+        self.assertIn('queue.submit(owner, req)', lab)
 
 
 if __name__ == "__main__":
