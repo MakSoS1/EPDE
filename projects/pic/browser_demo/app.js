@@ -458,7 +458,7 @@ function loadDiagrams() {
     // correct-MIME development proxy; GitHub Pages has it locally.
     if (!triedRawFallback) {
       triedRawFallback = true;
-      script.src = "https://raw.githack.com/MakSoS1/EPDE/demo/streamlit-community-cloud/projects/pic/app/static/likec4-views.js";
+      script.src = "https://raw.githack.com/MakSoS1/EPDE/2a338d356cea510972e6057619e3365264baddb3/projects/pic/app/static/likec4-views.js";
     } else {
       target.replaceChildren(make("p","muted",
         "LikeC4 could not load. Open the original architecture in the native demo."));
