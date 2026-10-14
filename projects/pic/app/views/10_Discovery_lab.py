@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import hashlib
 import io
+import base64
+import secrets
 import json
 import os
 import time
@@ -133,8 +135,9 @@ def example_files():
 
 
 st.subheader("1 · Choose data")
-source = st.radio("Where do the data come from?",
-                  ["Built-in equation", "Generate an ODE", "Upload your data"], horizontal=True,
+source = st.segmented_control("Data source",
+                  ["Built-in equation", "Generate an ODE", "Upload your data"],
+                  default="Built-in equation",
                   help="Built-in equations have a known law, so the result is checked against it. "
                        "A generated ODE is checked against the law you type. Uploaded data have "
                        "no known law: the result is checked against the data only.")
@@ -236,17 +239,15 @@ else:
 
 st.subheader("2 · Choose methods")
 options = ["epde", "pysindy"] + (["llm"] if LLM_READY else [])
-methods = st.multiselect("Run on the same input", options, default=["epde", "pysindy"],
-                         format_func=METHOD_LABELS.get)
+methods = st.pills("Methods", options, default=["epde", "pysindy"],
+                    selection_mode="multi", format_func=METHOD_LABELS.get)
 if not LLM_READY:
     st.caption("The LLM agent slot is ready but no service is configured on this server.")
 elif "llm" in methods:
     st.warning("The LLM service receives a sample of these data. Do not send private measurements.")
 
 st.subheader("3 · Scientific settings")
-st.caption("Execution currently runs on the Streamlit server. Local execution on your own "
-           "CPU/GPU will require an explicitly installed local worker; a web page cannot "
-           "silently launch system Python on your computer.")
+st.caption("The same scientific settings are used locally and on the server.")
 from support.discovery_lab.lab_settings import render_settings
 
 variant, overrides, settings, selected_budget = "default", {}, None, "Stored / recommended starting values"
@@ -262,40 +263,110 @@ except (ValueError, TypeError, KeyError, IndexError, AttributeError) as exc:
     settings_valid = False
 
 budget_code = {
-    "Stored / recommended starting values": "standard",
-    "Quick exploratory run": "quick",
-    "Thorough exploratory run": "thorough",
-    "Exact values": "custom",
+    "Preset": "standard",
+    "Quick": "quick",
+    "Thorough": "thorough",
+    "Custom": "custom",
 }[selected_budget]
 
-ready = settings_valid and (record_name is not None or arrays is not None) and bool(methods)
-if st.button(f"Run {len(methods)} search(es) on this input" if methods else "Choose a method",
-             type="primary", disabled=not ready):
+st.subheader("4 · Compute")
+location = st.segmented_control("Execution",
+    ["My computer", "Demo server"], default="My computer",
+    key="lab_execution_location",
+    help="Local uses your CPU with an installed native worker. Cloud shares free CPU.")
+if location == "My computer":
+    st.caption("Native EPDE and PySINDy run on your computer. The demo site is hosted for free.")
+    with st.popover("Install and start local worker"):
+        st.code(
+            "git clone --branch demo/streamlit-community-cloud https://github.com/MakSoS1/EPDE.git\n"
+            "cd EPDE/projects/pic\n"
+            "uv sync --locked --extra cpu --extra app\n"
+            "uv run --locked --extra cpu --extra app python app/local_worker_service.py",
+            language="bash")
+        st.caption("Install uv once: https://docs.astral.sh/uv/getting-started/installation/ "
+                   "Start this worker yourself and keep its terminal open. "
+                   "The browser may ask for permission to access a local service.")
+    access = st.text_input("Local worker access code", type="password", key="lab_worker_code")
+    if "llm" in methods:
+        st.info("Local execution currently supports EPDE and PySINDy, not the private LLM service.")
+else:
+    access = ""
+    st.warning("Demo-server CPU is shared and limited. Prefer local execution for real experiments.")
+
+ready = settings_valid and bool(methods) and (record_name is not None or arrays is not None)
+if location == "My computer":
+    ready = ready and bool(access.strip()) and all(m in ("epde","pysindy") for m in methods)
+if st.button("Prepare local runs" if location == "My computer" else "Run on demo server",
+             type="primary", disabled=not ready, key="lab_start"):
     try:
-        for method in methods:
-            queue.check_capacity(owner, method, count=len(methods))
         if record_name:
             key = f"record|{record_name}|{noise:g}|{seed}"
             requests = [{"method": m, "source": "record", "dataset": record_name,
-                         "variant": ("pysindy" if m == "pysindy" else variant if m == "epde" else "default"),
-                         "overrides": overrides if m != "llm" else {},
-                         "noise": float(noise), "seed": seed, "effort": budget_code,
-                         "display": {"label": label, "input_key": key}} for m in methods]
+                "variant": ("pysindy" if m == "pysindy" else variant if m == "epde" else "default"),
+                "overrides": overrides if m != "llm" else {},
+                "noise": float(noise), "seed": seed, "effort": budget_code,
+                "display": {"label": label, "input_key": key}} for m in methods]
         else:
             key = f"upload|{arrays_digest(arrays)}|{noise:g}"
-            data_path, config_path = queue.save_upload(owner, arrays, settings)
             requests = [{"method": m, "source": "upload", "dataset": "custom",
-                         "data_path": str(data_path), "config_path": str(config_path),
-                         "noise": float(noise), "seed": seed, "effort": budget_code,
-                         "display": {"label": label, "input_key": key}} for m in methods]
-        ids = [queue.submit(owner, request) for request in requests]
-        st.session_state["discovery_selected_job"] = ids[0]
-        st.session_state["discovery_compare_key"] = key
-        st.success(f"Started {len(ids)} search(es). Open Results in the sidebar to follow progress; "
-                   "Compare will show completed methods side by side.")
-    except (ValueError, OSError) as exc:
-        st.error(f"Cannot start: {exc}")
+                "noise": float(noise), "seed": seed, "effort": budget_code,
+                "display": {"label": label, "input_key": key}} for m in methods]
+            if location == "My computer":
+                buffer = io.BytesIO()
+                np.savez_compressed(buffer, **arrays)
+                b64 = base64.b64encode(buffer.getvalue()).decode("ascii")
+                if len(b64) > 4_000_000:
+                    raise ValueError("Local transfer exceeds 3 MiB")
+                for request in requests:
+                    request["data_b64"] = b64
+                    request["settings"] = settings
+            else:
+                data_path, config_path = queue.save_upload(owner, arrays, settings)
+                for request in requests:
+                    request["data_path"] = str(data_path)
+                    request["config_path"] = str(config_path)
+        if location == "My computer":
+            st.session_state["lab_local_pending"] = [
+                {"id": secrets.token_hex(12), "request": req} for req in requests]
+            st.success("Ready. Start the first local search below.")
+        else:
+            for m in methods:
+                queue.check_capacity(owner, m, count=len(methods))
+            ids = [queue.submit(owner, req) for req in requests]
+            st.session_state["discovery_selected_job"] = ids[0]
+            st.session_state["discovery_compare_key"] = key
+            st.success("Server searches queued. Check Results.")
+    except (ValueError, OSError, TypeError) as exc:
+        st.error(f"Cannot submit the search: {exc}")
 
+pending = st.session_state.get("lab_local_pending") or []
+if pending:
+    active = pending[0]
+    st.markdown("**Run on your computer**")
+    st.caption(f"{len(pending)} job(s) remaining. "
+               f"Next: {METHOD_LABELS.get(active['request']['method'], active['request']['method'])}")
+    if st.button("Discard prepared local jobs", key="discard_local"):
+        st.session_state["lab_local_pending"] = []
+        st.rerun()
+    if not access.strip():
+        st.warning("Enter the local worker code to continue.")
+    else:
+        from support.discovery_lab.local_browser import local_bridge
+        output = local_bridge(job=active["request"], token=access.strip(),
+                              key="local_job_" + active["id"])
+        if output.result is not None:
+            try:
+                result_id = queue.save_client_result(owner, active["request"], output.result)
+                st.session_state["discovery_selected_job"] = result_id
+                st.session_state["discovery_compare_key"] = (
+                    active["request"].get("display") or {}).get("input_key")
+                st.session_state["lab_local_pending"] = pending[1:]
+                st.toast("Saved local result in Results", icon="✅")
+                st.rerun()
+            except (ValueError, OSError, TypeError) as exc:
+                st.error(f"Cannot store local result: {exc}")
+        if output.failed:
+            st.warning("Worker reported a failure. Check the local terminal and retry.")
 
 st.divider()
 st.subheader("Your latest experiments")
