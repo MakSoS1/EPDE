@@ -106,6 +106,20 @@ try {
     console.log("PASS: original EPDE LikeC4 architecture WebComponent is registered and mounted.");
   }
 
+  // The same browser-only worker is embedded inside the existing Streamlit Lab.
+  // Embedded mode hides its educational (non-EPDE) evolutionary option and
+  // retains Results navigation without extra server-side computation.
+  await page.goto(base + (base.includes("?") ? "&" : "?") + "embed=1",
+                  {waitUntil:"domcontentloaded", timeout:30000});
+  if (!await page.locator("body.embedded").count()) throw new Error("Embed layout missing");
+  if (await page.locator("#method-evo").isChecked()) {
+    throw new Error("Educational evolution must not be selected by default in embedded PySINDy");
+  }
+  if (!await page.locator(".nav-btn[data-page='results']").count()) {
+    throw new Error("Local Results were removed in embedded mode");
+  }
+  console.log("PASS: compact hosted-website PySINDy embedding keeps browser-local Results.");
+
   // No server-side computation calls and no local Python installation.
   if (failures.length) throw new Error(failures.join("\n"));
   console.log("BROWSER_SMOKE_PASS");
