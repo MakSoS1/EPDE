@@ -196,6 +196,12 @@ function nativeWorker() {
       setStatus(data.text, false);
       return;
     }
+    if (data.type === "capabilities") {
+      store.capabilities = data.report;
+      try { sessionStorage.setItem("epde_browser_capabilities", JSON.stringify(data.report)); }
+      catch (_) {}
+      return;
+    }
     const pending = store.awaiting;
     if (!pending || data.id !== pending.id) return;
     store.awaiting = null;
