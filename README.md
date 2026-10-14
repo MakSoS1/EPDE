@@ -50,13 +50,23 @@ uv run --project projects/pic --python 3.12 --locked --extra cpu --extra app str
 
 <https://epde-explorer-demo.streamlit.app/>
 
-The repository's **complete scientific catalogue** is visible in **All datasets**.
-Hosted Lab allows only bounded, small original EPDE runs, to protect the shared
-free VM. Complex 2D/3D equations including Navier–Stokes stay visible with
-their metadata and governing-law declarations; execute them locally or in
-Codespaces instead of loading the shared server. The full catalogue is distinct
-from the browser-only PySINDy tutorial, which intentionally offers a five-ODE
-WebAssembly demonstration.
+The public scientific workflow is now **Run a search**: select one dataset,
+click **EPDE**, **PySINDy**, or **both**, adjust the original scientific presets
+and click one Run button. EPDE and PySINDy use the same input, noise and seed.
+Saved results share one session history and group by exact input identity in
+**Results** and **Compare**. There is no execution-location selector in the UI.
+
+**All datasets** displays the entire 59-record scientific registry.
+Large 2D/3D problems including Navier–Stokes remain visible but are not
+submitted to the free shared instance. A full checkout run via
+`run-epde.sh` / `run-epde.cmd` is not limited by the free-demo compute
+budget. The stand-alone five-ODE PySINDy WASM experiment still exists in the
+repository for education, but is not a second public search tab.
+
+Results are stored per private session on the running Streamlit instance
+(not a durable external database). Refresh and navigation preserve current
+results while the instance survives; Community Cloud restarts may clear them.
+Download important individual JSON results from Results.
 
 **Deployment status matters:** a CI green build doesn't establish that the
 public Streamlit instance is healthy. The public instance has had a
