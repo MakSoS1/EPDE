@@ -18,6 +18,7 @@ on:
       - 'projects/pic/tests/test_demo_lab_settings.py'
       - 'projects/pic/tests/test_demo_local_cpu.py'
       - 'projects/pic/tests/test_demo_execution_routing.py'
+      - 'projects/pic/tests/test_paired_lab_runs.py'
       - 'projects/pic/tests/test_full_catalog.py'
       - '.devcontainer/**'
       - 'run-epde.sh'
@@ -142,6 +143,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Run original EPDE plus PySINDy and verify same-input saved comparison
+        timeout-minutes: 10
+        run: |
+          projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_paired_lab_runs.py' -v
       - name: Check local browser bridge ES module syntax
         run: node --input-type=module --check < projects/pic/app/support/discovery_lab/local_browser_assets/local_bridge.js
   report:
