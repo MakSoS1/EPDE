@@ -18,6 +18,8 @@ owner = current_owner()
 st.caption("Choose experiments on the same input to inspect recovered equations, "
            "prediction quality and runtimes side by side. This is not a framework ranking.")
 st.page_link("views/10_Discovery_lab.py", label="Run methods in Lab", icon="🧪")
+st.caption("When you choose several methods in Lab, their searches share a dataset, "
+           "noise level and seed. Only matching input groups can be compared.")
 
 rows = [r for r in queue.list_jobs(owner) if r.get("state") == "finished"]
 results = {r["id"]: queue.result(owner, r["id"]) for r in rows}
@@ -70,3 +72,30 @@ else:
                    "about a method in general.")
         st.markdown("**Solutions against the data**")
         ui.solution_plots(chosen)
+
+# Curated published benchmark archives remain available without exposing
+# other visitors' private files from the shared app/results directory.
+with st.expander("Published benchmark archive (read-only)", expanded=False):
+    from pathlib import Path
+    from support.common import PIC_DIR
+
+    published_root = PIC_DIR / "experiments"
+    folders = sorted(
+        (p for p in published_root.iterdir() if p.is_dir() and (p / "campaign.json").is_file()),
+        key=lambda p: p.name,
+    ) if published_root.exists() else []
+    if not folders:
+        st.caption("No published benchmark campaigns are bundled with this build.")
+    else:
+        selected_archive = st.selectbox("Published campaign", folders, format_func=lambda p: p.name)
+        report = selected_archive / "report"
+        summary_file = report / "success_front.csv"
+        if summary_file.is_file():
+            archived = pd.read_csv(summary_file)
+            st.dataframe(archived, hide_index=True, width="stretch")
+            st.caption("Archival campaign metrics were computed by the original "
+                       "benchmark protocol. They are not mixed with current Lab run objectives.")
+        elif (report / "summary.md").is_file():
+            st.markdown((report / "summary.md").read_text(encoding="utf-8"))
+        else:
+            st.info("This archived campaign has no generated public report.")
