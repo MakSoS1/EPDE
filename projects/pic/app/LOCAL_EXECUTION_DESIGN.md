@@ -1,5 +1,12 @@
 # Client-side equation discovery: implementation decision (October 2026)
 
+**Implementation update:** an experimental native loopback worker has now been
+added in app/local_worker_service.py, connected via app/support/discovery_lab/
+local_browser.py and the Lab's My computer mode. It runs EPDE/PySINDy on the
+visitor's CPU. See LOCAL_WORKER_README.md for user setup, trust model, caveats,
+and the remaining browser integration tests.
+
+
 The existing Streamlit deployment executes EPDE and PySINDy on the server.
 Ordinary web pages cannot execute CPython processes or access CUDA on the visitor's
 operating system without an explicit user-installed helper. Keep this boundary clear.
@@ -57,6 +64,10 @@ across machines should report hardware and threading separately.
 
 ## Current state
 
-The helper and its backend API **are not implemented yet**. There is intentionally
-no "run locally" button in the current UI. Everything shown as a runnable
-method remains server-executed until that integration is built and tested.
+The initial local worker, loopback JSON API and browser-to-worker
+Streamlit v2 component **are implemented in the demo branch**. It is a
+first experimental integration, not a certified cross-browser release:
+there has not yet been a real Chrome/Firefox/Edge + desktop worker end-to-end
+test on the deployed Streamlit Cloud website. Server fallback still exists
+and executes on the Cloud VM. Local-worker mode executes native searches
+on the user's computer only after the user explicitly installs and starts it.
