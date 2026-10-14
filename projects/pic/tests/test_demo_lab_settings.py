@@ -71,7 +71,7 @@ class LabScientificPresets(unittest.TestCase):
         ast.parse(worker)
         self.assertIn('"overrides": overrides if m != "llm" else {}', lab)
         self.assertIn('if "overrides" in req:', worker)
-        self.assertIn("validate_public_search(resolve_for_problem(cfg, problem), problem.shape)", worker)
+        self.assertIn("validate_public_search(resolve_for_problem(cfg, problem), problem.shape, override=not hosted)", worker)
         self.assertIn("validate_public_search(search_cfg, problem.shape)", worker)
 
     def test_advanced_fields_and_yaml_transport_exist(self):
