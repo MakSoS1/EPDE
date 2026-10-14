@@ -241,69 +241,29 @@ if not LLM_READY:
 elif "llm" in methods:
     st.warning("The LLM service receives a sample of these data. Do not send private measurements.")
 
-st.subheader("3 · Settings")
-effort = st.select_slider("EPDE search budget", list(EFFORTS), value="standard",
-                          format_func=EFFORTS.get,
-                          help="Larger budgets find more but take longer. PySINDy has no budget.")
-settings = None
-if arrays is not None:
-    with st.expander("Search space and derivatives", expanded=source != "Built-in equation"):
-        if source == "Generate an ODE":
-            st.caption("Set from your expression; change them to see how the search space matters.")
-        c1, c2, c3 = st.columns(3)
-        derivatives = c1.selectbox("Derivatives from data", ["FD", "poly"],
-                                   format_func={"FD": "finite differences",
-                                                "poly": "local polynomial fit"}.get,
-                                   help="The same derivatives are given to every method.")
-        time_order = c2.selectbox("Highest time derivative", [1, 2],
-                                  index=[1, 2].index(space.get("time_order", 2)))
-        power = c3.selectbox("Highest power of a variable", [1, 2, 3],
-                             index=[1, 2, 3].index(space.get("power", 3)))
-        c4, c5 = st.columns(2)
-        space_order = None
-        if space.get("space_order"):
-            space_order = c4.selectbox("Highest space derivative", [1, 2, 3, 4], index=2)
-        time_terms = c4.checkbox("Include t and t² as terms", value=space.get("time_terms", True),
-                                 help="Lets the equation depend explicitly on time (and on the "
-                                      "space coordinate for PDEs). Switch off for autonomous laws: "
-                                      "otherwise a method may imitate a missing term with t.")
-        use_trig = c5.checkbox("Include sin and cos of t", value=space.get("frequency") is not None)
-        frequency = (c5.number_input("Frequency of sin/cos", 0.01, 50.0,
-                                     float(space.get("frequency") or 1.0))
-                     if use_trig else None)
-    from epde_bench.config import read_yaml
-    from epde_bench.paths import CONFIG_DIR
-    base = read_yaml(CONFIG_DIR / "_base.yaml")
-    search = dict(base["search"])
-    search["domain"] = {"boundary_width": "auto"}
-    population, epochs = {"quick": (8, 3), "standard": (16, 5), "thorough": (24, 8)}[effort]
-    search["evolution"] = dict(search.get("evolution") or {}, population_size=population,
-                               training_epochs=epochs)
-    orders = [time_order] + ([space_order] if space_order else [])
-    search["preprocessing"] = dict(search.get("preprocessing") or {}, max_deriv_order=orders,
-                                   default_preprocessor_type=derivatives, preprocessor_kwargs={})
-    if derivatives == "poly":
-        from epde_bench.poly_options import polynomial_kwargs
-        try:
-            shape = tuple(len(arrays[f"axis_{i}"]) for i in range(len(orders)))
-            search["preprocessing"]["preprocessor_kwargs"] = polynomial_kwargs(11, 4, orders, shape)
-        except ValueError as exc:
-            st.error(str(exc))
-            arrays = None
-    tokens = [{"family": "grid", "labels": ["x"], "max_power": 2}] if time_terms else []
-    if frequency:
-        # meaningful: sin/cos may stand alone as a forcing term, as for the Duffing record
-        tokens.append({"family": "fixed_trigonometric", "freq": float(frequency),
-                       "meaningful": True})
-    search["search_space"] = dict(search.get("search_space") or {}, data_fun_pow=power,
-                                  tokens=tokens)
-    search.setdefault("solver", {})["use_solver"] = False
-    settings = {"seed": 0, "noise": float(noise), "search": search, "effort": effort,
-                "label": label, "origin": origin}
-    if reference:
-        settings["reference_truth"] = reference
+st.subheader("3 · Scientific settings")
+from support.discovery_lab.lab_settings import render_settings
 
-ready = (record_name is not None or arrays is not None) and bool(methods)
+variant, overrides, settings, selected_budget = "default", {}, None, "Stored / recommended starting values"
+settings_valid = True
+try:
+    variant, overrides, settings, selected_budget = render_settings(
+        record_name=record_name, problem=problem if record_name else None,
+        arrays=arrays, space=space, source=source, methods=methods,
+        noise=noise, seed=seed, label=label, origin=origin, reference=reference,
+    )
+except (ValueError, TypeError, KeyError, IndexError, AttributeError) as exc:
+    st.error(f"Please correct the scientific configuration before running: {exc}")
+    settings_valid = False
+
+budget_code = {
+    "Stored / recommended starting values": "standard",
+    "Quick exploratory run": "quick",
+    "Thorough exploratory run": "thorough",
+    "Exact values": "custom",
+}[selected_budget]
+
+ready = settings_valid and (record_name is not None or arrays is not None) and bool(methods)
 if st.button(f"Run {len(methods)} search(es) on this input" if methods else "Choose a method",
              type="primary", disabled=not ready):
     try:
@@ -312,15 +272,16 @@ if st.button(f"Run {len(methods)} search(es) on this input" if methods else "Cho
         if record_name:
             key = f"record|{record_name}|{noise:g}|{seed}"
             requests = [{"method": m, "source": "record", "dataset": record_name,
-                         "variant": "pysindy" if m == "pysindy" else "default",
-                         "noise": float(noise), "seed": seed, "effort": effort,
+                         "variant": ("pysindy" if m == "pysindy" else variant if m == "epde" else "default"),
+                         "overrides": overrides if m != "llm" else {},
+                         "noise": float(noise), "seed": seed, "effort": budget_code,
                          "display": {"label": label, "input_key": key}} for m in methods]
         else:
             key = f"upload|{arrays_digest(arrays)}|{noise:g}"
             data_path, config_path = queue.save_upload(owner, arrays, settings)
             requests = [{"method": m, "source": "upload", "dataset": "custom",
                          "data_path": str(data_path), "config_path": str(config_path),
-                         "noise": float(noise), "seed": 0, "effort": effort,
+                         "noise": float(noise), "seed": seed, "effort": budget_code,
                          "display": {"label": label, "input_key": key}} for m in methods]
         ids = [queue.submit(owner, request) for request in requests]
         st.session_state["discovery_selected_job"] = ids[0]
