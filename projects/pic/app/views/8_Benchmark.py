@@ -10,6 +10,14 @@ page('Benchmark', '🏁')
 st.caption('A campaign runs every combination of records, methods, noise levels and seeds and compares '
            'how often each method finds the known law.')
 
+st.caption('Executable methods: EPDE and PySINDy fixed-library baseline. '
+           'Other PDEComp frameworks and LLM methods await agreed adapters and API quotas.')
+with st.expander('Comparison protocol and supported frameworks'):
+    st.markdown('**EPDE:** evolutionary search. **PySINDy:** sparse regression '
+                'over a fixed library. Use the same datasets, noise and seeds, '
+                'and distinguish unsupported representations from failed runs. '
+                'Other PDEComp and LLM adapters are not yet implemented.')
+
 tab_read, tab_start = st.tabs(['Results', 'Start a campaign'])
 
 with tab_start:
@@ -23,7 +31,8 @@ with tab_start:
             name = st.text_input('name', f"campaign_{time.strftime('%m%d_%H%M')}")
             c1, c2 = st.columns(2)
             seeds = c1.text_input('seeds', '0-2', help='a range such as 0-2 or a list such as 0,3,5')
-            workers = c2.slider('parallel processes', 1, cpu_count(), max(1, cpu_count() - 2))
+            workers = c2.slider('parallel processes', 1, max(1, min(2, cpu_count())), 1,
+                            help='Per-campaign demo limit; not a global multi-user quota.')
         go = st.form_submit_button('Start', type='primary')
     if go and datasets and var and noise:
         if (RESULTS_DIR / name).exists():
