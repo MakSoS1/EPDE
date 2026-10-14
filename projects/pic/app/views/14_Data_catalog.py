@@ -23,8 +23,9 @@ records = metadata()
 st.metric("Registered datasets", len(records))
 suite = st.segmented_control("Collection", ["All", *SUITE_LABELS], default="All",
                               format_func=lambda x: SUITE_LABELS.get(x, x))
-dimension = st.selectbox("Equation class", ["All classes", *KIND_LABELS],
-                          format_func=lambda x: KIND_LABELS.get(x, x))
+dimension = st.pills("Equation class", ["All classes", *KIND_LABELS],
+                     default="All classes", selection_mode="single",
+                     format_func=lambda x: KIND_LABELS.get(x, x)) or "All classes"
 query = st.text_input("Search dataset or equation", placeholder="e.g. Navier–Stokes, KdV, thermal")
 filtered = [
     row for row in records
