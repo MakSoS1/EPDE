@@ -86,7 +86,7 @@ class LocalCpuTests(unittest.TestCase):
 
     def test_lab_has_local_execution_as_default(self):
         lab = (APP / "views/10_Discovery_lab.py").read_text(encoding="utf-8")
-        self.assertIn('["My computer", "Demo server"], default="My computer"', lab)
+        self.assertIn('["Demo server", "My computer"], default="Demo server"', lab)
         self.assertIn('queue.save_client_result(', lab)
         self.assertIn('queue.submit(', lab)
         self.assertIn('st.pills("Methods"', lab)
