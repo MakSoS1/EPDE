@@ -33,10 +33,10 @@ jobs:
         with:
           python-version: '3.11'
       - id: setup
-        name: Install native PDEComp PySINDy versions
+        name: Install isolated PySINDy 2.1-compatible NumPy/Pandas versions
         run: |
           set -o pipefail
-          python -m pip install numpy==1.26.4 scipy==1.15.2 scikit-learn==1.6.1 pandas==1.5.3 matplotlib==3.10.1 pysindy==2.1.0 2>&1 | tee /tmp/pdecomp-setup.log
+          python -m pip install numpy==2.3.4 scipy==1.15.2 scikit-learn==1.6.1 pandas==2.3.3 matplotlib==3.10.1 pysindy==2.1.0 2>&1 | tee /tmp/pdecomp-setup.log
           python -m pip check 2>&1 | tee -a /tmp/pdecomp-setup.log
       - id: actual
         name: Run original PDEComp/native ODE, system and PDE twice
