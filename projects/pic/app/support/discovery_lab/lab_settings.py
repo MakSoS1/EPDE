@@ -355,16 +355,26 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
         ):
             values = list(METRIC_MENUS[field])
             current = objectives.get(field, defaults[field])
-            objectives[field] = col.selectbox(
-                title, values, index=values.index(current),
-                key=f"lab_obj_{field}_{source}_{record_name}_{variant}")
+            if len(values) <= 7:
+                objectives[field] = col.pills(
+                    title, values, default=current, selection_mode="single",
+                    key=f"lab_obj_{field}_{source}_{record_name}_{variant}") or current
+            else:
+                objectives[field] = col.selectbox(
+                    title, values, index=values.index(current),
+                    key=f"lab_obj_{field}_{source}_{record_name}_{variant}")
         values = list(SPARSITY_REGISTRY)
         current = objectives.get("sparsity_cls", defaults["sparsity_cls"])
         if current not in values:
             current = "vwsr"
-        objectives["sparsity_cls"] = b.selectbox(
-            "Sparsity operator", values, index=values.index(current),
-            key=f"lab_sparsity_{source}_{record_name}_{variant}")
+        if len(values) <= 7:
+            objectives["sparsity_cls"] = b.pills(
+                "Sparsity operator", values, default=current, selection_mode="single",
+                key=f"lab_sparsity_{source}_{record_name}_{variant}") or current
+        else:
+            objectives["sparsity_cls"] = b.selectbox(
+                "Sparsity operator", values, index=values.index(current),
+                key=f"lab_sparsity_{source}_{record_name}_{variant}")
         cache_pct = float(resource.get("memory_for_cache", 2))
         cache_limit = 16.0 if local_full else 4.0
         if not 1 <= cache_pct <= cache_limit:
@@ -374,9 +384,8 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
             "EPDE tensor cache: % of host RAM", 1.0, cache_limit,
             value=max(1.0, min(cache_limit, cache_pct)),
             step=1.0, key=f"lab_cache_{source}_{record_name}_{variant}"))
-        st.info("Solver-based fitness and user-defined Python/operator implementations "
-                "are disabled for this hosted CPU-only demo. Advanced operator "
-                "experiments belong in a trusted local runner.")
+        st.caption("Custom Python operator implementations and solver-based "
+                   "fitness are not part of this interactive search interface.")
 
     with st.popover("Import / Export YAML and full configuration"):
         st.caption("The effective resolved scientific configuration is shown below. "
