@@ -32,6 +32,9 @@ jobs:
       - name: Scientific regression tests for options, bias and pages
         run: |
           projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_streamlit_supervisor_20261012.py' -v
+      - name: Real tiny EPDE evolution with 1/x coordinate token
+        run: |
+          projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_streamlit_reciprocal_token.py' -v
       - name: Original Streamlit page smoke and equation-comparison tests
         run: |
           projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_app.py' -v
