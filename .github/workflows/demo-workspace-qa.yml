@@ -124,6 +124,7 @@ jobs:
             test_discovery_lab.WorkerAndPage.test_generated_ode_is_scored_against_its_law
         env:
           PYTHONPATH: .:projects/pic:projects/pic/app:projects/pic/tests
+          EPDE_LOCAL_FULL_RUN: '1'
       - name: Smoke-test PySINDy native local scientific adapter
         run: |
           projects/pic/.venv/bin/python - <<'PY'
