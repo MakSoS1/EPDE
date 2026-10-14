@@ -85,6 +85,15 @@ try {
                     String(pageText).slice(0,1900));
   }
   console.log("STREAMLIT_INTEGRATION_EPDE_LAB_PASS");
+
+  // Full catalogue is tested through actual Streamlit navigation, not just
+  // Python mocks. The page must show EVERY registered ODE/PDE dataset without
+  // reading full Navier–Stokes tensors on the shared server.
+  await page.getByRole("link", {name:/All datasets/i}).first().click();
+  await page.getByText("Registered datasets").first().waitFor({timeout:45000});
+  await page.getByText(/Showing 59 of 59 registered scientific datasets/).waitFor({timeout:30000});
+  console.log("STREAMLIT_COMPLETE_CATALOG_PASS 59/59");
+
   if (errors.length) throw new Error("Browser page exceptions: "+errors.join(" | "));
   console.log("STREAMLIT_SITE_E2E_PASS");
 } finally {
