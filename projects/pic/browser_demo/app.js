@@ -54,7 +54,12 @@ function showPage(page) {
   }
   if (page === "results") renderResults();
   if (page === "compare") renderCompare();
-  history.replaceState(null, "", "#" + page);
+  // srcdoc iframes have an about:srcdoc URL. The browser security model
+  // rejects changing that URL to an absolute parent Streamlit route.
+  // Use in-memory tabs there, but keep deep-link hashes on standalone pages.
+  if (location.protocol !== "about:") {
+    history.replaceState(null, "", "#" + page);
+  }
 }
 function switchChoice(attribute, chosen) {
   document.querySelectorAll("[" + attribute + "]").forEach(button => {
