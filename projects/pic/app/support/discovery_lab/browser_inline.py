@@ -38,16 +38,16 @@ def build_browser_html(*, embedded: bool = True) -> str:
     worker = worker.replace(FETCH_LOADER, "    const source = " + _js_string(science) + ";")
     # The new Worker is created from a Blob of this exact scientific script.
     # Pyodide and PySINDy are not reimplemented and fail explicitly if missing.
-    inline_js = ("window.EPDE_WORKER_SOURCE = " + _js_string(worker) + ";\\n" + js)
-    html = html.replace(CSS_LINK, "<style>\\n" + css + "\\n</style>")
-    html = html.replace(SCRIPT_LINK, "<script>\\n" + inline_js + "\\n</script>")
+    inline_js = ("window.EPDE_WORKER_SOURCE = " + _js_string(worker) + ";\n" + js)
+    html = html.replace(CSS_LINK, "<style>\n" + css + "\n</style>")
+    html = html.replace(SCRIPT_LINK, "<script>\n" + inline_js + "\n</script>")
     if embedded:
         html = html.replace("<body>", '<body class="embedded">')
         # The browser script also sets this flag for external ?embed=1 mode.
         # This mode is intentionally PySINDy only; not educational EvoSparse.
         html = html.replace("window.EPDE_WORKER_SOURCE =", 
             "document.addEventListener('DOMContentLoaded', () => { "
-            "document.getElementById('method-evo').checked = false; });\\n"
+            "document.getElementById('method-evo').checked = false; });\n"
             "window.EPDE_WORKER_SOURCE =")
     return html
 
