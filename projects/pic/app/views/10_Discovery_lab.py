@@ -244,6 +244,9 @@ elif "llm" in methods:
     st.warning("The LLM service receives a sample of these data. Do not send private measurements.")
 
 st.subheader("3 · Scientific settings")
+st.caption("Execution currently runs on the Streamlit server. Local execution on your own "
+           "CPU/GPU will require an explicitly installed local worker; a web page cannot "
+           "silently launch system Python on your computer.")
 from support.discovery_lab.lab_settings import render_settings
 
 variant, overrides, settings, selected_budget = "default", {}, None, "Stored / recommended starting values"
