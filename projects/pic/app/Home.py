@@ -25,6 +25,9 @@ PAGES = {
         st.Page("views/11_Discovery_results.py", title="Results", icon="🗂️"),
         st.Page("views/12_Discovery_compare.py", title="Compare", icon="⚖️"),
     ],
+    "Learn": [
+        st.Page("views/9_How_EPDE_works.py", title="How it works · EPDE & SINDy", icon="🧭"),
+    ],
 }
 
 # Preserve the old exploratory interface without exposing shared-instance
@@ -33,7 +36,6 @@ if (os.environ.get("EPDE_SHOW_RESEARCH_PAGES") == "1"
         and os.environ.get("EPDE_PUBLIC_DEMO") != "1"):
     PAGES["Research tools (local only)"] = [
         st.Page("overview.py", title="Overview", icon="🧮"),
-        st.Page("views/9_How_EPDE_works.py", title="How EPDE works", icon="🧭"),
         st.Page("views/1_Data_sets.py", title="Data sets", icon="🗂️"),
         st.Page("views/2_Signal_check.py", title="Signal check", icon="🔍"),
         st.Page("views/3_Derivatives.py", title="Derivatives", icon="📈"),
@@ -44,6 +46,6 @@ if (os.environ.get("EPDE_SHOW_RESEARCH_PAGES") == "1"
         st.Page("views/8_Benchmark.py", title="Benchmark (legacy)", icon="🏁"),
     ]
 
-st.sidebar.caption("Start with Lab. Open Results to inspect saved experiments, "
-                   "or Compare to view runs on the same data.")
+st.sidebar.caption("Start in Lab to run methods. Use Results and Compare to "
+                   "review them, or How it works to learn EPDE and SINDy.")
 st.navigation(PAGES).run()
