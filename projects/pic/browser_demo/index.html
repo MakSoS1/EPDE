@@ -167,6 +167,16 @@
           <a href="https://github.com/MakSoS1/EPDE/tree/demo/streamlit-community-cloud/projects/pic/architecture" target="_blank" rel="noopener">open its sources ↗</a>.</p>
           <button id="load-diagram" class="secondary">Load interactive LikeC4 diagrams</button>
           <div id="diagram" class="diagram-zone"><p class="muted">The architecture loads on request to keep the Lab fast.</p></div>
+          <h3>Run the original EPDE (no rewritten algorithm)</h3>
+          <p>The browser-only edition cannot load the original PyTorch-dependent EPDE engine.
+          For exact native EPDE on your own Windows computer, there is an optional one-click launcher
+          that automatically downloads the original source and locked Python environment (large first-time download).
+          It needs your explicit permission to open the program; a web page cannot do this silently.</p>
+          <p><a href="https://github.com/MakSoS1/EPDE/blob/demo/streamlit-community-cloud/projects/pic/native_launcher/EPDE-Start.cmd"
+          target="_blank" rel="noopener noreferrer">Windows native EPDE launcher · source and instructions ↗</a></p>
+          <p class="small muted">Native launcher status is tested separately. For PDE work, the
+          browser-only PySINDy demo currently supports only ODEs. Full PySINDy itself has PDE and
+          implicit-equation libraries; the shipped benchmark adapter has additional restrictions.</p>
           <h3>Understanding the results</h3>
           <p>Derivative R² compares predicted and numerically estimated derivatives on the recorded trajectory.
           The validation tail contains the last 20% of time levels. This is <strong>not</strong>
