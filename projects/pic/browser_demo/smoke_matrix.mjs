@@ -22,8 +22,8 @@ try{
    const result=await page.evaluate(() => store.records[0]);
    if(result.method!=="pysindy"||result.dataset!==dataset||result.status!=="ok")throw Error("Result provenance mismatch for "+dataset);
    if(!result.validation || !Number.isFinite(result.validation.r2))throw Error("Invalid validation R2 for "+dataset);
-   if(!Array.isArray(result.model?.coefficients) || !result.model.coefficients.length)throw Error("No recovered coefficient matrix for "+dataset);
-   records.push({dataset,validation:result.validation,eq:result.equations,features:result.model.features,coefficients:result.model.coefficients});
+   if(!Array.isArray(result.details?.coefficients) || !result.details.coefficients.length)throw Error("No recovered coefficient matrix for "+dataset);
+   records.push({dataset,validation:result.validation,eq:result.equations,features:result.details.features,coefficients:result.details.coefficients});
    console.log("SINDY_CASE "+dataset+" R2="+result.validation.r2.toFixed(6)+" "+JSON.stringify(result.equations));
  }
  await page.reload({waitUntil:"domcontentloaded"});
