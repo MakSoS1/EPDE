@@ -28,9 +28,14 @@ from support.discovery_lab.uploads import parse_upload
 from support.equations import equation_latex, system_latex
 
 page("Equation Discovery Lab", "🧪")
-st.caption("Real EPDE on the free demo server for light experiments; "
-           "full EPDE locally for heavy problems. PySINDy runs on your "
-           "computer in a separate browser tab without an installer.")
+LOCAL_FULL = os.environ.get("EPDE_LOCAL_FULL_RUN") == "1"
+if LOCAL_FULL:
+    st.success("Full local EPDE environment: the original engine and entire "
+               "scientific catalogue are available on this machine. "
+               "Load very large data only when needed.")
+else:
+    st.caption("Light EPDE runs on this free shared server; heavy PDEs are "
+               "listed but must be computed locally. PySINDy runs in your browser.")
 st.page_link("views/13_Browser_sindy.py", label="⚡ Open PySINDy — compute on my CPU", icon=None)
 st.page_link("views/14_Data_catalog.py", label="📚 Browse all ODE/PDE datasets", icon=None)
 
@@ -150,7 +155,7 @@ if source == "Built-in equation":
     record_name = st.selectbox("Equation", names,
                                index=names.index(requested) if requested in names else 0,
                                format_func=dataset_label)
-    local_full = os.environ.get("EPDE_LOCAL_FULL_RUN") == "1"
+    local_full = LOCAL_FULL
     if is_local_only(record_name) and not local_full:
         from epde_bench.datasets import REGISTRY
         spec = REGISTRY[record_name]
@@ -330,11 +335,13 @@ budget_code = {
 }.get(selected_budget, "standard")
 
 st.subheader("4 · Compute")
+SERVER_MODE = "This app · local CPU" if LOCAL_FULL else "Demo server"
 location = st.segmented_control("Execution",
-    ["Demo server", "My computer"], default="Demo server",
+    [SERVER_MODE, "My computer"], default=SERVER_MODE,
     key="lab_execution_location",
-    help="Free server is for short, resource-limited EPDE. My computer runs full "
-         "native EPDE via a user-approved local worker.")
+    help="This app uses the original EPDE engine. On Community Cloud there "
+         "are hard CPU limits; a locally launched app runs the full scientific "
+         "configuration. My computer uses an independently approved worker.")
 if location == "My computer":
     st.caption("Native EPDE and PySINDy run on your computer. The demo site is hosted for free.")
     with st.popover("Install and start local worker"):
@@ -352,8 +359,12 @@ if location == "My computer":
         st.info("Local execution currently supports EPDE and PySINDy, not the private LLM service.")
 else:
     access = ""
-    st.caption("Only small inputs and bounded search budgets may use the free CPU. "
-               "Bigger data and Navier–Stokes always run locally.")
+    if LOCAL_FULL:
+        st.caption("Original EPDE computes on this machine; the free Cloud limits "
+                   "do not apply. Very large datasets may exhaust local memory.")
+    else:
+        st.caption("Only small inputs and bounded search budgets may use the free CPU. "
+                   "Bigger data and Navier–Stokes always run locally.")
 
 # Show the decision before the user clicks Run; the worker verifies it again.
 hosted_allowed, hosted_reason, hosted_diag = True, "", {}
@@ -376,7 +387,7 @@ if settings_valid and "epde" in methods:
             record_name, shape, nvars, resolved)
     except (ValueError, KeyError, TypeError, IndexError) as exc:
         hosted_allowed, hosted_reason = False, "Invalid scientific settings."
-if location == "Demo server":
+if location == SERVER_MODE and not LOCAL_FULL:
     if hosted_allowed:
         if "epde" in methods:
             st.caption("Server admission: " + hosted_reason)
@@ -385,11 +396,12 @@ if location == "Demo server":
         st.caption("Choose My computer for the original EPDE search or reduce "
                    "the dataset and search budget. Heavy jobs are never queued.")
 ready = settings_valid and bool(methods) and (record_name is not None or arrays is not None)
-if location == "Demo server" and "epde" in methods:
+if location == SERVER_MODE and not LOCAL_FULL and "epde" in methods:
     ready = ready and hosted_allowed
 if location == "My computer":
     ready = ready and bool(access.strip()) and all(m in ("epde","pysindy") for m in methods)
-if st.button("Prepare local runs" if location == "My computer" else "Run on demo server",
+if st.button("Prepare local runs" if location == "My computer" else
+             "Run EPDE here" if LOCAL_FULL else "Run on demo server",
              type="primary", disabled=not ready, key="lab_start"):
     try:
         if record_name:
