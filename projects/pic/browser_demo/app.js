@@ -197,7 +197,15 @@ async function buildJobBase() {
 
 function nativeWorker() {
   if (store.worker) return store.worker;
-  const worker = new Worker("./science_worker.js");
+  const inline = globalThis.EPDE_WORKER_SOURCE;
+  // When shown inside the original Streamlit site, scientific source is
+  // embedded from this GitHub checkout (same-origin, no external site/iframe).
+  // The official Pyodide runtime and PySINDy wheel remain third-party downloads.
+  const workerURL = typeof inline === "string"
+    ? URL.createObjectURL(new Blob([inline], {type:"text/javascript"}))
+    : "./science_worker.js";
+  const worker = new Worker(workerURL);
+  if (typeof inline === "string") URL.revokeObjectURL(workerURL);
   worker.onmessage = message => {
     const data = message.data;
     if (data.type === "status") {
