@@ -19,12 +19,14 @@ class DemoNavigationTests(unittest.TestCase):
             APP / "views/10_Discovery_lab.py",
             APP / "views/11_Discovery_results.py",
             APP / "views/12_Discovery_compare.py",
+            APP / "views/9_How_EPDE_works.py",
+            APP / "support/sindy_guide.py",
             APP / "support/discovery_lab/session.py",
         ):
             with self.subTest(path=str(file)):
                 ast.parse(file.read_text(encoding="utf-8"), filename=str(file))
 
-    def test_default_sidebar_is_three_pages(self):
+    def test_default_sidebar_keeps_lab_and_restores_learning(self):
         content = (APP / "Home.py").read_text(encoding="utf-8")
         public_pages = content.split("# Preserve the old exploratory interface")[0]
         for view in ("10_Discovery_lab.py", "11_Discovery_results.py", "12_Discovery_compare.py"):
@@ -33,6 +35,8 @@ class DemoNavigationTests(unittest.TestCase):
         self.assertIn('title="Lab"', public_pages)
         self.assertIn('title="Results"', public_pages)
         self.assertIn('title="Compare"', public_pages)
+        self.assertEqual(public_pages.count("9_How_EPDE_works.py"), 1)
+        self.assertIn('title="How it works · EPDE & SINDy"', public_pages)
 
     def test_one_launcher_and_two_distinct_review_pages(self):
         lab = (APP / "views/10_Discovery_lab.py").read_text(encoding="utf-8")
@@ -44,6 +48,25 @@ class DemoNavigationTests(unittest.TestCase):
         self.assertNotIn("queue.submit(", compare)
         self.assertIn("ui.solution_plots", results)
         self.assertIn("ui.solution_plots", compare)
+
+    def test_original_epde_lesson_and_likec4_are_preserved(self):
+        epde = (APP / 'views/9_How_EPDE_works.py').read_text(encoding='utf-8')
+        for essential in ('STAGES = {', 'STAGE_VIEWS = {', 'MODEL_VIEWS = {',
+                          'diagrams.likec4_view(view, height=380, sequence=sequence)',
+                          'Explore the whole architecture', 'stage_interfaces(chosen)',
+                          'Run short evolution', 'graph(chosen)'):
+            with self.subTest(essential=essential):
+                self.assertIn(essential, epde)
+        self.assertIn('render_sindy_guide()', epde)
+        self.assertTrue((APP / 'static/likec4-views.js').is_file())
+
+    def test_sindy_guide_uses_likec4_and_real_baseline_terms(self):
+        guide = (APP / 'support/sindy_guide.py').read_text(encoding='utf-8')
+        for term in ('benchView', 'picView', 'diagrams.likec4_view',
+                     'STLSQ', '20%', 'run_pysindy', 'st.graphviz_chart'):
+            with self.subTest(term=term):
+                self.assertIn(term, guide)
+        self.assertNotIn('queue.submit(', guide)
 
     def test_all_pages_share_same_capability(self):
         for name in ("10_Discovery_lab.py", "11_Discovery_results.py", "12_Discovery_compare.py"):
