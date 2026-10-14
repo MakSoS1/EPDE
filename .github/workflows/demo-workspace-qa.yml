@@ -85,4 +85,35 @@ jobs:
           node-version: '22'
       - name: Check local browser bridge ES module syntax
         run: node --input-type=module --check < projects/pic/app/support/discovery_lab/local_browser_assets/local_bridge.js
-
+  report:
+    name: Record Streamlit navigation and science configuration QA
+    needs: [navigation, scientific-config]
+    if: always()
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Preserve test outcomes
+        env:
+          NAV: ${{ needs.navigation.result }}
+          SCI: ${{ needs.scientific-config.result }}
+        run: |
+          python - <<'PY'
+          import json,os,datetime,pathlib
+          data={
+            "revision":os.environ["GITHUB_SHA"],
+            "run_id":int(os.environ["GITHUB_RUN_ID"]),
+            "timestamp":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "navigation":os.environ["NAV"],
+            "scientific_settings":os.environ["SCI"],
+            "verified":os.environ["NAV"]=="success" and os.environ["SCI"]=="success",
+          }
+          pathlib.Path("/tmp/epde-demo-routing.json").write_text(json.dumps(data,indent=2))
+          PY
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          blob=$(git hash-object -w /tmp/epde-demo-routing.json)
+          tree=$(printf '100644 blob %s\tresult.json\n' "$blob" | git mktree)
+          commit=$(printf 'Streamlit demo QA report\n' | git commit-tree "$tree")
+          git push --force origin "$commit:refs/heads/ci/demo-routing-qa"
