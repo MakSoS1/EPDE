@@ -127,7 +127,22 @@ def example_files():
     return csv, buffer.getvalue()
 
 
-st.subheader("1 · Choose data")
+st.subheader("1 · Choose methods")
+options = ["epde", "pysindy"] + (["llm"] if LLM_READY else [])
+methods = st.pills(
+    "Discovery methods", options, default=["epde", "pysindy"],
+    selection_mode="multi", format_func=METHOD_LABELS.get,
+    help="Choose one or both. Each method receives identical input data, "
+         "noise and seed; their optimizers and scoring criteria remain distinct."
+)
+if len(methods) == 2 and set(methods) == {"epde", "pysindy"}:
+    st.caption("Both algorithms will be saved as separate experiments in one "
+               "comparison group.")
+if "llm" in methods:
+    st.warning("The configured LLM service receives a sample of your data; "
+               "do not send private measurements.")
+
+st.subheader("2 · Choose data")
 source = st.segmented_control("Data source",
                   ["Built-in equation", "Generate an ODE", "Upload your data"],
                   default="Built-in equation",
@@ -305,21 +320,6 @@ else:
     if arrays is not None:
         noise = st.number_input("Extra noise, % of the standard deviation", 0.0, 10.0, 0.0, 0.5,
                                 help="Usually 0 for measured data.")
-
-st.subheader("2 · Choose methods")
-options = ["epde", "pysindy"] + (["llm"] if LLM_READY else [])
-methods = st.pills(
-    "Discovery methods", options, default=["epde", "pysindy"],
-    selection_mode="multi", format_func=METHOD_LABELS.get,
-    help="Choose one or both. Each method receives identical input data, "
-         "noise and seed; their optimizers and scoring criteria remain distinct."
-)
-if len(methods) == 2 and set(methods) == {"epde", "pysindy"}:
-    st.caption("Both algorithms will be saved as separate experiments in one "
-               "comparison group.")
-if "llm" in methods:
-    st.warning("The configured LLM service receives a sample of your data; "
-               "do not send private measurements.")
 
 st.subheader("3 · Scientific settings")
 st.caption("Stored equation presets are loaded automatically. Essential controls "
