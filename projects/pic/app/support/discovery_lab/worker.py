@@ -18,7 +18,7 @@ from support.discovery_lab import contract, job_queue as queue
 
 
 #: Search budgets offered in the Lab: (population, epochs); None keeps the stored setting.
-EFFORTS = {"quick": (8, 3), "standard": None, "thorough": (24, 8)}
+EFFORTS = {"quick": (8, 3), "standard": None, "thorough": (24, 8), "custom": None}
 
 
 def _inside(path, base):
@@ -44,13 +44,26 @@ def _run_record(req):
     effort = req.get("effort", "standard")
     if effort not in EFFORTS:
         raise ValueError("Unknown search effort")
-    # The standard budget is the record's stored setting, so its runs keep the
-    # identity of the published campaign; other budgets are explicit overrides.
-    overrides = None
-    if method == "epde" and EFFORTS[effort] is not None:
-        population, epochs = EFFORTS[effort]
-        overrides = {"search": {"evolution": {"population_size": population,
-                                              "training_epochs": epochs}}}
+    # New Lab requests carry their *complete effective scientific settings*.
+    # Legacy queued jobs without overrides still use the original effort modes.
+    from epde_bench.config import load_config, resolve_for_problem
+    from epde_bench.datasets import load
+    from support.discovery_lab.lab_settings import validate_public_search
+    if "overrides" in req:
+        overrides = req["overrides"] or {}
+        if not isinstance(overrides, dict) or set(overrides) - {"search"}:
+            raise ValueError("Invalid public search overrides")
+        if overrides and not isinstance(overrides.get("search"), dict):
+            raise ValueError("Search overrides must contain a mapping")
+        cfg = load_config(dataset, variant, overrides=overrides)
+        problem = load(dataset, **cfg.get("loader", {}))
+        validate_public_search(resolve_for_problem(cfg, problem), problem.shape)
+    else:
+        overrides = None
+        if method == "epde" and EFFORTS[effort] is not None:
+            population, epochs = EFFORTS[effort]
+            overrides = {"search": {"evolution": {"population_size": population,
+                                                  "training_epochs": epochs}}}
     record = run_one(dataset, variant, noise, seed, overrides=overrides)
     record["effort"] = effort
     return record
@@ -113,6 +126,8 @@ def _run_upload(req, folder):
     if settings.get("label"):
         record["problem"]["title"] = str(settings["label"])[:160]
     search_cfg = resolve_for_problem({"search": settings["search"]}, problem)
+    from support.discovery_lab.lab_settings import validate_public_search
+    validate_public_search(search_cfg, problem.shape)
     record["search_config"] = search_cfg
     data = problem.noisy(noise, seed)
     start = time.perf_counter()
