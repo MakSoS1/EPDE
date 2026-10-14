@@ -43,7 +43,7 @@ def _term_array(term, arrays):
     return out
 
 
-def check_equation(eq_text, arrays, inner, series=False):
+def check_equation(eq_text, arrays, inner, series=False, include_intercept=False):
     lhs_text, rhs_text = eq_text.split('=', 1)
     target_term, target_coef = _parse_term_with_coef(rhs_text)
     terms = [_parse_term_with_coef(t) for t in lhs_text.split('+')]
@@ -52,7 +52,9 @@ def check_equation(eq_text, arrays, inner, series=False):
     if not terms or not y.size:
         raise ValueError('signal check requires a nonempty interior and at least one nonconstant term')
     X = np.stack([_term_array(t, arrays)[inner].ravel() for t, _ in terms], axis=1)
-    X1 = np.column_stack([X, np.ones(len(y))])
+    # The physical law does NOT contain a constant unless explicitly declared.
+    # An optional intercept is a regression diagnostic, not a discovered term.
+    X1 = np.column_stack([X, np.ones(len(y))]) if include_intercept else X
     var_y = float(np.var(y)) or 1.0
 
     def r2(cols):
@@ -68,7 +70,9 @@ def check_equation(eq_text, arrays, inner, series=False):
                                         for name, params in sorted(term, key=repr)),
                      'true': true_coef, 'fitted': float(coef[j]),
                      'r2_loss_if_dropped': r2_full - r2_drop})
-    out = {'equation': eq_text, 'r2': r2_full, 'intercept': float(coef[-1]), 'terms': rows}
+    out = {'equation': eq_text, 'r2': r2_full,
+           'intercept': float(coef[-1]) if include_intercept else 0.0,
+           'intercept_fitted': bool(include_intercept), 'terms': rows}
     if series:
         # the target computed from the data and the value the fitted law predicts for it
         out['target'] = y
@@ -78,7 +82,7 @@ def check_equation(eq_text, arrays, inner, series=False):
 
 
 def check(dataset: str, noise_levels=(0.0,), seed: int = 0, variant: str = 'default',
-          overrides=None, config_path=None, series=False):
+          overrides=None, config_path=None, series=False, include_intercept=False):
     """``series=True`` also returns, per equation, the target from the data and the
     prediction of the fitted law on the interior points (``target``, ``predicted``),
     and per noise level the interior times of an ODE record (``times``)."""
@@ -92,7 +96,9 @@ def check(dataset: str, noise_levels=(0.0,), seed: int = 0, variant: str = 'defa
     for noise in noise_levels:
         arrays = _factor_arrays(problem, problem.noisy(noise, seed), search)
         block = {'noise': noise,
-                 'equations': [check_equation(eq, arrays, inner, series) for eq in problem.truth]}
+                 'equations': [check_equation(eq, arrays, inner, series,
+                                              include_intercept=include_intercept)
+                               for eq in problem.truth]}
         if series and problem.dim == 0:
             block['times'] = np.asarray(problem.grids[0]).ravel()[inner[0]]
         report.append(block)
