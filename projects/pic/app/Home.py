@@ -34,6 +34,7 @@ PAGES = {
     ],
     'Find equations': [
         st.Page('views/5_Run_search.py', title='Run a search', icon='🚀'),
+        st.Page('views/4_SINDy.py', title='SINDy baseline', icon='🧩'),
         st.Page('views/6_Your_data.py', title='Your data', icon='📤'),
     ],
     'Review': [
