@@ -179,13 +179,13 @@ if source == "Built-in equation":
         st.code(
             "git clone --branch demo/streamlit-community-cloud https://github.com/MakSoS1/EPDE.git\n"
             "cd EPDE\n"
-            "uv run --project projects/pic --locked --extra cpu --extra app "
-            "streamlit run projects/pic/app/Home.py",
+            "bash run-epde.sh  # macOS / Linux; Windows: run-epde.cmd",
             language="bash")
         st.page_link("views/14_Data_catalog.py", label="View the complete scientific catalogue")
-        st.caption("Alternatively open the repository in GitHub Codespaces to "
-                   "run the interface through any desktop or mobile browser. "
-                   "Full scientific data availability depends on the checkout.")
+        st.info("Using a phone/tablet? Open the GitHub repository → "
+                "Code → Codespaces → Create codespace on the demo branch. "
+                "The full Streamlit UI starts on private forwarded port 8501 "
+                "(GitHub account and available Codespaces compute required).")
         st.stop()
     if is_local_only(record_name) and local_full:
         permission_key = "lab_load_heavy_" + record_name
