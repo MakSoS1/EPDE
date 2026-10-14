@@ -7,12 +7,11 @@ import time
 import pandas as pd
 import streamlit as st
 
-from support.common import page
 from support.discovery_lab import job_queue as queue
 from support.discovery_lab import ui
 from support.discovery_lab.session import current_owner
 
-page("Results", "🗂️")
+st.title("🗂️ Results")
 owner = current_owner()
 st.caption("All your saved Lab searches appear here, including their data, methods, "
            "status and scientific results. Open a result to inspect or download it.")
