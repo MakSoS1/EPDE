@@ -1,0 +1,95 @@
+name: Browser-only Equation Lab — verify and publish
+on:
+  push:
+    branches: [demo/streamlit-community-cloud]
+    paths:
+      - 'projects/pic/browser_demo/**'
+      - 'projects/pic/app/static/likec4-views.js'
+      - '.github/workflows/browser-demo-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: equation-browser-pages
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Genuine PySINDy and browser smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install scientific test dependencies without EPDE/Torch
+        run: python -m pip install numpy scipy scikit-learn pysindy==2.1.0
+      - name: Compile and numerically test the browser scientific engine
+        run: |
+          python -m py_compile projects/pic/browser_demo/science.py projects/pic/browser_demo/test_science.py
+          python -m unittest discover -s projects/pic/browser_demo -p 'test_science.py' -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate JavaScript syntax
+        run: |
+          node --check projects/pic/browser_demo/app.js
+          node --check projects/pic/browser_demo/science_worker.js
+          node --check projects/pic/browser_demo/smoke.mjs
+      - name: Install Chromium test runner
+        working-directory: projects/pic/browser_demo
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Run browser site with bundled original LikeC4 model
+        run: |
+          cp projects/pic/app/static/likec4-views.js projects/pic/browser_demo/likec4-views.js
+          python -m http.server 8766 --directory projects/pic/browser_demo > /tmp/browser-demo-http.log 2>&1 &
+          echo $! > /tmp/browser-demo-server.pid
+          sleep 2
+          curl --fail http://127.0.0.1:8766/ > /dev/null
+      - name: REAL WebAssembly PySINDy in Chromium, storage and Compare
+        timeout-minutes: 12
+        working-directory: projects/pic/browser_demo
+        run: npm run smoke
+      - name: Preserve failed browser screenshot and logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-lab-smoke-debug
+          path: |
+            projects/pic/browser_demo/browser-smoke-last.png
+            /tmp/browser-demo-http.log
+          if-no-files-found: ignore
+
+  publish:
+    name: GitHub Pages — static only, no compute server
+    needs: validate
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare static website (no Python/Node runtime on host)
+        run: |
+          mkdir -p /tmp/equation-browser-site
+          cp projects/pic/browser_demo/index.html /tmp/equation-browser-site/
+          cp projects/pic/browser_demo/app.js /tmp/equation-browser-site/
+          cp projects/pic/browser_demo/style.css /tmp/equation-browser-site/
+          cp projects/pic/browser_demo/science.py /tmp/equation-browser-site/
+          cp projects/pic/browser_demo/science_worker.js /tmp/equation-browser-site/
+          cp projects/pic/app/static/likec4-views.js /tmp/equation-browser-site/
+          touch /tmp/equation-browser-site/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: /tmp/equation-browser-site
+      - id: deployment
+        uses: actions/deploy-pages@v4
