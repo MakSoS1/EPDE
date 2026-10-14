@@ -84,14 +84,17 @@ class LocalCpuTests(unittest.TestCase):
             server.server_close()
             thread.join(timeout=3)
 
-    def test_lab_has_local_execution_as_default(self):
+    def test_lab_unifies_methods_without_execution_location_controls(self):
         lab = (APP / "views/10_Discovery_lab.py").read_text(encoding="utf-8")
-        self.assertIn('SERVER_MODE = "This app · local CPU" if LOCAL_FULL else "Demo server"', lab)
-        self.assertIn('[SERVER_MODE, "My computer"], default=SERVER_MODE', lab)
-        self.assertIn('queue.save_client_result(', lab)
-        self.assertIn('queue.submit(', lab)
-        self.assertIn('st.pills("Methods"', lab)
+        self.assertIn('default=["epde", "pysindy"]', lab)
+        self.assertIn('"method": m', lab)
+        self.assertIn('"input_key": key', lab)
+        self.assertIn("queue.submit(owner, req)", lab)
         self.assertIn('st.segmented_control("Data source"', lab)
+        self.assertIn('st.pills("Dataset group"', lab)
+        for removed in ("lab_execution_location", "SERVER_MODE",
+                        "Prepare local runs", "Local worker access code"):
+            self.assertNotIn(removed, lab)
 
 
 if __name__ == "__main__":
