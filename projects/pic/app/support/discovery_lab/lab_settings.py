@@ -150,11 +150,11 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
     built_in = record_name is not None
     if built_in:
         c1, c2 = st.columns([2, 3])
-        variant = c1.selectbox("EPDE configuration", EPDE_VARIANTS,
-                               index=EPDE_VARIANTS.index("default"),
-                               key=f"lab_variant_{record_name}",
-                               help="EPDE variations from configs/variants.yaml; "
-                                    "the original dataset YAML is always loaded first.")
+        variant = c1.pills("EPDE profile", EPDE_VARIANTS, default="default",
+                           selection_mode="single",
+                           key=f"lab_variant_{record_name}",
+                           help="Choose a reproducible EPDE variant. Dataset-specific "
+                                "YAML is loaded automatically.") or "default"
         cfg = load_config(record_name, variant)
         base = copy.deepcopy(cfg["search"])
         shape = tuple(problem.shape)
@@ -187,9 +187,8 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
                            "freq": float(space["frequency"]), "meaningful": True})
         base["search_space"]["tokens"] = tokens
         context = "Universal bounded starting profile for new data"
-        st.caption("Universal starting settings, not tuned to your unknown equation. "
-                   "Change the derivative orders, term library and optimization budget "
-                   "when needed.")
+        st.caption("General-purpose starting settings, not tuned to your unknown equation. "
+                   "Start with Preset, then switch to Advanced for further controls.")
 
     _profile_summary(base, context)
     search = copy.deepcopy(base)
@@ -200,23 +199,23 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
     resource = search.setdefault("runtime", {})
 
     st.markdown("**Search budget and candidate library**")
-    preset = st.selectbox(
-        "Budget",
-        ["Stored / recommended starting values", "Quick exploratory run",
-         "Thorough exploratory run", "Exact values"],
+    preset = st.segmented_control(
+        "Search budget",
+        ["Preset", "Quick", "Thorough", "Custom"],
+        default="Preset",
         key=f"lab_budget_{source}_{record_name}_{variant}",
-        help="The default respects the YAML for each built-in equation. "
-             "Quick/Thorough change the budget explicitly.",
-    )
+        help="Preset is loaded from this equation's stored YAML. "
+             "Quick and Thorough change the number of candidates and epochs.",
+    ) or "Preset"
     original_pop, original_epochs = int(evo.get("population_size", 16)), int(
         evo.get("training_epochs", 5))
     derived_budget = {
-        "Stored / recommended starting values": (original_pop, original_epochs),
-        "Quick exploratory run": (max(4, original_pop // 2),
+        "Preset": (original_pop, original_epochs),
+        "Quick": (max(4, original_pop // 2),
                                   max(2, original_epochs // 2)),
-        "Thorough exploratory run": (min(96, original_pop * 2),
+        "Thorough": (min(96, original_pop * 2),
                                      min(50, original_epochs * 2)),
-        "Exact values": (original_pop, original_epochs),
+        "Custom": (original_pop, original_epochs),
     }
     dpop, dep = derived_budget[preset]
     if not 4 <= int(dpop) <= 96 or not 1 <= int(dep) <= 50:
@@ -238,12 +237,15 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
     st.caption("Population and epochs control EPDE search cost. The term bound also "
                "affects the shared SINDy candidate selection protocol.")
 
-    with st.expander("Derivatives, boundaries and equation building blocks", expanded=False):
+    detail = st.segmented_control("Configuration detail", ["Essential", "Advanced"],
+                                  default="Essential",
+                                  key=f"lab_detail_{source}_{record_name}_{variant}")
+    with st.container(border=True):
         current = prep.get("default_preprocessor_type", "FD")
-        now = st.radio("Differentiation method", list(DERIVATIVES),
-                       index=list(DERIVATIVES).index(current) if current in DERIVATIVES else 0,
-                       format_func=DERIVATIVES.get, horizontal=True,
-                       key=f"lab_diff_{source}_{record_name}_{variant}")
+        now = st.segmented_control("Numerical derivatives", list(DERIVATIVES),
+                                   default=current if current in DERIVATIVES else "FD",
+                                   format_func=DERIVATIVES.get,
+                                   key=f"lab_diff_{source}_{record_name}_{variant}") or "FD"
         if now != current:
             prep["preprocessor_kwargs"] = {}
         prep["default_preprocessor_type"] = now
@@ -331,7 +333,9 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
                     tokens = [x for x in tokens
                               if x.get("family") != "inverse_space_coordinate"]
                 sp["tokens"] = tokens
-    with st.expander("Objectives, sparsity and advanced algorithm settings"):
+    if detail == "Advanced":
+        st.markdown("**Objectives, sparsity and compute limits**")
+    if detail == "Advanced":
         from dataclasses import asdict
         from epde.interface.search_config import (
             METRIC_MENUS, SPARSITY_REGISTRY, load_search_config,
@@ -366,7 +370,7 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
                 "are disabled for this hosted CPU-only demo. Advanced operator "
                 "experiments belong in a trusted local runner.")
 
-    with st.expander("Import/export YAML and effective configuration"):
+    with st.popover("Import / Export YAML and full configuration"):
         st.caption("The effective resolved scientific configuration is shown below. "
                    "If you import overrides, they apply to these controls as a "
                    "validated declarative patch; no scripts are executed.")
