@@ -25,7 +25,7 @@ try{
   await page.goto(BASE,{waitUntil:"domcontentloaded",timeout:45000});
   const f=await appFrame();
   const labels=await f.locator("body").innerText();
-  if(!labels.includes("Run a search") || !labels.includes("All datasets"))
+  if(!labels.includes("Run a search") || !labels.includes("Data catalog"))
     throw Error("Unified scientific navigation missing");
   if(/PySINDy · your PC|Results · server|Compare · server/.test(labels))
     throw Error("Obsolete execution-location navigation is still displayed");
@@ -65,7 +65,7 @@ try{
   await f.getByText("Compare",{exact:true}).first().waitFor({timeout:45000});
   console.log("MATCHED_INPUT_COMPARE_PAGE_PASS");
 
-  await f.getByRole("link",{name:/All datasets/i}).first().click();
+  await f.getByRole("link",{name:/Data catalog/i}).first().click();
   await f.getByText("Data catalog",{exact:true}).first().waitFor({timeout:45000});
   await f.getByText(/Showing 59 of 59 registered scientific datasets/).waitFor({timeout:30000});
   console.log("FULL_CATALOG_PASS 59/59");
