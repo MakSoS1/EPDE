@@ -70,7 +70,8 @@ if runs:
     if st.button("See all results",key="home_see_all"):
         st.switch_page("views/11_Discovery_results.py")
 
-with st.expander("Large PDEs: local execution"):
+with st.container(border=True):
+    st.markdown("**Large PDEs run locally**")
     st.write("Choose a heavy equation in Run a search, adjust the scientific settings, "
              "download experiment.zip and the repository, and use the included launcher. "
              "Upload experiment-results.zip in Results to compare matching inputs. "
