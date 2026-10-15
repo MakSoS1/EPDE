@@ -58,7 +58,7 @@ try{
   await f.getByRole("link",{name:/Results/i}).first().click();
   await f.getByText("Results",{exact:true}).first().waitFor({timeout:30000});
   // Queued and running jobs have the same session and matching scientific input.
-  await f.getByText("PySINDy",{exact:false}).first().waitFor({timeout:30000});
+  await f.getByRole("combobox",{name:/Inspect result/i}).waitFor({timeout:30000});
   console.log("SHARED_RESULTS_PAGE_PASS");
 
   await f.getByRole("link",{name:/Compare/i}).first().click();
@@ -73,7 +73,7 @@ try{
   await page.reload({waitUntil:"domcontentloaded"});
   const fresh=await appFrame();
   await fresh.getByRole("link",{name:/Results/i}).first().click();
-  await fresh.getByText("PySINDy",{exact:false}).first().waitFor({timeout:45000});
+  await fresh.getByRole("combobox",{name:/Inspect result/i}).waitFor({timeout:45000});
   console.log("PERSISTED_RESULTS_RELOAD_PASS");
   if(errors.length)throw Error(errors.join("\n"));
   console.log("STREAMLIT_UNIFIED_E2E_PASS");
