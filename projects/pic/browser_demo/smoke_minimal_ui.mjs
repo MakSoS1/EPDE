@@ -60,9 +60,9 @@ try{
   await shot("guide","How it works");
   await go(/Run a search/i);
   await shot("search","Run a search");
-  await go(/^Results$/i);
+  await go(/Results/i);
   await shot("results","Results");
-  await go(/^Compare$/i);
+  await go(/Compare/i);
   await shot("compare","Compare");
   await go(/All datasets/i);
   await shot("catalog","Data catalog");
