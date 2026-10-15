@@ -39,12 +39,12 @@ jobs:
       - name: Test portability, fingerprinting and invalid imports
         run: |
           projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_portable_handoff.py' -v
-      - name: Run original native PySINDy via downloaded experiment
+      - name: Run original EPDE + PySINDy on identical exported inputs
         run: |
           projects/pic/.venv/bin/python - <<'PY'
           from pathlib import Path
           from support.discovery_lab.portable import make_manifest, bundle_bytes
-          m=make_manifest("ode",0.0,0,[{"method":"pysindy","variant":"pysindy","overrides":{}}])
+          m=make_manifest("ode",0.0,0,[{"method":"epde","variant":"default","overrides":{"search":{"evolution":{"population_size":4,"training_epochs":1}}}},{"method":"pysindy","variant":"pysindy","overrides":{}}])
           Path("experiment.zip").write_bytes(bundle_bytes(m))
           PY
           uv run --project projects/pic --python 3.12 --locked --extra cpu --extra app python projects/pic/portable_experiment.py --bundle experiment.zip
@@ -52,10 +52,11 @@ jobs:
           from pathlib import Path
           from support.discovery_lab.portable import read_results
           records=read_results(Path("experiment-results.zip").read_bytes())
-          assert len(records)==1
-          assert records[0]["status"]=="ok", records[0].get("error")
-          assert records[0]["method"]=="pysindy" and records[0]["comparison_input_sha256"]
-          print("NATIVE_IMPORT_ROUNDTRIP_OK")
+          assert len(records)==2
+          assert {r["method"] for r in records}=={"epde","pysindy"}
+          assert all(r["status"]=="ok" for r in records), records
+          assert len({r["comparison_input_sha256"] for r in records})==1
+          print("NATIVE_PAIRED_IMPORT_COMPARE_ROUNDTRIP_OK")
           PY
       - name: Check prior scientific paired-run tests
         run: |
