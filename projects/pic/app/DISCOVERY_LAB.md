@@ -162,6 +162,29 @@ A benchmark-quality comparison needs the same input arrays, grids, noise realiza
 
 The UI provides a descriptive pair of EPDE/default and PySINDy/pysindy runs on the same dataset/seed/noise or uploaded dataset with shared EPDE differentiation settings. This is an exploratory smoke test, **not** a complete multi-seed benchmarking campaign. The existing `projects/pic/bench.py` campaign engine remains available for Vlad's controlled benchmarks.
 
+The **Run a search** page separates a common data input from independent
+method-specific configurations. With both algorithms selected there are two
+tabs: **EPDE · Evolution** (equation-specific EPDE variant, population,
+epochs, derivative estimator, evolutionary objectives, candidate pool) and
+**PySINDy · Sparse regression** (its own derivative estimator, maximum terms,
+variable/derivative powers, pairwise interactions, STLSQ threshold strategy,
+column normalization and time-tail validation fraction). Selecting only one
+method shows only its relevant controls. All short choices use pills/buttons.
+
+For PySINDy the original `auto` defaults are unchanged: 49 STLSQ thresholds,
+both normalizations and 20% held-out tail; new non-defaults alter the **real
+native** `epde_bench.baselines.run_pysindy` implementation, not just the
+frontend. A fixed threshold, normalization mode, one-vs-two-factor library,
+and holdout fraction are validated independently. Population/epochs and EPDE
+Pareto objectives never get propagated to the PySINDy optimizer. Likewise,
+changing PySINDy STLSQ settings cannot affect the EPDE evolutionary run.
+
+Built-in scientific requests store their selected variant and independent
+`search` plus `pysindy` overrides. Generated/uploaded data retain one common
+numerical .npz, with separately validated method configurations in the job
+manifest. Results and Compare retain the same common input identity and show
+the settings actually used for each method.
+
 The result stores the native `front: list[list[str]]`, `objectives`, `selected`, `metrics`, method, settings, timing and method-specific `criterion_labels`. It displays the selected law and candidate scatter, then attempts to reconstruct from data via `epde_bench.reconstruction`. Reconstruction on a fitted record must not be presented as held-out forecasting.
 
 A generated ODE receives a structural benchmark truth only when the restricted expression is successfully translated into an EPDE-compatible representation; unsupported expressions must be evaluated against their data without claiming structural recovery.
