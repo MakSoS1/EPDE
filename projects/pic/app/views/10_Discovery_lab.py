@@ -564,9 +564,13 @@ with main_col:
                                     overrides=sindy_settings or {})
                         if record_name else sindy_settings
                     )
-            for method in methods:
-                if method in review:
-                    st.markdown("**" + METHOD_LABELS.get(method,method) + "**")
+            available = [m for m in methods if m in review]
+            panels = (st.tabs([METHOD_LABELS.get(m, m) for m in available])
+                      if len(available) > 1 else
+                      [st.container()] for _ in available)
+            for method, panel in zip(available, panels):
+                with panel:
+                    st.markdown("**" + METHOD_LABELS.get(method, method) + "**")
                     st.code(yaml.safe_dump(review[method], sort_keys=False,
                                            allow_unicode=True), language="yaml")
             st.caption("The full configuration above is used for the run/export. "
