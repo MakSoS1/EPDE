@@ -159,8 +159,9 @@ _restore_wizard_widgets()
 wizard_progress(wizard_stage)
 if wizard_stage > 1:
     if st.button("← New experiment", key="lab_new_experiment"):
-        for key in ("lab_draft_input", "lab_draft_config", "lab_started_jobs", "lab_widgets_saved"):
-            st.session_state.pop(key, None)
+        for key in list(st.session_state):
+            if key.startswith(("lab_", "portable_", "heavy_", "native_advanced_")):
+                st.session_state.pop(key, None)
         st.session_state["lab_stage"] = 1
         st.rerun()
 
@@ -517,6 +518,8 @@ with main_col:
                         heavy_methods=heavy_methods, settings_valid=settings_valid,
                         budget_code=budget_code,
                     )
+                    st.session_state["lab_confirm_science"] = False
+                    st.session_state.pop("lab_started_jobs", None)
                     _next_stage(3)
 
         else:
