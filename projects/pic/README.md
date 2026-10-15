@@ -23,6 +23,47 @@ What it consists of:
 The library itself and the group's original research scripts are not changed; all of
 this lives next to them.
 
+## Unified browser-to-native scientific workflow (October 2026)
+
+The public interface has **one Run a search page**, with independent EPDE
+and PySINDy scientific controls.
+
+- Small ODE/PDE: the Streamlit **server** computes both methods, including
+  PySINDy. No browser CPU/WebAssembly execution and no desktop installation
+  is required for ordinary visitors.
+- Heavy PDE (e.g., Navier–Stokes): the shared server never loads or runs it.
+  Visitors configure native EPDE/PySINDy parameters before downloading an
+  experiment.zip. Unsupported methods are rejected, not substituted.
+- Native execution: download the demo-branch EPDE repository ZIP, extract
+  it, put experiment.zip in its root, then double-click run-portable.cmd on
+  Windows or use bash run-portable.sh on macOS/Linux. The launcher installs
+  the locked Python/PyTorch CPU environment and starts original scientific
+  code with an isolated process per method. Internet is needed on first run.
+- Import: upload the resulting experiment-results.zip in Results on the
+  website, then compare matching runs in Compare.
+
+Compare only groups runs with an identical fingerprint of the input data,
+scientific source, loader parameters, noise, seed and noise protocol. It
+does not equate datasets by name alone. Imported results have internally
+validated metadata but are NOT independently recomputed on the Streamlit
+host. EPDE Pareto objectives are not numerically comparable with PySINDy
+STLSQ optimization criteria. In-sample solution R2 is not held-out forecast
+accuracy. Claims about framework quality require multiple seeds and
+matched scientific experiments.
+
+The website's PySINDy adapter is an EPDE-compatible sparse-regression
+baseline; it is NOT the exact original PDEComp/native PySINDy wrapper.
+DeepMoD, DISCOVER and EDL from PDEComp/native are not silently emulated
+by this baseline. Scientific limitations and unsupported equations remain
+method-specific.
+
+Repository ZIP: https://github.com/MakSoS1/EPDE/archive/refs/heads/demo/streamlit-community-cloud.zip
+
+The manifest requires matching scientific source/configuration hashes.
+If the demo branch has changed since the experiment was exported, update
+both the repository checkout and the exported configuration before running.
+The Streamlit instance has temporary storage; retain imported/exported files.
+
 ## Installation
 
 ### With uv
