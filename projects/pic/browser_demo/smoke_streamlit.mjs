@@ -32,7 +32,7 @@ try{
   await f.getByRole("link",{name:/Run a search/i}).first().click();
   await f.getByText("Choose method and equation").waitFor({timeout:45000});
   await f.getByRole("button",{name:/Next: configure methods/i}).click();
-  await f.getByText("Configure method settings").waitFor({timeout:45000});
+  await f.getByText(/Configure method settings/).waitFor({timeout:45000});
   await f.getByRole("tab", {name:/EPDE.*Evolution/i}).waitFor({timeout:30000});
   await f.getByRole("tab", {name:/PySINDy.*Sparse regression/i}).click();
   await f.getByText("STLSQ sparsity threshold").first().waitFor({timeout:30000});
@@ -48,7 +48,7 @@ try{
   await pop.fill("4"); await pop.press("Tab");
   await epochs.fill("1"); await epochs.press("Tab");
   await f.getByRole("button",{name:/Next: review configuration/i}).click();
-  await f.getByText("Complete effective scientific configuration").waitFor({timeout:45000});
+  await f.getByText(/Complete effective scientific configuration/).waitFor({timeout:45000});
   await f.getByRole("checkbox",{name:/I have checked the input/i}).check();
   const run=f.getByRole("button",{name:/Start search: EPDE.*PySINDy/i}).first();
   await run.waitFor({timeout:30000});
