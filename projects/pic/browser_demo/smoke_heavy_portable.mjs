@@ -35,11 +35,12 @@ try{
   console.log("HEAVY_SELECTED_PAGE", (await f.locator("body").innerText()).slice(0,5100));
   await f.getByText(/requires native scientific computing/i).waitFor({timeout:45000});
   await f.getByText("Configure method settings").waitFor({timeout:30000});
-  // The initial choice includes two methods; original PySINDy adapter must
-  // say unsupported for Navier-Stokes instead of fabricating an equation.
-  await f.getByText(/PySINDy.s current scientific adapter cannot represent/i)
+  // Unsupported native PySINDy cannot silently stand in for continuity.
+  // The one-click action must produce a usable EPDE-only exported experiment.
+  await f.getByRole("button",{name:/Use EPDE only for this equation/i})
     .waitFor({timeout:30000});
-  await f.getByText("PySINDy (sparse regression)",{exact:true}).first().click();
+  await f.getByRole("button",{name:/Use EPDE only for this equation/i}).click();
+  await f.getByText("This equation runs on your computer").waitFor({timeout:30000});
   const pop=f.getByRole("spinbutton",{name:/Population \/ candidates/i}).first();
   await pop.fill("8");
   await pop.press("Tab");
