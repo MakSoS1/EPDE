@@ -12,14 +12,10 @@ import streamlit as st
 from support.discovery_lab import job_queue as queue, ui
 from support.discovery_lab.session import current_owner
 
-st.title("⚖️ Compare")
+from support.minimal_ui import intro
+intro("Compare", "Compare recovered equations on the same verified numerical input.")
 owner = current_owner()
-st.caption("Choose experiments on identical numerical inputs to inspect recovered equations "
-           "and in-sample reconstruction. This is not a framework ranking. PySINDy here "
-           "is the EPDE-compatible STLSQ baseline, not the unchanged PDEComp/native wrapper.")
-st.page_link("views/10_Discovery_lab.py", label="Run a search", icon="🚀")
-st.caption("When you choose both methods in Run a search, they share a dataset, "
-           "noise level and seed. Only matching input groups can be compared.")
+st.page_link("views/10_Discovery_lab.py", label="Start another search", icon=":material/search:")
 
 rows = [r for r in queue.list_jobs(owner) if r.get("state") == "finished"]
 results = {r["id"]: queue.result(owner, r["id"]) for r in rows}
@@ -40,13 +36,9 @@ else:
     preferred = st.session_state.get("discovery_compare_key")
     input_label = lambda k: (f"{groups[k][0].get('label') or groups[k][0].get('dataset')} · "
                              f"noise {groups[k][0].get('noise', 0):g} % · {len(groups[k])} run(s)")
-    if len(keys) <= 6:
-        key = st.pills("Input", keys, default=preferred if preferred in keys else keys[0],
-                       selection_mode="single", format_func=input_label) or keys[0]
-    else:
-        key = st.selectbox("Input", keys,
-                           index=keys.index(preferred) if preferred in keys else 0,
-                           format_func=input_label)
+    key = st.selectbox("Input group", keys,
+                       index=keys.index(preferred) if preferred in keys else 0,
+                       format_func=input_label)
     members = groups[key]
     if key.startswith("unverifiable:"):
         st.warning("No reliable input fingerprint: this run is isolated from "
@@ -60,53 +52,66 @@ else:
     names = {r["id"]: f"{ui.METHOD_NAMES.get(r.get('method'))} · {r.get('effort', 'standard')} budget"
                       f" · started {time.strftime('%H:%M:%S', time.localtime(r.get('created', 0)))}"
              for r in members}
-    if len(names) <= 6:
-        picked = st.pills("Runs", list(names), default=list(names)[:2],
-                          selection_mode="multi", format_func=names.get)
-        picked = list(picked or [])[:4]
-    else:
-        picked = st.multiselect("Runs", list(names), default=list(names)[:2],
-                                max_selections=4, format_func=names.get)
-    chosen = [(names[i], results[i]) for i in picked]
+    with st.container(border=True):
+        a,b,c=st.columns(3)
+        a.metric("Dataset",members[0].get("label") or members[0].get("dataset"))
+        b.metric("Noise",f"{float(members[0].get('noise',0)):g}%")
+        c.metric("Experiments",len(members))
+        st.caption("Input fingerprint: "+key[:18]+"…" if not key.startswith("unverifiable:")
+                   else "Numerical input fingerprint unavailable.")
+    picked=st.multiselect("Select runs",list(names),
+                         default=list(names)[:2],max_selections=3,format_func=names.get)
+    chosen=[(names[i],results[i]) for i in picked]
     if chosen:
-        first = chosen[0][1]
-        truth = (first.get("problem") or {}).get("truth")
-        axes = ui.axes_of(first)
-        if truth:
-            st.markdown("**Known law**")
-            ui.latex(truth, axes)
-        cards = st.columns(len(chosen))
-        for card, (title, record) in zip(cards, chosen):
-            with card:
-                st.markdown(f"**{title}**")
-                ui.latex(record.get("selected") or [], axes)
-                judged = ui.verdict(record)
-                if judged:
-                    getattr(st, judged[0])(judged[1])
-        st.markdown("**Summary** (descriptive, in the order of the runs; not a ranking)")
-        methods_in_view = {rec.get("method") for _, rec in chosen}
-        summaries = [dict(run=title, **ui.summary_row({}, record))
-                     for title, record in chosen]
-        # Balance R² uses derivative estimates from the respective method.
-        # Different method-specific differentiation cannot be treated as
-        # a common benchmark axis. Keep it only for single-method views.
-        if len(methods_in_view) > 1:
-            for summary in summaries:
-                summary["equation balance R²"] = None
-        table = pd.DataFrame(summaries)
-        st.dataframe(table, hide_index=True, width="stretch",
-                     column_config={"coefficient error": st.column_config.NumberColumn(format="percent"),
-                                     "solution R² (worst variable)": st.column_config.NumberColumn(format="%.4f"),
-                                     "equation balance R²": st.column_config.NumberColumn(format="%.4f"),
-                                     "search time, s": st.column_config.NumberColumn(format="%.1f")})
-        st.caption("Only runs with an identical data/source fingerprint share a comparison "
-                   "group. EPDE and PySINDy use different optimization criteria and may use "
-                   "different derivative estimators; therefore their Pareto objectives and "
-                   "cross-method equation-balance R² are not compared. Solution R² is an "
-                   "in-sample reconstruction, NOT independent forecasting accuracy. "
-                   "For scientific conclusions repeat multiple seeds with matched budgets.")
-        st.markdown("**Solutions against the data**")
-        ui.solution_plots(chosen)
+        first=chosen[0][1]
+        axes=ui.axes_of(first)
+        equation_tab,metrics_tab,plots_tab=st.tabs(
+            ["Equations","Metrics","Solution fit"])
+        with equation_tab:
+            truth=(first.get("problem") or {}).get("truth")
+            if truth:
+                with st.expander("Known reference law",expanded=False):
+                    ui.latex(truth,axes)
+            cards=st.columns(len(chosen),gap="medium")
+            for card,(name,record) in zip(cards,chosen):
+                with card:
+                    with st.container(border=True):
+                        method=ui.METHOD_NAMES.get(record.get("method"),record.get("method"))
+                        st.markdown("**"+str(method)+"**")
+                        st.caption(name)
+                        ui.latex(record.get("selected") or [],axes)
+                        verdict=ui.verdict(record)
+                        if verdict:
+                            getattr(st,verdict[0])(verdict[1])
+                        st.caption(f"Search time: {record.get('fit_seconds',0):.1f} s"
+                                   if isinstance(record.get("fit_seconds"),(int,float))
+                                   else "Search time unavailable")
+        with metrics_tab:
+            methods_in_view={rec.get("method") for _,rec in chosen}
+            summaries=[dict(run=name,**ui.summary_row({},record))
+                       for name,record in chosen]
+            if len(methods_in_view)>1:
+                for row in summaries:
+                    row["equation balance R²"]=None
+            st.dataframe(pd.DataFrame(summaries),hide_index=True,width="stretch",
+                         column_config={
+                             "coefficient error":st.column_config.NumberColumn(format="percent"),
+                             "solution R² (worst variable)":st.column_config.NumberColumn(format="%.4f"),
+                             "equation balance R²":st.column_config.NumberColumn(format="%.4f"),
+                             "search time, s":st.column_config.NumberColumn(format="%.1f")})
+            st.caption("Only matching input fingerprints are grouped. EPDE and PySINDy "
+                       "objectives and derivative estimators differ; internal scores "
+                       "are not interchangeable. Solution R² is in-sample, not a forecast.")
+        with plots_tab:
+            st.caption("Plots show solution reconstruction against the original data.")
+            ui.solution_plots(chosen)
+        with st.expander("About scientific comparability",expanded=False):
+            st.write("An identical dataset label or seed is not enough to establish "
+                     "equivalence. Imported results report source/data hashes, and "
+                     "the site checks internal consistency without rerunning experiments. "
+                     "Comparisons should consider model terms, coefficient errors and "
+                     "common evaluation metrics. Multiple random seeds are required "
+                     "for statistically meaningful conclusions.")
 
 # Curated published benchmark archives remain available without exposing
 # other visitors' private files from the shared app/results directory.
