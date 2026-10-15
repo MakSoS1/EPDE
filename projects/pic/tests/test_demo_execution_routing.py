@@ -55,18 +55,22 @@ class HostedResourcePolicyTests(unittest.TestCase):
         self.assertIn("worker._run_upload(runreq, target)", local)
         self.assertIn("EPDE_LOCAL_FULL_RUN", worker)
 
-    def test_browser_sindy_route_has_no_server_cpu_run(self):
-        browser = (APP / "views/13_Browser_sindy.py").read_text()
+    def test_heavy_search_is_export_only_and_light_search_remains_hosted(self):
         lab = (APP / "views/10_Discovery_lab.py").read_text()
-        self.assertIn("st.iframe(build_browser_html(embedded=True)", browser)
-        self.assertNotIn("queue.submit", browser)
-        self.assertIn("if is_local_only(record_name) and not local_full:", lab)
-        self.assertIn('"epde", "pysindy"', lab)
+        ast.parse(lab)
+        self.assertIn("is_heavy = is_local_only(record_name) and not local_full", lab)
+        self.assertIn("if ready and not is_heavy:", lab)
+        self.assertIn("if is_heavy:", lab)
+        self.assertIn("elif st.button(", lab)
+        self.assertIn("make_manifest(record_name", lab)
+        self.assertIn("data=bundle_bytes(manifest)", lab)
+        self.assertIn("render_heavy_epde(record_name)", lab)
         self.assertIn('default=["epde", "pysindy"]', lab)
-        self.assertNotIn('lab_execution_location', lab)
-        self.assertNotIn('SERVER_MODE', lab)
+        self.assertNotIn("lab_execution_location", lab)
         self.assertIn('st.pills("Dataset group"', lab)
         self.assertIn('queue.submit(owner, req)', lab)
+        # The old browser-CPU PySINDy prototype is not a route from Run a search.
+        self.assertNotIn("build_browser_html", lab)
 
 
 if __name__ == "__main__":
