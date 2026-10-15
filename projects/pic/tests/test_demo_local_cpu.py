@@ -92,7 +92,10 @@ class LocalCpuTests(unittest.TestCase):
         self.assertIn("queue.submit(owner, req)", lab)
         self.assertIn('st.segmented_control("Data source"', lab)
         self.assertIn('"Dataset group"', lab)
-        self.assertIn('Filter dataset collection', lab)
+        self.assertIn('Filter the full registry', lab)
+        self.assertIn('wizard_progress(wizard_stage)', lab)
+        self.assertIn('lab_draft_config', lab)
+        self.assertIn('Complete effective scientific configuration', lab)
         for removed in ("lab_execution_location", "SERVER_MODE",
                         "Prepare local runs", "Local worker access code"):
             self.assertNotIn(removed, lab)
