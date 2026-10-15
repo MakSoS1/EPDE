@@ -29,8 +29,9 @@ try{
     throw Error("Unified scientific navigation missing");
   if(/PySINDy · your PC|Results · server|Compare · server/.test(labels))
     throw Error("Obsolete execution-location navigation is still displayed");
-  await f.getByText("1 · Choose methods").waitFor({timeout:45000});
-  await f.getByText("3 · Configure each selected method").waitFor({timeout:45000});
+  await f.getByRole("link",{name:/Run a search/i}).first().click();
+  await f.getByText("Choose method and equation").waitFor({timeout:45000});
+  await f.getByText("Configure method settings").waitFor({timeout:45000});
   await f.getByRole("tab", {name:/EPDE.*Evolution/i}).waitFor({timeout:30000});
   await f.getByRole("tab", {name:/PySINDy.*Sparse regression/i}).click();
   await f.getByText("STLSQ sparsity threshold").first().waitFor({timeout:30000});
@@ -65,7 +66,7 @@ try{
   console.log("MATCHED_INPUT_COMPARE_PAGE_PASS");
 
   await f.getByRole("link",{name:/All datasets/i}).first().click();
-  await f.getByText("Registered datasets").first().waitFor({timeout:45000});
+  await f.getByText("Data catalog",{exact:true}).first().waitFor({timeout:45000});
   await f.getByText(/Showing 59 of 59 registered scientific datasets/).waitFor({timeout:30000});
   console.log("FULL_CATALOG_PASS 59/59");
 
