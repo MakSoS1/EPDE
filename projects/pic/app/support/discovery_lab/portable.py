@@ -154,6 +154,13 @@ def read_results(raw):
             original = {k:v for k,v in ident.items() if k != "sha256"}
             if ident.get("sha256") != digest(original):
                 raise ValueError("Invalid original experiment identity")
+            if record.get("config") != ident.get("config"):
+                raise ValueError("Result settings differ from scientific run identity")
+            if record.get("variant") != (ident.get("job") or {}).get("variant"):
+                raise ValueError("Result variant differs from scientific run identity")
+            configured_method = (ident.get("config") or {}).get("method")
+            if configured_method and configured_method != record["method"]:
+                raise ValueError("Result method differs from scientific run identity")
             key = input_key(record)
             if key is None or key != record.get("comparison_input_sha256"):
                 raise ValueError("Input fingerprint mismatch")
