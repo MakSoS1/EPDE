@@ -17,6 +17,43 @@ st.caption("All your Run a search experiments appear here, including their data,
            "status and scientific results. Open a result to inspect or download it.")
 st.page_link("views/10_Discovery_lab.py", label="Run a search", icon="🚀")
 
+st.subheader("Import completed experiments")
+st.caption("After running a downloaded experiment on your computer, upload "
+           "experiment-results.zip here. Imported runs are checked for matching "
+           "data, scientific source, noise and seed before they can enter Compare. "
+           "Uploaded scientific results are user-supplied claims, not independently "
+           "verified benchmark evidence.")
+archive = st.file_uploader("Import experiment-results.zip",
+                           type=["zip"], key="import_portable_results",
+                           help="One or two native EPDE/PySINDy results (max 2 MB).")
+if archive is not None and st.button("Import these results", type="primary"):
+    try:
+        from support.discovery_lab.portable import read_results, input_key
+        records = read_results(archive.getvalue())
+        if len(queue.list_jobs(owner)) + len(records) > queue.MAX_OWNER_JOBS:
+            raise ValueError("Too many saved experiments in this session")
+        jobs = []
+        for record in records:
+            dataset = record["dataset"]
+            import_request = {
+                "method": record["method"],
+                "source": "record",
+                "dataset": dataset,
+                "variant": record.get("variant", "default"),
+                "noise": record["noise"], "seed": record["seed"],
+                "effort": record.get("effort", "standard"),
+                "display": {
+                    "label": (record.get("problem") or {}).get("title", dataset),
+                    "input_key": input_key(record),
+                },
+            }
+            jobs.append(queue.save_client_result(owner, import_request, record))
+        st.success(f"Imported {len(jobs)} scientifically identified result(s). "
+                   "They are now available below and under Compare.")
+    except (ValueError, KeyError, TypeError, OSError, json.JSONDecodeError) as exc:
+        st.error("Result import rejected: " + str(exc))
+st.divider()
+
 # ------------------------------------------------------------------ results
 STATE_TEXT = {"queued": "⏳ waiting", "running": "⚙️ running", "finished": "✅ done",
               "error": "❌ failed", "timeout": "⌛ time limit", "stopped": "⏹ stopped",
