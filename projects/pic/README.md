@@ -23,6 +23,32 @@ What it consists of:
 The library itself and the group's original research scripts are not changed; all of
 this lives next to them.
 
+## Streamlit: three-step wizard and appearance (16 October 2026)
+
+The public **Run a search** page is a true three-screen wizard, not a
+long simultaneous settings form:
+
+1. **Methods & data.** Choose EPDE/PySINDy, a built-in equation or an
+   uploaded/generated dataset, noise and seed. For known equations the exact
+   reference law and a numerical preview are **always visible**.
+2. **Settings.** Configure the selected method's actual independent scientific
+   controls. The original dataset-specific EPDE YAML stays the default. Expert
+   derivative/token/operator settings remain accessible only when needed.
+   **Back** preserves prior selections.
+3. **Review & run.** Inspect the **full effective scientific YAML** for each
+   selected method on separate tabs, confirm the configuration, then start
+   hosted search or download the portable experiment for a heavy equation.
+   Submitted jobs report running/completed states on the same screen.
+
+The sidebar **Appearance** selector switches between **Light** and **Dark**
+without affecting the underlying scientific input. The same theme-aware
+native Streamlit components render on desktop and mobile.
+
+There are no hidden governing-law or data-preview expanders in Run a search,
+and the chosen Data catalog governing equation is shown directly. Results
+shows its import and discovered equations; charts, Pareto candidates and
+the actual scientific settings occupy distinct simple tabs.
+
 ## Unified browser-to-native scientific workflow (October 2026)
 
 The public interface has **one Run a search page**, with independent EPDE
