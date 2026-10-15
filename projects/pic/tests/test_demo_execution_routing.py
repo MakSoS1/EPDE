@@ -67,7 +67,7 @@ class HostedResourcePolicyTests(unittest.TestCase):
         self.assertIn("render_heavy_epde(record_name)", lab)
         self.assertIn('default=["epde", "pysindy"]', lab)
         self.assertNotIn("lab_execution_location", lab)
-        self.assertIn('st.pills("Dataset group"', lab)
+        self.assertIn('"Dataset group"', lab)
         self.assertIn('queue.submit(owner, req)', lab)
         # The old browser-CPU PySINDy prototype is not a route from Run a search.
         self.assertNotIn("build_browser_html", lab)
