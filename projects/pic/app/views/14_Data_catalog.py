@@ -112,17 +112,21 @@ with right:
         if st.button("Use this record in Lab", type="primary", use_container_width=True):
             st.session_state["catalog_requested_record"]=selected
             st.switch_page("views/10_Discovery_lab.py")
-    with st.expander("Original equation and loader details", expanded=False):
+    with st.container(border=True):
+        st.markdown("**Governing equation(s)**")
         laws = declared_equations(selected)
         if laws:
-            st.markdown("**Declared governing equation(s)**")
             for law in laws:
                 st.code(law, language=None)
         else:
-            st.caption("This record has no statically declared reference law.")
-        st.caption("Original registered source files: " + str(row["files"]))
-        from epde_bench.datasets import REGISTRY
-        st.code(inspect.getsource(REGISTRY[selected].loader), language="python")
+            st.info("This dataset does not declare a static reference equation. "
+                    "It may be measured data or a law built dynamically by its loader.")
+        st.caption("The known law is shown for interpretation and evaluation; "
+                   "it is not supplied to the discovery algorithm.")
+    st.markdown("**Scientific source details**")
+    st.caption("Original registered data files: " + str(row["files"]))
+    from epde_bench.datasets import REGISTRY
+    st.code(inspect.getsource(REGISTRY[selected].loader), language="python")
 
 st.caption("Catalog entries describe scientific source records; not all external data "
            "files are included with the repository. Browsing never loads heavy arrays.")
