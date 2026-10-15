@@ -31,7 +31,8 @@ with right:
         st.caption("Configure everything here, download an experiment and the repo, "
                    "run the launcher on your computer, then import the resulting ZIP.")
 
-with st.expander("How scientific comparisons are validated", expanded=False):
+with st.container(border=True):
+    st.markdown("**How comparisons are validated**")
     st.write("Only the same numerical input, source, noise realization and loader "
              "parameters permit a comparison group. EPDE Pareto objectives and "
              "PySINDy STLSQ objectives are different quantities. Solution fit shown "
