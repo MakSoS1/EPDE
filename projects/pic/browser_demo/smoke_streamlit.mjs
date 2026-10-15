@@ -54,8 +54,13 @@ try{
     throw Error("Experiment confirmation checkbox did not toggle");
   const run=f.getByRole("button",{name:/Start search: EPDE.*PySINDy/i}).first();
   await run.waitFor({timeout:30000});
+  // Checkbox state updates optimistically before the Streamlit Python rerun
+  // has recalculated scientific admission and enabled the primary action.
+  for(let attempt=0;attempt<60 && await run.isDisabled();attempt++)
+    await page.waitForTimeout(400);
   if(await run.isDisabled()){
-    throw Error("Paired method run disabled: "+(await f.locator("body").innerText()).slice(-2300));
+    throw Error("Paired method run disabled after confirmation: "
+                +(await f.locator("body").innerText()).slice(-2300));
   }
   await run.click();
   await f.getByText(/2 search\(es\) started for the same input/).waitFor({timeout:45000});
