@@ -26,18 +26,18 @@ try{
   await f.getByRole("heading",{name:"Run a search"}).waitFor({timeout:45000});
   await f.getByText("Governing equation",{exact:true}).waitFor({timeout:45000});
   await f.getByText("Data preview",{exact:true}).waitFor({timeout:45000});
-  if(await f.getByText("Configure method settings",{exact:true}).count())
+  if(await f.getByText(/Configure method settings/).count())
     throw Error("Step two is already visible in step one");
   await page.screenshot({path:"wizard-step-1.png",fullPage:true});
   await f.getByRole("button",{name:/Next: configure methods/i}).click();
-  await f.getByText("Configure method settings",{exact:true}).waitFor({timeout:45000});
+  await f.getByText(/Configure method settings/).waitFor({timeout:45000});
   const pop=f.getByRole("spinbutton",{name:/Population \/ candidates/i}).first();
   await pop.fill("8");await pop.press("Tab");
   await page.screenshot({path:"wizard-step-2.png",fullPage:true});
   await f.getByRole("button",{name:/Next: review configuration/i}).click();
   await f.getByText("Complete effective scientific configuration",{exact:true})
     .waitFor({timeout:45000});
-  if(await f.getByText("Configure method settings",{exact:true}).count())
+  if(await f.getByText(/Configure method settings/).count())
     throw Error("Settings panel still visible on review screen");
   let run=f.getByRole("button",{name:/Start search: EPDE.*PySINDy/i}).first();
   await run.waitFor({timeout:30000});
@@ -45,7 +45,7 @@ try{
   await page.screenshot({path:"wizard-step-3.png",fullPage:true});
   console.log("WIZARD_REVIEW_CONFIRMATION_REQUIRED_PASS");
   await f.getByRole("button",{name:/Back to settings/i}).click();
-  await f.getByText("Configure method settings",{exact:true}).waitFor({timeout:35000});
+  await f.getByText(/Configure method settings/).waitFor({timeout:35000});
   const restored=f.getByRole("spinbutton",{name:/Population \/ candidates/i}).first();
   if(await restored.inputValue()!=="8")
     throw Error("EPDE numeric setting lost on back navigation: "+await restored.inputValue());
