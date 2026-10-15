@@ -416,87 +416,87 @@ with main_col:
             problem = load_problem(record_name, json.dumps(
                 original_profile.get("loader", {}), sort_keys=True))
         if wizard_stage == 2:
-        step(2, "Configure method settings")
-        st.caption("Start with the recommended profile. Each method keeps its own scientific settings.")
-        from support.discovery_lab.lab_settings import render_settings
-        from support.discovery_lab.sindy_settings import render_sindy_settings
+            step(2, "Configure method settings")
+            st.caption("Start with the recommended profile. Each method keeps its own scientific settings.")
+            from support.discovery_lab.lab_settings import render_settings
+            from support.discovery_lab.sindy_settings import render_sindy_settings
 
-        variant, overrides, settings, selected_budget = "default", {}, None, "Preset"
-        sindy_settings = None
-        settings_valid = True
-        heavy_methods = []
-
-
-        def epde_editor():
-            st.markdown("**EPDE · evolutionary search**")
-            st.caption("Population, evolution epochs, Pareto objectives, token pool and "
-                       "differentiation control EPDE only. None of these optimizer "
-                       "parameters is applied to PySINDy.")
-            return render_settings(
-                record_name=record_name, problem=problem if record_name else None,
-                arrays=arrays, space=space, source=source, methods=["epde"],
-                noise=noise, seed=seed, label=label, origin=origin, reference=reference,
-            )
+            variant, overrides, settings, selected_budget = "default", {}, None, "Preset"
+            sindy_settings = None
+            settings_valid = True
+            heavy_methods = []
 
 
-        def sindy_editor():
-            return render_sindy_settings(
-                record_name=record_name, problem=problem if record_name else None,
-                arrays=arrays, space=space, source=source,
-            )
+            def epde_editor():
+                st.markdown("**EPDE · evolutionary search**")
+                st.caption("Population, evolution epochs, Pareto objectives, token pool and "
+                           "differentiation control EPDE only. None of these optimizer "
+                           "parameters is applied to PySINDy.")
+                return render_settings(
+                    record_name=record_name, problem=problem if record_name else None,
+                    arrays=arrays, space=space, source=source, methods=["epde"],
+                    noise=noise, seed=seed, label=label, origin=origin, reference=reference,
+                )
 
 
-        try:
-            if is_heavy:
-                from support.discovery_lab.heavy_settings import render_heavy_epde, render_heavy_sindy
-                if "epde" in methods and "pysindy" in methods:
-                    epde_tab, sindy_tab = st.tabs(
-                        ["🧬 EPDE · Evolution", "📐 PySINDy · Sparse regression"])
-                    with epde_tab:
+            def sindy_editor():
+                return render_sindy_settings(
+                    record_name=record_name, problem=problem if record_name else None,
+                    arrays=arrays, space=space, source=source,
+                )
+
+
+            try:
+                if is_heavy:
+                    from support.discovery_lab.heavy_settings import render_heavy_epde, render_heavy_sindy
+                    if "epde" in methods and "pysindy" in methods:
+                        epde_tab, sindy_tab = st.tabs(
+                            ["🧬 EPDE · Evolution", "📐 PySINDy · Sparse regression"])
+                        with epde_tab:
+                            heavy_methods.append(render_heavy_epde(record_name))
+                        with sindy_tab:
+                            candidate = render_heavy_sindy(record_name)
+                            if candidate is not None:
+                                heavy_methods.append(candidate)
+                            else:
+                                settings_valid = False
+                    elif "epde" in methods:
                         heavy_methods.append(render_heavy_epde(record_name))
-                    with sindy_tab:
+                    elif "pysindy" in methods:
                         candidate = render_heavy_sindy(record_name)
                         if candidate is not None:
                             heavy_methods.append(candidate)
                         else:
                             settings_valid = False
-                elif "epde" in methods:
-                    heavy_methods.append(render_heavy_epde(record_name))
-                elif "pysindy" in methods:
-                    candidate = render_heavy_sindy(record_name)
-                    if candidate is not None:
-                        heavy_methods.append(candidate)
                     else:
-                        settings_valid = False
+                        st.info("Select EPDE and/or PySINDy to configure the native experiment.")
+                elif "epde" in methods and "pysindy" in methods:
+                    epde_tab, sindy_tab = st.tabs(
+                        ["🧬 EPDE · Evolution", "📐 PySINDy · Sparse regression"])
+                    with epde_tab:
+                        variant, overrides, settings, selected_budget = epde_editor()
+                    with sindy_tab:
+                        sindy_settings = sindy_editor()
+                elif "epde" in methods:
+                    with st.container(border=True):
+                        variant, overrides, settings, selected_budget = epde_editor()
+                elif "pysindy" in methods:
+                    with st.container(border=True):
+                        sindy_settings = sindy_editor()
+                elif "llm" in methods:
+                    st.caption("The LLM adapter uses the common input shown above.")
                 else:
-                    st.info("Select EPDE and/or PySINDy to configure the native experiment.")
-            elif "epde" in methods and "pysindy" in methods:
-                epde_tab, sindy_tab = st.tabs(
-                    ["🧬 EPDE · Evolution", "📐 PySINDy · Sparse regression"])
-                with epde_tab:
-                    variant, overrides, settings, selected_budget = epde_editor()
-                with sindy_tab:
-                    sindy_settings = sindy_editor()
-            elif "epde" in methods:
-                with st.container(border=True):
-                    variant, overrides, settings, selected_budget = epde_editor()
-            elif "pysindy" in methods:
-                with st.container(border=True):
-                    sindy_settings = sindy_editor()
-            elif "llm" in methods:
-                st.caption("The LLM adapter uses the common input shown above.")
-            else:
-                st.info("Select EPDE or PySINDy in step 1 to show its scientific controls.")
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as exc:
-            st.error(f"Please correct the scientific configuration before running: {exc}")
-            settings_valid = False
+                    st.info("Select EPDE or PySINDy in step 1 to show its scientific controls.")
+            except (ValueError, TypeError, KeyError, IndexError, AttributeError) as exc:
+                st.error(f"Please correct the scientific configuration before running: {exc}")
+                settings_valid = False
 
-        budget_code = {
-            "Preset": "standard",
-            "Quick": "quick",
-            "Thorough": "thorough",
-            "Custom": "custom",
-        }.get(selected_budget, "standard")
+            budget_code = {
+                "Preset": "standard",
+                "Quick": "quick",
+                "Thorough": "thorough",
+                "Custom": "custom",
+            }.get(selected_budget, "standard")
 
 
             controls = st.columns([1, 2])
@@ -534,213 +534,213 @@ with main_col:
             settings_valid = config["settings_valid"]
             budget_code = config["budget_code"]
 
-        st.markdown("**Selected input and execution**")
-        st.write("**Dataset:**", label or record_name or source)
-        st.write("**Methods:**", ", ".join(METHOD_LABELS.get(m,m) for m in methods))
-        st.write("**Noise:**", f"{noise:g} %", " · **Seed:**", seed)
-        st.caption("Heavy PDE: configuration/export only. Computation runs via the separate native launcher."
-                   if is_heavy else "Hosted search: calculations execute on the Streamlit server.")
+            st.markdown("**Selected input and execution**")
+            st.write("**Dataset:**", label or record_name or source)
+            st.write("**Methods:**", ", ".join(METHOD_LABELS.get(m,m) for m in methods))
+            st.write("**Noise:**", f"{noise:g} %", " · **Seed:**", seed)
+            st.caption("Heavy PDE: configuration/export only. Computation runs via the separate native launcher."
+                       if is_heavy else "Hosted search: calculations execute on the Streamlit server.")
 
-        st.markdown("**Complete effective scientific configuration**")
-        import yaml
-        from epde_bench.config import load_config
-        review = {}
-        if is_heavy:
-            for entry in heavy_methods:
-                base = load_config(record_name, entry["variant"],
-                                   overrides=entry.get("overrides") or {})
-                review[entry["method"]] = base
-        else:
-            if "epde" in methods:
-                review["epde"] = (
-                    load_config(record_name, variant, overrides=overrides)
-                    if record_name else settings
-                )
-            if "pysindy" in methods:
-                review["pysindy"] = (
-                    load_config(record_name, "pysindy",
-                                overrides=sindy_settings or {})
-                    if record_name else sindy_settings
-                )
-        for method in methods:
-            if method in review:
-                st.markdown("**" + METHOD_LABELS.get(method,method) + "**")
-                st.code(yaml.safe_dump(review[method], sort_keys=False,
-                                       allow_unicode=True), language="yaml")
-        st.caption("The full configuration above is used for the run/export. "
-                   "EPDE and PySINDy have separate, independent optimizer settings.")
-        confirmed = st.checkbox(
-            "I have checked the input, the methods and the scientific configuration.",
-            key="lab_confirm_science",
-        )
-        if st.button("← Back to settings", key="lab_back_settings",
-                     use_container_width=False):
-            _next_stage(2)
-
-        step(3, "Review and run")
-        ready = confirmed and settings_valid and bool(methods) and (record_name is not None or arrays is not None)
-        ready = ready and ("epde" not in methods or (settings is not None or record_name is not None))
-        ready = ready and ("pysindy" not in methods or sindy_settings is not None or is_heavy)
-        if is_heavy:
-            ready = confirmed and settings_valid and bool(methods) and len(heavy_methods) == len(methods)
-        if ready and not is_heavy:
-            from support.discovery_lab.execution_policy import classify_epde
-            from epde_bench.config import load_config, resolve_for_problem
-            try:
-                configurations = []
-                if "epde" in methods:
-                    configurations.append(
-                        load_config(record_name, variant, overrides=overrides)["search"]
-                        if record_name else settings["search"])
-                if "pysindy" in methods:
-                    configurations.append(sindy_settings["search"])
-                if not configurations:
-                    configurations.append(
-                        load_config(record_name, "default")["search"] if record_name
-                        else settings["search"])
-                if record_name:
-                    shape, nvars = problem.shape, len(problem.variables)
-                else:
-                    field_keys = [k for k in arrays if k.startswith("var_")]
-                    shape = tuple(np.asarray(arrays[field_keys[0]]).shape)
-                    nvars = len(field_keys)
-                for config in configurations:
-                    allowed, reason, _ = classify_epde(record_name, shape, nvars, config)
-                    if not allowed:
-                        ready = False
-                        st.warning("The selected dataset or budget exceeds the interactive "
-                                   "demo limit: " + reason + ". Reduce the search complexity.")
-                        break
-            except (ValueError, KeyError, TypeError, IndexError, AttributeError):
-                ready = False
-                st.warning("Please correct the scientific configuration before running.")
-
-        if is_heavy:
-            st.markdown("**This equation runs on your computer**")
-            st.caption("The ZIP contains the complete selected method configurations, "
-                       "dataset name, noise, seed, scientific source fingerprint, "
-                       "and a manifest checksum. No numerical data are transferred.")
-            if ready:
-                try:
-                    from support.discovery_lab.portable import make_manifest, bundle_bytes
-                    manifest = make_manifest(record_name, float(noise), int(seed), heavy_methods)
-                    st.download_button(
-                        "Download experiment.zip",
-                        data=bundle_bytes(manifest),
-                        file_name="experiment.zip",
-                        mime="application/zip",
-                        type="primary",
-                        key="heavy_export_" + record_name,
-                    )
-                except (ValueError, TypeError, OSError) as exc:
-                    st.error("Could not prepare reproducible experiment: " + str(exc))
+            st.markdown("**Complete effective scientific configuration**")
+            import yaml
+            from epde_bench.config import load_config
+            review = {}
+            if is_heavy:
+                for entry in heavy_methods:
+                    base = load_config(record_name, entry["variant"],
+                                       overrides=entry.get("overrides") or {})
+                    review[entry["method"]] = base
             else:
-                st.caption("Confirm the configuration above to unlock the download."
-                           if not confirmed else "Correct the unsupported method or settings in step 2.")
-            st.link_button(
-                "Download EPDE repository ZIP",
-                "https://github.com/MakSoS1/EPDE/archive/refs/heads/demo/streamlit-community-cloud.zip")
-            st.markdown("**Run the downloaded experiment locally**")
-            with st.container():
-                st.write("Extract the repository and copy **experiment.zip** into its root folder.")
-                windows, unix = st.tabs(["Windows", "macOS / Linux"])
-                with windows:
-                    st.write("Double-click **run-portable.cmd** in the extracted folder.")
-                    st.code("run-portable.cmd", language="bat")
-                with unix:
-                    st.write("Open Terminal in the extracted folder and run:")
-                    st.code("bash run-portable.sh", language="bash")
-                st.caption("The first run installs pinned dependencies. Internet access is required.")
-            st.caption("When finished, upload **experiment-results.zip** on the Results page.")
-            st.page_link("views/11_Discovery_results.py", label="Upload or view results", icon=":material/upload_file:")
-        elif st.button("Start search: " + " & ".join(METHOD_LABELS[m] for m in methods)
-                     if methods else "Choose a method",
-                     type="primary", disabled=not ready or bool(st.session_state.get("lab_started_jobs")), key="lab_start"):
-            try:
-                if record_name:
-                    key = f"record|{record_name}|{noise:g}|{seed}"
-                    requests = []
-                    for m in methods:
-                        if m == "epde":
-                            method_overrides = overrides
-                        elif m == "pysindy":
-                            method_overrides = sindy_settings
-                        else:
-                            method_overrides = {}
-                        requests.append({
-                            "method": m, "source": "record", "dataset": record_name,
-                            "variant": "pysindy" if m == "pysindy" else
-                                       variant if m == "epde" else "default",
-                            "overrides": method_overrides,
+                if "epde" in methods:
+                    review["epde"] = (
+                        load_config(record_name, variant, overrides=overrides)
+                        if record_name else settings
+                    )
+                if "pysindy" in methods:
+                    review["pysindy"] = (
+                        load_config(record_name, "pysindy",
+                                    overrides=sindy_settings or {})
+                        if record_name else sindy_settings
+                    )
+            for method in methods:
+                if method in review:
+                    st.markdown("**" + METHOD_LABELS.get(method,method) + "**")
+                    st.code(yaml.safe_dump(review[method], sort_keys=False,
+                                           allow_unicode=True), language="yaml")
+            st.caption("The full configuration above is used for the run/export. "
+                       "EPDE and PySINDy have separate, independent optimizer settings.")
+            confirmed = st.checkbox(
+                "I have checked the input, the methods and the scientific configuration.",
+                key="lab_confirm_science",
+            )
+            if st.button("← Back to settings", key="lab_back_settings",
+                         use_container_width=False):
+                _next_stage(2)
+
+            step(3, "Review and run")
+            ready = confirmed and settings_valid and bool(methods) and (record_name is not None or arrays is not None)
+            ready = ready and ("epde" not in methods or (settings is not None or record_name is not None))
+            ready = ready and ("pysindy" not in methods or sindy_settings is not None or is_heavy)
+            if is_heavy:
+                ready = confirmed and settings_valid and bool(methods) and len(heavy_methods) == len(methods)
+            if ready and not is_heavy:
+                from support.discovery_lab.execution_policy import classify_epde
+                from epde_bench.config import load_config, resolve_for_problem
+                try:
+                    configurations = []
+                    if "epde" in methods:
+                        configurations.append(
+                            load_config(record_name, variant, overrides=overrides)["search"]
+                            if record_name else settings["search"])
+                    if "pysindy" in methods:
+                        configurations.append(sindy_settings["search"])
+                    if not configurations:
+                        configurations.append(
+                            load_config(record_name, "default")["search"] if record_name
+                            else settings["search"])
+                    if record_name:
+                        shape, nvars = problem.shape, len(problem.variables)
+                    else:
+                        field_keys = [k for k in arrays if k.startswith("var_")]
+                        shape = tuple(np.asarray(arrays[field_keys[0]]).shape)
+                        nvars = len(field_keys)
+                    for config in configurations:
+                        allowed, reason, _ = classify_epde(record_name, shape, nvars, config)
+                        if not allowed:
+                            ready = False
+                            st.warning("The selected dataset or budget exceeds the interactive "
+                                       "demo limit: " + reason + ". Reduce the search complexity.")
+                            break
+                except (ValueError, KeyError, TypeError, IndexError, AttributeError):
+                    ready = False
+                    st.warning("Please correct the scientific configuration before running.")
+
+            if is_heavy:
+                st.markdown("**This equation runs on your computer**")
+                st.caption("The ZIP contains the complete selected method configurations, "
+                           "dataset name, noise, seed, scientific source fingerprint, "
+                           "and a manifest checksum. No numerical data are transferred.")
+                if ready:
+                    try:
+                        from support.discovery_lab.portable import make_manifest, bundle_bytes
+                        manifest = make_manifest(record_name, float(noise), int(seed), heavy_methods)
+                        st.download_button(
+                            "Download experiment.zip",
+                            data=bundle_bytes(manifest),
+                            file_name="experiment.zip",
+                            mime="application/zip",
+                            type="primary",
+                            key="heavy_export_" + record_name,
+                        )
+                    except (ValueError, TypeError, OSError) as exc:
+                        st.error("Could not prepare reproducible experiment: " + str(exc))
+                else:
+                    st.caption("Confirm the configuration above to unlock the download."
+                               if not confirmed else "Correct the unsupported method or settings in step 2.")
+                st.link_button(
+                    "Download EPDE repository ZIP",
+                    "https://github.com/MakSoS1/EPDE/archive/refs/heads/demo/streamlit-community-cloud.zip")
+                st.markdown("**Run the downloaded experiment locally**")
+                with st.container():
+                    st.write("Extract the repository and copy **experiment.zip** into its root folder.")
+                    windows, unix = st.tabs(["Windows", "macOS / Linux"])
+                    with windows:
+                        st.write("Double-click **run-portable.cmd** in the extracted folder.")
+                        st.code("run-portable.cmd", language="bat")
+                    with unix:
+                        st.write("Open Terminal in the extracted folder and run:")
+                        st.code("bash run-portable.sh", language="bash")
+                    st.caption("The first run installs pinned dependencies. Internet access is required.")
+                st.caption("When finished, upload **experiment-results.zip** on the Results page.")
+                st.page_link("views/11_Discovery_results.py", label="Upload or view results", icon=":material/upload_file:")
+            elif st.button("Start search: " + " & ".join(METHOD_LABELS[m] for m in methods)
+                         if methods else "Choose a method",
+                         type="primary", disabled=not ready or bool(st.session_state.get("lab_started_jobs")), key="lab_start"):
+                try:
+                    if record_name:
+                        key = f"record|{record_name}|{noise:g}|{seed}"
+                        requests = []
+                        for m in methods:
+                            if m == "epde":
+                                method_overrides = overrides
+                            elif m == "pysindy":
+                                method_overrides = sindy_settings
+                            else:
+                                method_overrides = {}
+                            requests.append({
+                                "method": m, "source": "record", "dataset": record_name,
+                                "variant": "pysindy" if m == "pysindy" else
+                                           variant if m == "epde" else "default",
+                                "overrides": method_overrides,
+                                "noise": float(noise), "seed": seed,
+                                "effort": budget_code if m == "epde" else "standard",
+                                "display": {"label": label, "input_key": key},
+                            })
+                    else:
+                        key = f"upload|{arrays_digest(arrays)}|{noise:g}|{seed}"
+                        from support.discovery_lab.lab_settings import _custom_base
+                        fallback = _custom_base(len([
+                            k for k in arrays if k.startswith("axis_") and k != "axis_names"
+                        ]) - 1, generated=source == "Generate an ODE")
+                        shared_settings = dict(settings or {
+                            "search": sindy_settings["search"] if sindy_settings else fallback,
+                            "seed": int(seed), "noise": float(noise),
+                            "label": label, "origin": origin,
+                        })
+                        shared_settings["method_configs"] = {}
+                        if settings is not None and "epde" in methods:
+                            shared_settings["method_configs"]["epde"] = {
+                                "search": settings["search"]}
+                        if sindy_settings is not None and "pysindy" in methods:
+                            shared_settings["method_configs"]["pysindy"] = sindy_settings
+                        if reference:
+                            shared_settings["reference_truth"] = reference
+                        data_path, config_path = queue.save_upload(owner, arrays, shared_settings)
+                        requests = [{
+                            "method": m, "source": "upload", "dataset": "custom",
                             "noise": float(noise), "seed": seed,
                             "effort": budget_code if m == "epde" else "standard",
+                            "data_path": str(data_path), "config_path": str(config_path),
                             "display": {"label": label, "input_key": key},
-                        })
-                else:
-                    key = f"upload|{arrays_digest(arrays)}|{noise:g}|{seed}"
-                    from support.discovery_lab.lab_settings import _custom_base
-                    fallback = _custom_base(len([
-                        k for k in arrays if k.startswith("axis_") and k != "axis_names"
-                    ]) - 1, generated=source == "Generate an ODE")
-                    shared_settings = dict(settings or {
-                        "search": sindy_settings["search"] if sindy_settings else fallback,
-                        "seed": int(seed), "noise": float(noise),
-                        "label": label, "origin": origin,
-                    })
-                    shared_settings["method_configs"] = {}
-                    if settings is not None and "epde" in methods:
-                        shared_settings["method_configs"]["epde"] = {
-                            "search": settings["search"]}
-                    if sindy_settings is not None and "pysindy" in methods:
-                        shared_settings["method_configs"]["pysindy"] = sindy_settings
-                    if reference:
-                        shared_settings["reference_truth"] = reference
-                    data_path, config_path = queue.save_upload(owner, arrays, shared_settings)
-                    requests = [{
-                        "method": m, "source": "upload", "dataset": "custom",
-                        "noise": float(noise), "seed": seed,
-                        "effort": budget_code if m == "epde" else "standard",
-                        "data_path": str(data_path), "config_path": str(config_path),
-                        "display": {"label": label, "input_key": key},
-                    } for m in methods]
-                # A joint capacity check avoids partially submitting paired runs.
-                for m in methods:
-                    queue.check_capacity(owner, m, count=len(methods))
-                ids = [queue.submit(owner, req) for req in requests]
-                st.session_state["discovery_selected_job"] = ids[0]
-                st.session_state["discovery_compare_key"] = key
-                st.session_state["lab_started_jobs"] = ids
-                st.success(f"{len(ids)} search(es) started for the same input. "
-                           "Open Results to track progress or Compare to view the equations.")
-                st.page_link("views/11_Discovery_results.py", label="See results", icon="🗂️")
-                if len(ids) > 1:
-                    st.page_link("views/12_Discovery_compare.py", label="Compare methods", icon="⚖️")
-            except (ValueError, OSError, TypeError) as exc:
-                st.error(f"Cannot submit the search: {exc}")
+                        } for m in methods]
+                    # A joint capacity check avoids partially submitting paired runs.
+                    for m in methods:
+                        queue.check_capacity(owner, m, count=len(methods))
+                    ids = [queue.submit(owner, req) for req in requests]
+                    st.session_state["discovery_selected_job"] = ids[0]
+                    st.session_state["discovery_compare_key"] = key
+                    st.session_state["lab_started_jobs"] = ids
+                    st.success(f"{len(ids)} search(es) started for the same input. "
+                               "Open Results to track progress or Compare to view the equations.")
+                    st.page_link("views/11_Discovery_results.py", label="See results", icon="🗂️")
+                    if len(ids) > 1:
+                        st.page_link("views/12_Discovery_compare.py", label="Compare methods", icon="⚖️")
+                except (ValueError, OSError, TypeError) as exc:
+                    st.error(f"Cannot submit the search: {exc}")
 
 
 
-        if st.session_state.get("lab_started_jobs"):
-            @st.fragment(run_every=4)
-            def _running_searches():
-                wanted=set(st.session_state.get("lab_started_jobs") or [])
-                matching=[r for r in queue.list_jobs(owner) if r["id"] in wanted]
-                done=sum(r.get("state") in ("finished","error","timeout","interrupted","stopped")
-                         for r in matching)
-                st.progress(done / len(wanted) if wanted else 0,
-                            text=f"{done} of {len(wanted)} experiment(s) completed")
-                for row in matching:
-                    st.write("**"+str(METHOD_LABELS.get(row.get("method"),row.get("method")))+"**",
-                             "—",row.get("state","unknown"))
-                if wanted and done==len(wanted):
-                    st.success("Search completed. Open Results to inspect equations, "
-                               "or Compare for matching input runs.")
-                st.page_link("views/11_Discovery_results.py",
-                             label="View results", icon=":material/insights:")
-                if len(wanted)>1:
-                    st.page_link("views/12_Discovery_compare.py",
-                                 label="Compare experiments", icon=":material/compare_arrows:")
-            _running_searches()
+            if st.session_state.get("lab_started_jobs"):
+                @st.fragment(run_every=4)
+                def _running_searches():
+                    wanted=set(st.session_state.get("lab_started_jobs") or [])
+                    matching=[r for r in queue.list_jobs(owner) if r["id"] in wanted]
+                    done=sum(r.get("state") in ("finished","error","timeout","interrupted","stopped")
+                             for r in matching)
+                    st.progress(done / len(wanted) if wanted else 0,
+                                text=f"{done} of {len(wanted)} experiment(s) completed")
+                    for row in matching:
+                        st.write("**"+str(METHOD_LABELS.get(row.get("method"),row.get("method")))+"**",
+                                 "—",row.get("state","unknown"))
+                    if wanted and done==len(wanted):
+                        st.success("Search completed. Open Results to inspect equations, "
+                                   "or Compare for matching input runs.")
+                    st.page_link("views/11_Discovery_results.py",
+                                 label="View results", icon=":material/insights:")
+                    if len(wanted)>1:
+                        st.page_link("views/12_Discovery_compare.py",
+                                     label="Compare experiments", icon=":material/compare_arrows:")
+                _running_searches()
 
 
 with summary_col:
