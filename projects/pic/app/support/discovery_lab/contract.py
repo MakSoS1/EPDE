@@ -11,7 +11,7 @@ from typing import Any
 
 SCHEMA_VERSION = "discovery-demo/1.0"
 METHODS = ("epde", "pysindy", "llm")
-MAX_CANDIDATES = 100
+MAX_CANDIDATES = 512  # full native Pareto front; transport remains size-limited
 
 
 def criterion_labels(method: str, record: dict) -> tuple[str, str]:
