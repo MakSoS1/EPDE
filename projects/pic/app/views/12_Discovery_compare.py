@@ -27,9 +27,14 @@ if not rows:
     st.info("Finished searches appear here, grouped by input. Run several methods on the same "
             "data in **Run a search** to compare them.")
 else:
+    # Never equate inputs merely by their dataset title, noise and seed.
+    # A matching group requires original data/content hashes, scientific
+    # source identity, loader arguments and noise-realisation protocol.
+    from support.discovery_lab.portable import input_key
     groups = {}
     for r in rows:
-        groups.setdefault(r.get("input_key") or r["id"], []).append(r)
+        verified = input_key(results[r["id"]])
+        groups.setdefault(verified or ("unverifiable:" + r["id"]), []).append(r)
     keys = list(groups)
     preferred = st.session_state.get("discovery_compare_key")
     input_label = lambda k: (f"{groups[k][0].get('label') or groups[k][0].get('dataset')} · "
@@ -42,6 +47,15 @@ else:
                            index=keys.index(preferred) if preferred in keys else 0,
                            format_func=input_label)
     members = groups[key]
+    if key.startswith("unverifiable:"):
+        st.warning("No reliable input fingerprint: this run is isolated from "
+                   "all other experiments rather than assuming identical data.")
+    if any((results[r["id"]] or {}).get("execution_location") == "user_computer"
+           for r in members):
+        st.caption("Imported results were generated on users' computers. "
+                   "Their file/source hashes are self-reported and verified for "
+                   "internal consistency; this website has not independently "
+                   "recomputed the underlying heavy-data experiment.")
     names = {r["id"]: f"{ui.METHOD_NAMES.get(r.get('method'))} · {r.get('effort', 'standard')} budget"
                       f" · started {time.strftime('%H:%M:%S', time.localtime(r.get('created', 0)))}"
              for r in members}
@@ -69,17 +83,27 @@ else:
                 if judged:
                     getattr(st, judged[0])(judged[1])
         st.markdown("**Summary** (descriptive, in the order of the runs; not a ranking)")
-        table = pd.DataFrame([dict(run=title, **ui.summary_row({}, record))
-                              for title, record in chosen])
+        methods_in_view = {rec.get("method") for _, rec in chosen}
+        summaries = [dict(run=title, **ui.summary_row({}, record))
+                     for title, record in chosen]
+        # Balance R² uses derivative estimates from the respective method.
+        # Different method-specific differentiation cannot be treated as
+        # a common benchmark axis. Keep it only for single-method views.
+        if len(methods_in_view) > 1:
+            for summary in summaries:
+                summary["equation balance R²"] = None
+        table = pd.DataFrame(summaries)
         st.dataframe(table, hide_index=True, width="stretch",
                      column_config={"coefficient error": st.column_config.NumberColumn(format="percent"),
                                      "solution R² (worst variable)": st.column_config.NumberColumn(format="%.4f"),
                                      "equation balance R²": st.column_config.NumberColumn(format="%.4f"),
                                      "search time, s": st.column_config.NumberColumn(format="%.1f")})
-        st.caption("Each method selects its equation by its own criteria, so their internal "
-                   "scores are not comparable. The solution and balance R² are computed the same "
-                   "way for every method from the same data. One input and one seed say little "
-                   "about a method in general.")
+        st.caption("Only runs with an identical data/source fingerprint share a comparison "
+                   "group. EPDE and PySINDy use different optimization criteria and may use "
+                   "different derivative estimators; therefore their Pareto objectives and "
+                   "cross-method equation-balance R² are not compared. Solution R² is an "
+                   "in-sample reconstruction, NOT independent forecasting accuracy. "
+                   "For scientific conclusions repeat multiple seeds with matched budgets.")
         st.markdown("**Solutions against the data**")
         ui.solution_plots(chosen)
 
