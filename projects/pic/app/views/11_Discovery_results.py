@@ -17,7 +17,8 @@ intro("Results", "Review experiments, open discovered equations, or import a loc
 owner = current_owner()
 st.page_link("views/10_Discovery_lab.py", label="Start a new search", icon=":material/search:")
 
-with st.expander("Import completed experiments · experiment-results.zip", expanded=False):
+with st.container(border=True):
+    st.markdown("**Import local results · experiment-results.zip**")
     st.caption("Upload experiment-results.zip from the local launcher. File metadata "
                "is checked for internal consistency; scientific results are not rerun.")
     archive = st.file_uploader("Import experiment-results.zip",
@@ -158,17 +159,14 @@ else:
                 f"derivatives: {opts.get('differentiation', 'epde')} · "
                 f"max non-zero terms: {pool.get('equation_terms_max_number', 10)} · "
                 f"holdout: {float(opts.get('validation_fraction', 0.20)):.0%}")
-            with st.expander("PySINDy configuration actually used"):
-                st.json({"pysindy": opts, "search_space": pool,
-                         "preprocessing": search.get("preprocessing")})
+
         elif record.get("method") == "epde":
             evo = search.get("evolution") or {}
             st.caption(
                 f"EPDE evolution · population: {evo.get('population_size', 'default')} · "
                 f"epochs: {evo.get('training_epochs', 'default')} · "
                 f"maximum terms: {pool.get('equation_terms_max_number', 10)}")
-            with st.expander("EPDE configuration actually used"):
-                st.json(search)
+
 
         scores = ui.solution_scores(record)
         cols = st.columns(max(1, len(scores)) + 3)
@@ -182,14 +180,20 @@ else:
                                  "side, with the derivatives used by the search.")
         cols[offset + 1].metric("candidates", len(record.get("front") or []))
         cols[offset + 2].metric("search time", ui._fmt(record.get("fit_seconds"), "{:.1f} s"))
-        with st.expander("Solution fit and diagnostics", expanded=False):
-            st.caption("In-sample reconstruction on the search data, not independent forecasting.")
+        fit_tab, candidates_tab, settings_tab = st.tabs(
+            ["Solution fit", "Equation candidates", "Scientific settings"])
+        with fit_tab:
+            st.caption("In-sample reconstruction against the original data, not a forecast.")
             ui.solution_plots([(ui.METHOD_NAMES.get(record.get("method")), record)])
-        with st.expander("Candidates (Pareto front)"):
+        with candidates_tab:
+            st.caption("Original recovered candidates; selected terms are marked explicitly.")
             ui.pareto(record)
             for i, candidate in enumerate(record.get("front") or []):
                 st.markdown(f"`[{i}]`" + (" — selected" if candidate == found else ""))
                 ui.latex(candidate, axes)
+        with settings_tab:
+            st.caption("Complete recorded configuration of this scientific run.")
+            st.json(record.get("config") or record.get("search_config") or {})
     if record:
         export = {k: v for k, v in record.items() if k != "data_file"}
         st.download_button("Download result (JSON)", json.dumps(export, indent=1, ensure_ascii=False),
