@@ -30,7 +30,7 @@ async function shot(filename, expected){
   // Do not screenshot partially streamed Streamlit pages: settings often mount
   // seconds after the first title, especially on a cold scientific worker.
   if(filename==="search"){
-    await f.getByText("Run or export",{exact:true}).waitFor({timeout:90000});
+    await f.getByText(/Run or export/i).first().waitFor({timeout:90000});
     await f.getByText("Experiment summary",{exact:true}).waitFor({timeout:90000});
   }
   if(filename==="catalog")await f.getByRole("button",{name:/Use this record in Lab/i}).waitFor({timeout:60000});
