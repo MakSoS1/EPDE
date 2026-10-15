@@ -194,7 +194,8 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
         st.caption("General-purpose starting settings, not tuned to your unknown equation. "
                    "Start with Preset, then switch to Advanced for further controls.")
 
-    _profile_summary(base, context)
+    with st.expander("About the loaded scientific profile", expanded=False):
+        _profile_summary(base, context)
     search = copy.deepcopy(base)
     prep, sp, evo = (search.setdefault(k, {}) for k in (
         "preprocessing", "search_space", "evolution"))
@@ -202,7 +203,7 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
     domain = search.setdefault("domain", {})
     resource = search.setdefault("runtime", {})
 
-    st.markdown("**Search budget and candidate library**")
+    st.markdown("**Basic search settings**")
     preset = st.segmented_control(
         "Search budget",
         ["Preset", "Quick", "Thorough", "Custom"],
@@ -240,152 +241,150 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
                      key=f"lab_terms_{source}_{record_name}_{variant}")
     evo.update(population_size=int(pop), training_epochs=int(epochs))
     sp["equation_terms_max_number"] = int(terms)
-    st.caption("Population and epochs control EPDE search cost. The term bound also "
-               "affects the shared SINDy candidate selection protocol.")
 
-    detail = st.segmented_control("Configuration detail", ["Essential", "Advanced"],
-                                  default="Essential",
-                                  key=f"lab_detail_{source}_{record_name}_{variant}")
-    with st.container(border=True):
-        current = prep.get("default_preprocessor_type", "FD")
-        now = st.segmented_control("Numerical derivatives", list(DERIVATIVES),
-                                   default=current if current in DERIVATIVES else "FD",
-                                   format_func=DERIVATIVES.get,
-                                   key=f"lab_diff_{source}_{record_name}_{variant}") or "FD"
-        if now != current:
-            prep["preprocessor_kwargs"] = {}
-        prep["default_preprocessor_type"] = now
-        orders = prep.get("max_deriv_order", "auto")
-        if orders == "auto":
-            orders = [2] + [4] * (len(shape) - 1)
-        if isinstance(orders, int):
-            orders = [orders]
-        selected_orders = []
-        axes = list(getattr(problem, "axis_names", None)
-                    or arrays.get("axis_names", []) if arrays is not None
-                    else getattr(problem, "axis_names", []))
-        for i, order in enumerate(orders):
-            label_axis = str(axes[i]) if i < len(axes) else ("t" if i == 0 else f"x{i}")
-            selected_orders.append(int(st.number_input(
-                f"Maximum derivative order on {label_axis}", 1, 6,
-                min(6, int(order)), key=f"lab_order_{source}_{record_name}_{variant}_{i}")))
-        prep["max_deriv_order"] = selected_orders
-        if now == "poly":
-            kw = prep.get("preprocessor_kwargs") or {}
-            a, b = st.columns(2)
-            default_degree = int(kw.get("poly_order") or max(3, max(selected_orders) + 1))
-            degree = a.number_input("Polynomial degree", min_value=1, max_value=12,
-                                    value=min(12, default_degree),
-                                    key=f"lab_poly_deg_{source}_{record_name}_{variant}")
-            old_win = int(kw.get("polynomial_window", 11))
-            opts = list(range(5, 34, 2))
-            window = b.select_slider("Polynomial window (odd samples)", options=opts,
-                                     value=old_win if old_win in opts else 11,
-                                     key=f"lab_poly_win_{source}_{record_name}_{variant}")
-            prep["preprocessor_kwargs"] = polynomial_kwargs(
-                int(window), int(degree), selected_orders, shape)
-        elif now != current:
-            prep["preprocessor_kwargs"] = {}
-        width = domain.get("boundary_width", "auto")
-        manual = st.checkbox("Specify boundary trimming explicitly", value=width != "auto",
-                             key=f"lab_boundary_manual_{source}_{record_name}_{variant}")
-        if manual:
-            current_widths = ((width if isinstance(width, (list, tuple))
-                               else [width] * len(shape)) if width != "auto"
-                              else [max(1, n // 10) for n in shape])
-            widths = [int(st.number_input(
-                f"Trim each side of axis {i}", min_value=0, max_value=max(0,(n-10)//2),
-                value=min(int(current_widths[i]), max(0,(n-10)//2)),
-                key=f"lab_boundary_{source}_{record_name}_{variant}_{i}"))
-                for i, n in enumerate(shape)]
-            domain["boundary_width"] = widths[0] if len(widths) == 1 else widths
-        else:
-            domain["boundary_width"] = "auto"
-        a, b, c = st.columns(3)
-        native_dp = int(sp.get("data_fun_pow", 3))
-        native_derp = int(sp.get("deriv_fun_pow", 2))
-        if native_dp > 4 or native_derp > 4:
-            st.warning("Native field/derivative powers exceed this public demo's "
-                       "limit of 4; the controls show their safely capped values.")
-        sp["data_fun_pow"] = int(a.slider(
-            "Maximum field power", 1, 4, min(4, max(1, native_dp)),
-            key=f"lab_data_power_{source}_{record_name}_{variant}"))
-        sp["deriv_fun_pow"] = int(b.slider(
-            "Maximum derivative power", 1, 4, min(4, max(1, native_derp)),
-            key=f"lab_deriv_power_{source}_{record_name}_{variant}"))
-        old_factors = sp.get("equation_factors_max_number", 1)
-        allow_products = (max(old_factors.get("factors_num", [1])) >= 2 if
-                          isinstance(old_factors, dict) else old_factors >= 2)
-        products = c.checkbox("Allow products of 2 factors", value=allow_products,
-                              key=f"lab_products_{source}_{record_name}_{variant}")
-        if products:
-            sp["equation_factors_max_number"] = (
-                old_factors if isinstance(old_factors, dict) and allow_products
-                else {"factors_num": [1, 2], "probas": [0.65, 0.35]})
-        else:
-            sp["equation_factors_max_number"] = 1
-        st.caption("Existing equation-specific forcing, coordinate and trigonometric "
-                   "token families remain intact unless edited in the validated YAML.")
-        if len(shape) > 1:
-            tokens = list(sp.get("tokens") or [])
-            has_inverse = any(x.get("family") == "inverse_space_coordinate" for x in tokens)
-            inverse = st.checkbox("Include 1/x token (requires x≠0)",
-                                  value=has_inverse,
-                                  key=f"lab_inverse_{source}_{record_name}_{variant}")
-            if inverse != has_inverse:
-                if inverse:
-                    tokens.append({"family": "inverse_space_coordinate", "axis": 1})
-                else:
-                    tokens = [x for x in tokens
-                              if x.get("family") != "inverse_space_coordinate"]
-                sp["tokens"] = tokens
-    if detail == "Advanced":
-        st.markdown("**Objectives, sparsity and compute limits**")
-    if detail == "Advanced":
-        from dataclasses import asdict
-        from epde.interface.search_config import (
-            METRIC_MENUS, SPARSITY_REGISTRY, load_search_config,
-        )
-        defaults = asdict(load_search_config(search).objectives)
-        a, b = st.columns(2)
-        for col, field, title in (
-            (a, "discrepancy_metric", "Discrepancy metric"),
-            (b, "second_objective", "Second objective"),
-            (a, "instability_metric", "Instability estimator"),
-        ):
-            values = list(METRIC_MENUS[field])
-            current = objectives.get(field, defaults[field])
-            if len(values) <= 7:
-                objectives[field] = col.pills(
-                    title, values, default=current, selection_mode="single",
-                    key=f"lab_obj_{field}_{source}_{record_name}_{variant}") or current
+
+    with st.expander("Advanced EPDE settings · derivatives, features and objectives", expanded=False):
+        detail = "Advanced"
+        with st.container(border=True):
+            current = prep.get("default_preprocessor_type", "FD")
+            now = st.segmented_control("Numerical derivatives", list(DERIVATIVES),
+                                       default=current if current in DERIVATIVES else "FD",
+                                       format_func=DERIVATIVES.get,
+                                       key=f"lab_diff_{source}_{record_name}_{variant}") or "FD"
+            if now != current:
+                prep["preprocessor_kwargs"] = {}
+            prep["default_preprocessor_type"] = now
+            orders = prep.get("max_deriv_order", "auto")
+            if orders == "auto":
+                orders = [2] + [4] * (len(shape) - 1)
+            if isinstance(orders, int):
+                orders = [orders]
+            selected_orders = []
+            axes = list(getattr(problem, "axis_names", None)
+                        or arrays.get("axis_names", []) if arrays is not None
+                        else getattr(problem, "axis_names", []))
+            for i, order in enumerate(orders):
+                label_axis = str(axes[i]) if i < len(axes) else ("t" if i == 0 else f"x{i}")
+                selected_orders.append(int(st.number_input(
+                    f"Maximum derivative order on {label_axis}", 1, 6,
+                    min(6, int(order)), key=f"lab_order_{source}_{record_name}_{variant}_{i}")))
+            prep["max_deriv_order"] = selected_orders
+            if now == "poly":
+                kw = prep.get("preprocessor_kwargs") or {}
+                a, b = st.columns(2)
+                default_degree = int(kw.get("poly_order") or max(3, max(selected_orders) + 1))
+                degree = a.number_input("Polynomial degree", min_value=1, max_value=12,
+                                        value=min(12, default_degree),
+                                        key=f"lab_poly_deg_{source}_{record_name}_{variant}")
+                old_win = int(kw.get("polynomial_window", 11))
+                opts = list(range(5, 34, 2))
+                window = b.select_slider("Polynomial window (odd samples)", options=opts,
+                                         value=old_win if old_win in opts else 11,
+                                         key=f"lab_poly_win_{source}_{record_name}_{variant}")
+                prep["preprocessor_kwargs"] = polynomial_kwargs(
+                    int(window), int(degree), selected_orders, shape)
+            elif now != current:
+                prep["preprocessor_kwargs"] = {}
+            width = domain.get("boundary_width", "auto")
+            manual = st.checkbox("Specify boundary trimming explicitly", value=width != "auto",
+                                 key=f"lab_boundary_manual_{source}_{record_name}_{variant}")
+            if manual:
+                current_widths = ((width if isinstance(width, (list, tuple))
+                                   else [width] * len(shape)) if width != "auto"
+                                  else [max(1, n // 10) for n in shape])
+                widths = [int(st.number_input(
+                    f"Trim each side of axis {i}", min_value=0, max_value=max(0,(n-10)//2),
+                    value=min(int(current_widths[i]), max(0,(n-10)//2)),
+                    key=f"lab_boundary_{source}_{record_name}_{variant}_{i}"))
+                    for i, n in enumerate(shape)]
+                domain["boundary_width"] = widths[0] if len(widths) == 1 else widths
             else:
-                objectives[field] = col.selectbox(
-                    title, values, index=values.index(current),
-                    key=f"lab_obj_{field}_{source}_{record_name}_{variant}")
-        values = list(SPARSITY_REGISTRY)
-        current = objectives.get("sparsity_cls", defaults["sparsity_cls"])
-        if current not in values:
-            current = "vwsr"
-        if len(values) <= 7:
-            objectives["sparsity_cls"] = b.pills(
-                "Sparsity operator", values, default=current, selection_mode="single",
-                key=f"lab_sparsity_{source}_{record_name}_{variant}") or current
-        else:
-            objectives["sparsity_cls"] = b.selectbox(
-                "Sparsity operator", values, index=values.index(current),
-                key=f"lab_sparsity_{source}_{record_name}_{variant}")
-        cache_pct = float(resource.get("memory_for_cache", 2))
-        cache_limit = 16.0 if local_full else 4.0
-        if not 1 <= cache_pct <= cache_limit:
-            st.warning(f"Cache percentage is limited to 1–{cache_limit:g}% "
-                       "of this machine's RAM.")
-        resource["memory_for_cache"] = float(st.number_input(
-            "EPDE tensor cache: % of host RAM", 1.0, cache_limit,
-            value=max(1.0, min(cache_limit, cache_pct)),
-            step=1.0, key=f"lab_cache_{source}_{record_name}_{variant}"))
-        st.caption("Custom Python operator implementations and solver-based "
-                   "fitness are not part of this interactive search interface.")
+                domain["boundary_width"] = "auto"
+            a, b, c = st.columns(3)
+            native_dp = int(sp.get("data_fun_pow", 3))
+            native_derp = int(sp.get("deriv_fun_pow", 2))
+            if native_dp > 4 or native_derp > 4:
+                st.warning("Native field/derivative powers exceed this public demo's "
+                           "limit of 4; the controls show their safely capped values.")
+            sp["data_fun_pow"] = int(a.slider(
+                "Maximum field power", 1, 4, min(4, max(1, native_dp)),
+                key=f"lab_data_power_{source}_{record_name}_{variant}"))
+            sp["deriv_fun_pow"] = int(b.slider(
+                "Maximum derivative power", 1, 4, min(4, max(1, native_derp)),
+                key=f"lab_deriv_power_{source}_{record_name}_{variant}"))
+            old_factors = sp.get("equation_factors_max_number", 1)
+            allow_products = (max(old_factors.get("factors_num", [1])) >= 2 if
+                              isinstance(old_factors, dict) else old_factors >= 2)
+            products = c.checkbox("Allow products of 2 factors", value=allow_products,
+                                  key=f"lab_products_{source}_{record_name}_{variant}")
+            if products:
+                sp["equation_factors_max_number"] = (
+                    old_factors if isinstance(old_factors, dict) and allow_products
+                    else {"factors_num": [1, 2], "probas": [0.65, 0.35]})
+            else:
+                sp["equation_factors_max_number"] = 1
+            st.caption("Existing equation-specific forcing, coordinate and trigonometric "
+                       "token families remain intact unless edited in the validated YAML.")
+            if len(shape) > 1:
+                tokens = list(sp.get("tokens") or [])
+                has_inverse = any(x.get("family") == "inverse_space_coordinate" for x in tokens)
+                inverse = st.checkbox("Include 1/x token (requires x≠0)",
+                                      value=has_inverse,
+                                      key=f"lab_inverse_{source}_{record_name}_{variant}")
+                if inverse != has_inverse:
+                    if inverse:
+                        tokens.append({"family": "inverse_space_coordinate", "axis": 1})
+                    else:
+                        tokens = [x for x in tokens
+                                  if x.get("family") != "inverse_space_coordinate"]
+                    sp["tokens"] = tokens
+        if detail == "Advanced":
+            st.markdown("**Objectives, sparsity and compute limits**")
+        if detail == "Advanced":
+            from dataclasses import asdict
+            from epde.interface.search_config import (
+                METRIC_MENUS, SPARSITY_REGISTRY, load_search_config,
+            )
+            defaults = asdict(load_search_config(search).objectives)
+            a, b = st.columns(2)
+            for col, field, title in (
+                (a, "discrepancy_metric", "Discrepancy metric"),
+                (b, "second_objective", "Second objective"),
+                (a, "instability_metric", "Instability estimator"),
+            ):
+                values = list(METRIC_MENUS[field])
+                current = objectives.get(field, defaults[field])
+                if len(values) <= 7:
+                    objectives[field] = col.pills(
+                        title, values, default=current, selection_mode="single",
+                        key=f"lab_obj_{field}_{source}_{record_name}_{variant}") or current
+                else:
+                    objectives[field] = col.selectbox(
+                        title, values, index=values.index(current),
+                        key=f"lab_obj_{field}_{source}_{record_name}_{variant}")
+            values = list(SPARSITY_REGISTRY)
+            current = objectives.get("sparsity_cls", defaults["sparsity_cls"])
+            if current not in values:
+                current = "vwsr"
+            if len(values) <= 7:
+                objectives["sparsity_cls"] = b.pills(
+                    "Sparsity operator", values, default=current, selection_mode="single",
+                    key=f"lab_sparsity_{source}_{record_name}_{variant}") or current
+            else:
+                objectives["sparsity_cls"] = b.selectbox(
+                    "Sparsity operator", values, index=values.index(current),
+                    key=f"lab_sparsity_{source}_{record_name}_{variant}")
+            cache_pct = float(resource.get("memory_for_cache", 2))
+            cache_limit = 16.0 if local_full else 4.0
+            if not 1 <= cache_pct <= cache_limit:
+                st.warning(f"Cache percentage is limited to 1–{cache_limit:g}% "
+                           "of this machine's RAM.")
+            resource["memory_for_cache"] = float(st.number_input(
+                "EPDE tensor cache: % of host RAM", 1.0, cache_limit,
+                value=max(1.0, min(cache_limit, cache_pct)),
+                step=1.0, key=f"lab_cache_{source}_{record_name}_{variant}"))
+            st.caption("Custom Python operator implementations and solver-based "
+                       "fitness are not part of this interactive search interface.")
 
     with st.popover("Import / Export YAML and full configuration"):
         st.caption("The effective resolved scientific configuration is shown below. "
