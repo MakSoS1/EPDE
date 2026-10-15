@@ -23,7 +23,7 @@ async function frame(){
 }
 async function shot(filename, expected){
   const f=await frame();
-  await f.locator("h1").first().waitFor({timeout:60000});
+  await f.locator("h1").filter({hasText:new RegExp(expected,"i")}).first().waitFor({timeout:60000});
   const heading=(await f.locator("h1").first().innerText()).trim();
   if(!heading.toLowerCase().includes(expected.toLowerCase()))
     throw Error(filename+" unexpected heading "+heading);
