@@ -321,19 +321,54 @@ else:
         noise = st.number_input("Extra noise, % of the standard deviation", 0.0, 10.0, 0.0, 0.5,
                                 help="Usually 0 for measured data.")
 
-st.subheader("3 · Scientific settings")
-st.caption("Stored equation presets are loaded automatically. Essential controls "
-           "are shown first; switch to Advanced for the full configuration.")
+st.subheader("3 · Configure each selected method")
+st.caption("The data, noise and seed above are shared. Every algorithm below "
+           "has its own settings and they are recorded separately in Results.")
 from support.discovery_lab.lab_settings import render_settings
+from support.discovery_lab.sindy_settings import render_sindy_settings
 
 variant, overrides, settings, selected_budget = "default", {}, None, "Preset"
+sindy_settings = None
 settings_valid = True
-try:
-    variant, overrides, settings, selected_budget = render_settings(
+
+
+def epde_editor():
+    st.markdown("**EPDE · evolutionary search**")
+    st.caption("Population, evolution epochs, Pareto objectives, token pool and "
+               "differentiation control EPDE only. None of these optimizer "
+               "parameters is applied to PySINDy.")
+    return render_settings(
         record_name=record_name, problem=problem if record_name else None,
-        arrays=arrays, space=space, source=source, methods=methods,
+        arrays=arrays, space=space, source=source, methods=["epde"],
         noise=noise, seed=seed, label=label, origin=origin, reference=reference,
     )
+
+
+def sindy_editor():
+    return render_sindy_settings(
+        record_name=record_name, problem=problem if record_name else None,
+        arrays=arrays, space=space, source=source,
+    )
+
+
+try:
+    if "epde" in methods and "pysindy" in methods:
+        epde_tab, sindy_tab = st.tabs(
+            ["🧬 EPDE · Evolution", "📐 PySINDy · Sparse regression"])
+        with epde_tab:
+            variant, overrides, settings, selected_budget = epde_editor()
+        with sindy_tab:
+            sindy_settings = sindy_editor()
+    elif "epde" in methods:
+        with st.container(border=True):
+            variant, overrides, settings, selected_budget = epde_editor()
+    elif "pysindy" in methods:
+        with st.container(border=True):
+            sindy_settings = sindy_editor()
+    elif "llm" in methods:
+        st.caption("The LLM adapter uses the common input shown above.")
+    else:
+        st.info("Select EPDE or PySINDy in step 1 to show its scientific controls.")
 except (ValueError, TypeError, KeyError, IndexError, AttributeError) as exc:
     st.error(f"Please correct the scientific configuration before running: {exc}")
     settings_valid = False
@@ -347,27 +382,36 @@ budget_code = {
 
 st.subheader("4 · Run the search")
 ready = settings_valid and bool(methods) and (record_name is not None or arrays is not None)
+ready = ready and ("epde" not in methods or (settings is not None or record_name is not None))
+ready = ready and ("pysindy" not in methods or sindy_settings is not None)
 if ready:
     from support.discovery_lab.execution_policy import classify_epde
     from epde_bench.config import load_config, resolve_for_problem
     try:
+        configurations = []
+        if "epde" in methods:
+            configurations.append(
+                load_config(record_name, variant, overrides=overrides)["search"]
+                if record_name else settings["search"])
+        if "pysindy" in methods:
+            configurations.append(sindy_settings["search"])
+        if not configurations:
+            configurations.append(
+                load_config(record_name, "default")["search"] if record_name
+                else settings["search"])
         if record_name:
-            # Check geometry once before any job is submitted. The worker
-            # independently enforces admission on every request.
-            effective = load_config(record_name, variant, overrides=overrides)
-            resolved = resolve_for_problem(effective, problem)
             shape, nvars = problem.shape, len(problem.variables)
         else:
-            resolved = settings["search"]
             field_keys = [k for k in arrays if k.startswith("var_")]
             shape = tuple(np.asarray(arrays[field_keys[0]]).shape)
             nvars = len(field_keys)
-        allowed, reason, _ = classify_epde(record_name, shape, nvars, resolved)
-        if not allowed:
-            ready = False
-            st.warning("This scientific configuration exceeds the interactive "
-                       "demo budget: " + reason +
-                       " Choose a smaller dataset or search budget.")
+        for config in configurations:
+            allowed, reason, _ = classify_epde(record_name, shape, nvars, config)
+            if not allowed and not LOCAL_FULL:
+                ready = False
+                st.warning("The selected dataset or budget exceeds the interactive "
+                           "demo limit: " + reason + ". Reduce the search complexity.")
+                break
     except (ValueError, KeyError, TypeError, IndexError, AttributeError):
         ready = False
         st.warning("Please correct the scientific configuration before running.")
@@ -378,25 +422,50 @@ if st.button("Run " + " & ".join(METHOD_LABELS[m] for m in methods)
     try:
         if record_name:
             key = f"record|{record_name}|{noise:g}|{seed}"
-            requests = [{
-                "method": m, "source": "record", "dataset": record_name,
-                "variant": "pysindy" if m == "pysindy" else
-                           variant if m == "epde" else "default",
-                "overrides": overrides if m != "llm" else {},
-                "noise": float(noise), "seed": seed, "effort": budget_code,
-                "display": {"label": label, "input_key": key},
-            } for m in methods]
+            requests = []
+            for m in methods:
+                if m == "epde":
+                    method_overrides = overrides
+                elif m == "pysindy":
+                    method_overrides = sindy_settings
+                else:
+                    method_overrides = {}
+                requests.append({
+                    "method": m, "source": "record", "dataset": record_name,
+                    "variant": "pysindy" if m == "pysindy" else
+                               variant if m == "epde" else "default",
+                    "overrides": method_overrides,
+                    "noise": float(noise), "seed": seed,
+                    "effort": budget_code if m == "epde" else "standard",
+                    "display": {"label": label, "input_key": key},
+                })
         else:
             key = f"upload|{arrays_digest(arrays)}|{noise:g}|{seed}"
+            from support.discovery_lab.lab_settings import _custom_base
+            fallback = _custom_base(len([
+                k for k in arrays if k.startswith("axis_") and k != "axis_names"
+            ]) - 1, generated=source == "Generate an ODE")
+            shared_settings = dict(settings or {
+                "search": sindy_settings["search"] if sindy_settings else fallback,
+                "seed": int(seed), "noise": float(noise),
+                "label": label, "origin": origin,
+            })
+            shared_settings["method_configs"] = {}
+            if settings is not None and "epde" in methods:
+                shared_settings["method_configs"]["epde"] = {
+                    "search": settings["search"]}
+            if sindy_settings is not None and "pysindy" in methods:
+                shared_settings["method_configs"]["pysindy"] = sindy_settings
+            if reference:
+                shared_settings["reference_truth"] = reference
+            data_path, config_path = queue.save_upload(owner, arrays, shared_settings)
             requests = [{
                 "method": m, "source": "upload", "dataset": "custom",
-                "noise": float(noise), "seed": seed, "effort": budget_code,
+                "noise": float(noise), "seed": seed,
+                "effort": budget_code if m == "epde" else "standard",
+                "data_path": str(data_path), "config_path": str(config_path),
                 "display": {"label": label, "input_key": key},
             } for m in methods]
-            data_path, config_path = queue.save_upload(owner, arrays, settings)
-            for request in requests:
-                request["data_path"] = str(data_path)
-                request["config_path"] = str(config_path)
         # A joint capacity check avoids partially submitting paired runs.
         for m in methods:
             queue.check_capacity(owner, m, count=len(methods))
