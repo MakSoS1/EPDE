@@ -135,13 +135,15 @@ def _save_wizard_widgets():
     # Widgets are removed when they are not rendered in a later Streamlit rerun.
     # Mirror their values into permanent state before advancing the wizard.
     names = ("lab_", "portable_", "heavy_", "native_advanced_")
-    st.session_state["lab_widgets_saved"] = {
+    saved = dict(st.session_state.get("lab_widgets_saved", {}))
+    saved.update({
         k: v for k, v in st.session_state.items()
         if k.startswith(names) and k not in (
             "lab_widgets_saved", "lab_stage", "lab_draft_input",
             "lab_draft_config", "lab_started_jobs",
         )
-    }
+    })
+    st.session_state["lab_widgets_saved"] = saved
 
 def _next_stage(target):
     _save_wizard_widgets()
@@ -392,6 +394,7 @@ with main_col:
             )
             st.session_state.pop("lab_started_jobs", None)
             st.session_state.pop("lab_draft_config", None)
+            st.session_state["lab_confirm_science"] = False
             _next_stage(2)
 
     else:
