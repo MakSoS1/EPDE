@@ -24,8 +24,7 @@ try{
   await page.goto(base,{waitUntil:"domcontentloaded",timeout:45000});
   let f=await frame();
   await f.getByRole("link",{name:/Results/i}).first().click();
-  await f.getByText(/Import completed experiments/i).first().waitFor({timeout:45000});
-  await f.getByText(/Import completed experiments/i).first().click();
+  await f.getByText(/Import local results/i).first().waitFor({timeout:45000});
   await f.locator('input[type="file"]').setInputFiles(zip);
   await f.getByRole("button",{name:/Import these results/i}).click();
   await f.getByText(/Imported 2 scientifically identified result/i)
