@@ -67,6 +67,13 @@ jobs:
         run: |
           set -o pipefail
           node smoke_minimal_ui.mjs 2>&1 | tee /tmp/minimal-ui-e2e.log
+      - id: mobile
+        name: Verify five Streamlit pages at mobile viewport (390px)
+        timeout-minutes: 7
+        working-directory: projects/pic/browser_demo
+        run: |
+          set -o pipefail
+          node smoke_mobile_ui.mjs 2>&1 | tee /tmp/mobile-ui-e2e.log
       - id: browser
         name: User opens Streamlit → computes with PySINDy → refreshes → EPDE Lab
         timeout-minutes: 9
@@ -87,6 +94,7 @@ jobs:
           DEPS: ${{ steps.env.outcome }}
           HOST: ${{ steps.server.outcome }}
           VISUAL: ${{ steps.visual.outcome }}
+          MOBILE: ${{ steps.mobile.outcome }}
           BROWSER: ${{ steps.browser.outcome }}
           HEAVY_BROWSER: ${{ steps.heavy_browser.outcome }}
         run: |
@@ -100,9 +108,10 @@ jobs:
             "streamlit":os.environ.get("HOST"),
             "browser":os.environ.get("BROWSER"),
             "visual":os.environ.get("VISUAL"),
+            "mobile":os.environ.get("MOBILE"),
             "heavy_browser":os.environ.get("HEAVY_BROWSER"),
           }
-          data["verified"]=all(data[n]=="success" for n in ("dependencies","streamlit","visual","browser","heavy_browser"))
+          data["verified"]=all(data[n]=="success" for n in ("dependencies","streamlit","visual","mobile","browser","heavy_browser"))
           for k,p in [("browser_log","/tmp/streamlit-e2e.log"),
                       ("streamlit_log","/tmp/streamlit-server.log"),
                       ("install_log","/tmp/streamlit-deps.log")]:
@@ -123,6 +132,7 @@ jobs:
           path: |
             projects/pic/browser_demo/ui-*.png
             /tmp/minimal-ui-e2e.log
+            /tmp/mobile-ui-e2e.log
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         if: failure()
