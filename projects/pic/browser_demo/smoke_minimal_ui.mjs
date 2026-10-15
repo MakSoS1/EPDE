@@ -82,7 +82,7 @@ try{
   await shot("results","Results");
   await go(/Compare/i);
   await shot("compare","Compare");
-  await go(/All datasets/i);
+  await go(/Data catalog/i);
   await shot("catalog","Data catalog");
   if(errors.length)throw Error("JavaScript errors: "+errors.join("; "));
   console.log("SIX_SCREEN_VISUAL_QA_PASS");
