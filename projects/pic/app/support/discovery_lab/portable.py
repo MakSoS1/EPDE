@@ -1,0 +1,169 @@
+"""Versioned, data-aware handoff between the Streamlit Lab and native runs.
+
+The ZIP contains *declarative* input only, never executable code. Download the
+repository separately. No huge registered dataset is read on the web host.
+"""
+from __future__ import annotations
+
+import hashlib
+import io
+import json
+import re
+import zipfile
+from pathlib import Path
+
+SCHEMA = "epde-portable/1"
+HEX = re.compile(r"^[0-9a-f]{64}$")
+MAX_IMPORT = 2_000_000
+
+
+def digest(value):
+    return hashlib.sha256(json.dumps(
+        value, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        allow_nan=False).encode("utf-8")).hexdigest()
+
+
+def input_key(record):
+    """A method-independent identity of the *numerical input*, not its optimizer.
+
+    Include original data bytes, scientific source, loader options and the noise
+    realization. Two identically named datasets are not necessarily identical.
+    """
+    identity = record.get("identity") or {}
+    cfg = record.get("config") or {}
+    data = identity.get("data_sha256")
+    source = identity.get("source_sha256")
+    if not isinstance(data, str) or not HEX.fullmatch(data):
+        return None
+    if not isinstance(source, str) or not HEX.fullmatch(source):
+        return None
+    if record.get("dataset") != (identity.get("job") or {}).get("dataset"):
+        return None
+    noise, seed = record.get("noise"), record.get("seed")
+    if type(seed) is not int or type(noise) not in (int, float):
+        return None
+    if float(noise) != float(identity["job"].get("noise")) or seed != identity["job"].get("seed"):
+        return None
+    return digest({"schema": SCHEMA, "dataset": record["dataset"],
+                   "data_sha256": data, "scientific_source_sha256": source,
+                   "loader": cfg.get("loader") or {},
+                   "noise": float(noise), "seed": seed,
+                   "data_seed": cfg.get("nir1_data_seed", seed),
+                   "noise_protocol": "problem.noisy/v1"})
+
+
+def make_manifest(dataset, noise, seed, methods):
+    """Build a portable experiment without accessing its scientific arrays."""
+    from epde_bench.config import load_config
+    from epde_bench.datasets import REGISTRY
+    from epde_bench.identity import _source_hash
+    if dataset not in REGISTRY:
+        raise ValueError("Unknown built-in equation")
+    if type(seed) is not int or not 0 <= seed <= 999:
+        raise ValueError("Seed must be within 0..999")
+    if type(noise) not in (float, int) or not 0 <= noise <= 10:
+        raise ValueError("Noise must be within 0..10")
+    if not isinstance(methods, list) or not 1 <= len(methods) <= 2:
+        raise ValueError("Choose one or two methods")
+    items = []
+    for entry in methods:
+        if not isinstance(entry, dict) or entry.get("method") not in ("epde", "pysindy"):
+            raise ValueError("Unsupported portable algorithm")
+        method = entry["method"]
+        if method in [x["method"] for x in items]:
+            raise ValueError("Duplicate method")
+        variant = entry.get("variant") or ("pysindy" if method == "pysindy" else "default")
+        overrides = entry.get("overrides") or {}
+        if not isinstance(overrides, dict) or (set(overrides) -
+                ({"search", "pysindy"} if method == "pysindy" else {"search"})):
+            raise ValueError("Invalid scientific settings")
+        cfg = load_config(dataset, variant, overrides=overrides)
+        if cfg["method"] != method:
+            raise ValueError("Configuration and method disagree")
+        items.append({"method": method, "variant": variant, "overrides": overrides,
+                      "loader": cfg.get("loader", {})})
+    if len({digest(x["loader"]) for x in items}) != 1:
+        raise ValueError("Methods have different loader inputs; they cannot be paired")
+    manifest = {
+        "schema": SCHEMA, "dataset": dataset, "noise": float(noise), "seed": seed,
+        "scientific_source_sha256": _source_hash(), "runs": items,
+        "origin": "EPDE Explorer / Run a search",
+    }
+    manifest["sha256"] = digest(manifest)
+    return manifest
+
+
+def bundle_bytes(manifest):
+    if manifest.get("sha256") != digest({k:v for k,v in manifest.items() if k != "sha256"}):
+        raise ValueError("Corrupt experiment manifest")
+    payload = json.dumps(manifest, indent=2, ensure_ascii=False, allow_nan=False)
+    if len(payload.encode()) > 80_000:
+        raise ValueError("Experiment settings too large")
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as z:
+        z.writestr("experiment.json", payload)
+        z.writestr("README.txt",
+            "EPDE Explorer — reproducible native experiment\n\n"
+            "1. Download the EPDE repository ZIP from the demo branch.\n"
+            "2. Extract it and place this file as experiment.zip in its root.\n"
+            "3. Windows: double-click run-portable.cmd; macOS/Linux: bash run-portable.sh.\n"
+            "4. Upload experiment-results.zip on the website's Results page.\n\n"
+            "The launcher installs original pinned scientific dependencies. "
+            "It does not send your data to the website.\n")
+    return buffer.getvalue()
+
+
+def read_manifest(bundle):
+    if not isinstance(bundle, (str, Path)):
+        raise ValueError("Expected a ZIP file path")
+    with zipfile.ZipFile(bundle) as z:
+        if z.namelist().count("experiment.json") != 1:
+            raise ValueError("Missing or duplicated experiment.json")
+        item = z.getinfo("experiment.json")
+        if item.file_size > 80_000:
+            raise ValueError("Manifest exceeds size limit")
+        obj = json.loads(z.read(item))
+    if not isinstance(obj, dict) or obj.get("schema") != SCHEMA:
+        raise ValueError("Unknown experiment schema")
+    original = {k:v for k,v in obj.items() if k != "sha256"}
+    if obj.get("sha256") != digest(original):
+        raise ValueError("Manifest checksum mismatch")
+    return obj
+
+
+def read_results(raw):
+    """Read a bounded, untrusted result archive; never extract archive members."""
+    from support.discovery_lab.contract import normalize
+    if not isinstance(raw, bytes) or len(raw) > MAX_IMPORT:
+        raise ValueError("Result archive must be at most 2 MB")
+    with zipfile.ZipFile(io.BytesIO(raw)) as z:
+        files = [x for x in z.infolist() if x.filename.startswith("results/")
+                 and x.filename.endswith(".json") and "/" not in x.filename[8:]]
+        if not 1 <= len(files) <= 2:
+            raise ValueError("Expected one or two result JSON files")
+        if sum(x.file_size for x in files) > MAX_IMPORT:
+            raise ValueError("Uncompressed results exceed size limit")
+        records = []
+        for item in files:
+            record = json.loads(z.read(item))
+            if not isinstance(record, dict) or record.get("method") not in ("epde", "pysindy"):
+                raise ValueError("Unknown result method")
+            if record.get("execution_location") != "user_computer" or record.get("portable_schema") != SCHEMA:
+                raise ValueError("Not a portable native result")
+            ident = record.get("identity") or {}
+            original = {k:v for k,v in ident.items() if k != "sha256"}
+            if ident.get("sha256") != digest(original):
+                raise ValueError("Invalid original experiment identity")
+            key = input_key(record)
+            if key is None or key != record.get("comparison_input_sha256"):
+                raise ValueError("Input fingerprint mismatch")
+            if not isinstance(record.get("portable_manifest_sha256"), str) or not HEX.fullmatch(record["portable_manifest_sha256"]):
+                raise ValueError("Missing originating experiment checksum")
+            records.append(normalize(record, record["method"]))
+    if len({r["comparison_input_sha256"] for r in records}) != 1:
+        raise ValueError("Result files do not share identical numerical input")
+    if len({r["portable_manifest_sha256"] for r in records}) != 1:
+        raise ValueError("Result files came from different experiment packages")
+    if len({r["method"] for r in records}) != len(records):
+        raise ValueError("Duplicate methods in result package")
+    return records
