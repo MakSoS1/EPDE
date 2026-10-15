@@ -14,8 +14,9 @@ from support.discovery_lab.session import current_owner
 
 st.title("⚖️ Compare")
 owner = current_owner()
-st.caption("Choose experiments on the same input to inspect recovered equations, "
-           "prediction quality and runtimes side by side. This is not a framework ranking.")
+st.caption("Choose experiments on identical numerical inputs to inspect recovered equations "
+           "and in-sample reconstruction. This is not a framework ranking. PySINDy here "
+           "is the EPDE-compatible STLSQ baseline, not the unchanged PDEComp/native wrapper.")
 st.page_link("views/10_Discovery_lab.py", label="Run a search", icon="🚀")
 st.caption("When you choose both methods in Run a search, they share a dataset, "
            "noise level and seed. Only matching input groups can be compared.")
