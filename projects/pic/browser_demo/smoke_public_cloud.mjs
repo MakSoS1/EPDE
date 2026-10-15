@@ -26,8 +26,8 @@ try {
   await f.getByRole("heading",{name:"EPDE Explorer"}).waitFor({timeout:25000});
   await f.getByRole("link",{name:/Run a search/i}).first().click();
   await f.getByText(/Choose method and equation/i).first().waitFor({timeout:60000});
-  await f.getByText(/Configure method settings/i).first().waitFor({timeout:60000});
-  await f.getByText(/Run or export/i).first().waitFor({timeout:60000});
+  await f.getByRole("button",{name:/Next: configure methods/i}).waitFor({timeout:60000});
+  // The next two stages must be separate screens, not a long initial form.
   if(await f.locator('[data-testid="stException"]').count())
     throw Error("Published search page displays a Python exception");
   await page.screenshot({path:"public-minimal-run-search.png",fullPage:true});
@@ -37,7 +37,7 @@ try {
   await page.screenshot({path:"public-minimal-catalog.png",fullPage:true});
   console.log("PUBLIC_MINIMAL_CATALOG_PASS");
   await f.getByRole("link",{name:/Results/i}).first().click();
-  await f.getByText(/Import completed experiments/).first().waitFor({timeout:45000});
+  await f.getByText(/Import local results/).first().waitFor({timeout:45000});
   console.log("PUBLIC_MINIMAL_IMPORT_ROUTE_PASS");
   if(errors.length)throw Error("Client-side errors: "+errors.join("; ").slice(0,1000));
   console.log("PUBLIC_MINIMAL_SIX_PAGE_DEPLOYMENT_VERIFIED");
