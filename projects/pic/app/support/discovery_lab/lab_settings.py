@@ -186,8 +186,7 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
         context = "Universal bounded starting profile for new data"
         st.caption("General-purpose starting settings; adjust the budget below or open Advanced.")
 
-    with st.expander("About the loaded scientific profile", expanded=False):
-        _profile_summary(base, context)
+    _profile_summary(base, context)
     search = copy.deepcopy(base)
     prep, sp, evo = (search.setdefault(k, {}) for k in (
         "preprocessing", "search_space", "evolution"))
