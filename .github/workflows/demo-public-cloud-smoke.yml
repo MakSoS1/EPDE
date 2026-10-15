@@ -5,8 +5,9 @@ on:
     paths:
       - '.github/workflows/demo-public-cloud-smoke.yml'
       - 'projects/pic/app/Home.py'
-      - 'projects/pic/app/views/13_Browser_sindy.py'
-      - 'projects/pic/browser_demo/smoke_streamlit.mjs'
+      - 'projects/pic/app/views/**'
+      - 'projects/pic/app/support/minimal_ui.py'
+      - 'projects/pic/browser_demo/smoke_public_cloud.mjs'
   workflow_dispatch:
 
 permissions:
@@ -27,14 +28,14 @@ jobs:
           npm install --no-fund --no-audit
           npx playwright install --with-deps chromium
       - id: public
-        name: Open deployed Streamlit app over internet and compute visitor-side PySINDy
+        name: Verify deployed six-page Streamlit UI without starting public scientific jobs
         timeout-minutes: 12
         working-directory: projects/pic/browser_demo
         env:
           STREAMLIT_URL: https://epde-explorer-demo.streamlit.app/
         run: |
           set -o pipefail
-          node smoke_streamlit.mjs 2>&1 | tee /tmp/cloud-browser.log
+          node smoke_public_cloud.mjs 2>&1 | tee /tmp/cloud-browser.log
       - name: Report actual deployment status, not just a local build
         if: always()
         env:
@@ -61,8 +62,10 @@ jobs:
           commit=$(printf 'Public Streamlit visitor browser verification\n' | git commit-tree "$tree")
           git push --force origin "$commit:refs/heads/ci/demo-public-cloud"
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
-          name: public-streamlit-cloud-failed-browser
-          path: projects/pic/browser_demo/streamlit-e2e.png
+          name: public-streamlit-cloud-visual-check
+          path: |
+            projects/pic/browser_demo/public-minimal-*.png
+            /tmp/cloud-browser.log
           if-no-files-found: ignore
