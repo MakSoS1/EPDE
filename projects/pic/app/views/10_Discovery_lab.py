@@ -184,8 +184,8 @@ with main_col:
 
         st.markdown("**Equation / dataset**")
         source = st.segmented_control("Data source",
-                          key="lab_input_source",
                           ["Built-in equation", "Generate an ODE", "Upload your data"],
+                          key="lab_input_source",
                           default="Built-in equation",
                           help="Built-in equations have a known law, so the result is checked against it. "
                                "A generated ODE is checked against the law you type. Uploaded data have "
