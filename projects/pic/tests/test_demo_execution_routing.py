@@ -58,9 +58,11 @@ class HostedResourcePolicyTests(unittest.TestCase):
     def test_heavy_search_is_export_only_and_light_search_remains_hosted(self):
         lab = (APP / "views/10_Discovery_lab.py").read_text()
         ast.parse(lab)
-        self.assertIn("is_heavy = is_local_only(record_name) and not local_full", lab)
+        self.assertIn("is_heavy = is_local_only(record_name)", lab)
         self.assertIn("if ready and not is_heavy:", lab)
         self.assertIn("if is_heavy:", lab)
+        self.assertNotIn("Load original dataset on this device", lab)
+        self.assertNotIn("LOCAL_FULL =", lab)
         self.assertIn("elif st.button(", lab)
         self.assertIn("make_manifest(record_name", lab)
         self.assertIn("data=bundle_bytes(manifest)", lab)
