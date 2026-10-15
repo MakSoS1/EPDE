@@ -49,7 +49,9 @@ try{
   await epochs.fill("1"); await epochs.press("Tab");
   await f.getByRole("button",{name:/Next: review configuration/i}).click();
   await f.getByText(/Complete effective scientific configuration/).waitFor({timeout:45000});
-  await f.getByRole("checkbox",{name:/I have checked the input/i}).check();
+  await f.getByText(/I have checked the input/i).first().click();
+  if(!(await f.getByRole("checkbox",{name:/I have checked the input/i}).isChecked()))
+    throw Error("Experiment confirmation checkbox did not toggle");
   const run=f.getByRole("button",{name:/Start search: EPDE.*PySINDy/i}).first();
   await run.waitFor({timeout:30000});
   if(await run.isDisabled()){
