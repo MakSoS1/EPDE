@@ -333,20 +333,16 @@ with main_col:
             except (ValueError, OverflowError, TypeError) as exc:
                 st.error(f"Cannot generate this equation: {exc}")
         else:
-            with st.expander("Accepted formats and examples", expanded=False):
-                st.markdown(
-                    "- **CSV**: a table, first column time, other columns variables (one ODE or a system). "
-                    "Example: Lotka–Volterra.\n"
-                    "- **NPZ**: `axis_0` (time), `axis_1` … (space, 1-D arrays), optional `axis_names`, "
-                    "and one array `var_<name>` per variable on the grid (time × space). "
-                    "Example: heat equation.\n"
-                    "- **NPY**: one 2-D array (time × space); give the coordinate ranges below.\n\n"
-                    "Up to 8 MiB and 300 000 numbers. Coordinates must be strictly increasing.")
-                csv, npz = example_files()
-                c1, c2 = st.columns(2)
-                c1.download_button("Example CSV (Lotka–Volterra)", csv, "lotka_volterra.csv", "text/csv")
-                c2.download_button("Example NPZ (heat equation)", npz, "heat_equation.npz",
-                                   "application/octet-stream")
+            st.markdown("**Supported formats**")
+            st.caption("CSV: time column followed by numerical variables. "
+                       "NPZ: axis_0, optional axis_1 and var_<name> arrays. "
+                       "NPY: time × space array; enter coordinate bounds below. "
+                       "Maximum upload: 8 MiB / 300,000 values.")
+            csv, npz = example_files()
+            c1, c2 = st.columns(2)
+            c1.download_button("Example CSV", csv, "lotka_volterra.csv", "text/csv")
+            c2.download_button("Example NPZ", npz, "heat_equation.npz",
+                               "application/octet-stream")
             uploaded = st.file_uploader("Your file", type=["csv", "npy", "npz"])
             if uploaded is not None:
                 try:
