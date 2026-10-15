@@ -34,7 +34,7 @@ try{
   await f.getByRole("heading",{name:"Run a search"}).waitFor({timeout:30000});
   console.log("HEAVY_SELECTED_PAGE", (await f.locator("body").innerText()).slice(0,5100));
   await f.getByText(/requires native scientific computing/i).waitFor({timeout:45000});
-  await f.getByText("Configure method settings").waitFor({timeout:30000});
+  await f.getByRole("button",{name:/Next: configure methods/i}).waitFor({timeout:30000});
   // Unsupported native PySINDy cannot silently stand in for continuity.
   // The one-click action must produce a usable EPDE-only exported experiment.
   await f.getByRole("button",{name:/Use EPDE only for this equation/i})
@@ -45,10 +45,15 @@ try{
     .waitFor({state:"hidden",timeout:30000});
   await f.getByRole("button",{name:/Use EPDE only for this equation/i})
     .waitFor({state:"hidden",timeout:30000});
-  await f.getByText("This equation runs on your computer").waitFor({timeout:30000});
+  await f.getByRole("button",{name:/Next: configure methods/i}).click();
+  await f.getByText("Configure method settings").waitFor({timeout:30000});
   const pop=f.getByRole("spinbutton",{name:/Population \/ candidates/i}).first();
   await pop.fill("8");
   await pop.press("Tab");
+  await f.getByRole("button",{name:/Next: review configuration/i}).click();
+  await f.getByText("Complete effective scientific configuration").waitFor({timeout:45000});
+  await f.getByRole("checkbox",{name:/I have checked the input/i}).check();
+  await f.getByText("This equation runs on your computer").waitFor({timeout:30000});
   const downloadButton=f.getByRole("button",{name:/Download experiment.zip/i});
   await downloadButton.waitFor({timeout:30000});
   if(await downloadButton.isDisabled()) throw Error("Native configuration download disabled");
@@ -64,9 +69,7 @@ try{
 
   await f.getByRole("link",{name:/Results/i}).first().click();
   f=await appFrame();
-  const importPanel=f.getByText(/Import completed experiments/i).first();
-  await importPanel.waitFor({timeout:30000});
-  await importPanel.click();
+  await f.getByText(/Import local results/i).first().waitFor({timeout:30000});
   await f.getByText(/Import experiment-results.zip/i).first().waitFor();
   console.log("RESULTS_IMPORT_UI_PASS");
 }catch(error){
