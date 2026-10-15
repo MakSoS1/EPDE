@@ -28,7 +28,7 @@ try{
   await f.getByRole("button",{name:/Use this record in Lab/i}).click();
   f=await appFrame();
   await f.getByText(/requires native scientific computing/i).waitFor({timeout:45000});
-  await f.getByText("3 · Configure each selected method").waitFor({timeout:30000});
+  await f.getByText("Configure method settings").waitFor({timeout:30000});
   // The initial choice includes two methods; original PySINDy adapter must
   // say unsupported for Navier-Stokes instead of fabricating an equation.
   await f.getByText(/PySINDy.s current scientific adapter cannot represent/i)
@@ -52,7 +52,9 @@ try{
 
   await f.getByRole("link",{name:/Results/i}).first().click();
   f=await appFrame();
-  await f.getByText("Import completed experiments").waitFor({timeout:30000});
+  const importPanel=f.getByText(/Import completed experiments/i).first();
+  await importPanel.waitFor({timeout:30000});
+  await importPanel.click();
   await f.getByText(/Import experiment-results.zip/i).first().waitFor();
   console.log("RESULTS_IMPORT_UI_PASS");
 }finally{
