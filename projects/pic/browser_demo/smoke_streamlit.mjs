@@ -30,7 +30,10 @@ try{
   if(/PySINDy · your PC|Results · server|Compare · server/.test(labels))
     throw Error("Obsolete execution-location navigation is still displayed");
   await f.getByText("1 · Choose methods").waitFor({timeout:45000});
-  await f.getByText("3 · Scientific settings").waitFor({timeout:45000});
+  await f.getByText("3 · Configure each selected method").waitFor({timeout:45000});
+  await f.getByText("🧬 EPDE · Evolution").first().waitFor({timeout:30000});
+  await f.getByText("📐 PySINDy · Sparse regression").first().waitFor({timeout:30000});
+  await f.getByText("STLSQ sparsity threshold").first().waitFor({timeout:30000});
   await f.getByText("EPDE",{exact:true}).first().waitFor();
   await f.getByText("PySINDy (sparse regression)",{exact:true}).first().waitFor();
   console.log("SINGLE_SEARCH_METHODS_PASS EPDE+PySINDy");
