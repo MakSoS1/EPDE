@@ -126,22 +126,38 @@ def example_files():
 
 
 
+# Streamlit prohibits programmatically restoring uploader/download/button values.
+# Only restore user-editable scientific settings; imported files are already
+# preserved as validated arrays in lab_draft_input.
+_WIZARD_READONLY_PREFIXES = (
+    "lab_yaml_", "lab_export_", "lab_next_", "lab_back_",
+    "heavy_export_", "heavy_supported_method_", "native_advanced_",
+)
+_WIZARD_READONLY_KEYS = {"lab_start", "lab_new_experiment"}
+_WIZARD_INTERNAL_KEYS = {
+    "lab_widgets_saved", "lab_stage", "lab_draft_input",
+    "lab_draft_config", "lab_started_jobs",
+}
+
+def _is_scientific_widget(key):
+    return (key.startswith(("lab_", "portable_", "heavy_"))
+            and key not in _WIZARD_READONLY_KEYS
+            and key not in _WIZARD_INTERNAL_KEYS
+            and not key.startswith(_WIZARD_READONLY_PREFIXES))
+
 def _restore_wizard_widgets():
     for key, value in st.session_state.get("lab_widgets_saved", {}).items():
-        if key not in st.session_state:
+        if _is_scientific_widget(key) and key not in st.session_state:
             st.session_state[key] = value
 
 def _save_wizard_widgets():
-    # Widgets are removed when they are not rendered in a later Streamlit rerun.
-    # Mirror their values into permanent state before advancing the wizard.
-    names = ("lab_", "portable_", "heavy_", "native_advanced_")
-    saved = dict(st.session_state.get("lab_widgets_saved", {}))
+    saved = {
+        k: v for k,v in st.session_state.get("lab_widgets_saved", {}).items()
+        if _is_scientific_widget(k)
+    }
     saved.update({
         k: v for k, v in st.session_state.items()
-        if k.startswith(names) and k not in (
-            "lab_widgets_saved", "lab_stage", "lab_draft_input",
-            "lab_draft_config", "lab_started_jobs",
-        )
+        if _is_scientific_widget(k)
     })
     st.session_state["lab_widgets_saved"] = saved
 
