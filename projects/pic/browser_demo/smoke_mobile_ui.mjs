@@ -17,7 +17,16 @@ try{
     await page.goto(base+path,{waitUntil:"domcontentloaded",timeout:55000});
     const heading=page.getByRole("heading",{name:title,exact:true}).first();
     await heading.waitFor({timeout:85000});
-    await page.waitForTimeout(900);
+    // Streamlit first paints h1, then streams expensive scientific controls.
+    if(name==="home") await page.getByRole("button",{name:/Start a search/i}).first().waitFor({timeout:85000});
+    if(name==="search"){
+      await page.getByText(/Run or export/i).first().waitFor({timeout:85000});
+      await page.getByText(/Experiment summary/i).first().waitFor({timeout:85000});
+    }
+    if(name==="results") await page.getByText(/Import completed experiments/i).first().waitFor({timeout:50000});
+    if(name==="compare") await page.getByText(/Published benchmark archive/i).first().waitFor({timeout:50000});
+    if(name==="catalog") await page.getByRole("button",{name:/Use this record in Lab/i}).waitFor({timeout:50000});
+    await page.waitForTimeout(1000);
     const exception=await page.locator('[data-testid="stException"]').allInnerTexts();
     if(exception.length)throw Error(name+" scientific UI exception: "+exception.join("; ").slice(0,800));
     let metric=await page.evaluate(()=>({
