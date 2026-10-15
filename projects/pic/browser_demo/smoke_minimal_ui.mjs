@@ -30,11 +30,11 @@ async function shot(filename, expected){
   // Do not screenshot partially streamed Streamlit pages: settings often mount
   // seconds after the first title, especially on a cold scientific worker.
   if(filename==="search"){
-    await f.getByText(/Run or export/i).first().waitFor({timeout:90000});
+    await f.getByRole("button",{name:/Next: configure methods/i}).waitFor({timeout:90000});
     await f.getByText("Experiment summary",{exact:true}).waitFor({timeout:90000});
   }
   if(filename==="catalog")await f.getByRole("button",{name:/Use this record in Lab/i}).waitFor({timeout:60000});
-  if(filename==="results")await f.getByText(/Import completed experiments/i).first().waitFor({timeout:60000});
+  if(filename==="results")await f.getByText(/Import local results/i).first().waitFor({timeout:60000});
   // Wait for Streamlit reruns, not just a blank application shell.
   await page.waitForTimeout(850);
   const exceptions=await f.locator('[data-testid="stException"]').allInnerTexts();
