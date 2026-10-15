@@ -1,0 +1,61 @@
+/* User journey: heavy PDE config in the public browser -> downloadable native job.
+ * Heavy arrays must never be loaded on the Streamlit server.
+ */
+import {chromium} from "playwright";
+
+const base=process.env.STREAMLIT_URL||"http://127.0.0.1:8501";
+const browser=await chromium.launch({headless:true});
+const page=await browser.newPage({viewport:{width:1440,height:1000},acceptDownloads:true});
+
+async function appFrame(timeout=90000){
+  const until=Date.now()+timeout;
+  while(Date.now()<until){
+    for(const frame of [...page.frames()].reverse()){
+      try{
+        if(await frame.getByRole("link",{name:/Run a search/i}).first().isVisible())
+          return frame;
+      }catch(_){}
+    }
+    await page.waitForTimeout(750);
+  }
+  throw new Error("Streamlit navigation not found");
+}
+try{
+  await page.goto(base,{waitUntil:"domcontentloaded",timeout:45000});
+  let f=await appFrame();
+  await f.getByRole("link",{name:/All datasets/i}).first().click();
+  await f.getByRole("textbox",{name:/Search dataset or equation/i}).fill("Navier");
+  await f.getByRole("button",{name:/Use this record in Lab/i}).click();
+  f=await appFrame();
+  await f.getByText(/requires native scientific computing/i).waitFor({timeout:45000});
+  await f.getByText("3 · Configure each selected method").waitFor({timeout:30000});
+  // The initial choice includes two methods; original PySINDy adapter must
+  // say unsupported for Navier-Stokes instead of fabricating an equation.
+  await f.getByText(/PySINDy.s current scientific adapter cannot represent/i)
+    .waitFor({timeout:30000});
+  await f.getByText("PySINDy (sparse regression)",{exact:true}).first().click();
+  const pop=f.getByRole("spinbutton",{name:/Population \/ candidates/i}).first();
+  await pop.fill("8");
+  await pop.press("Tab");
+  const downloadButton=f.getByRole("button",{name:/Download experiment.zip/i});
+  await downloadButton.waitFor({timeout:30000});
+  if(await downloadButton.isDisabled()) throw Error("Native configuration download disabled");
+  const [download]=await Promise.all([
+    page.waitForEvent("download",{timeout:45000}),
+    downloadButton.click(),
+  ]);
+  if(download.suggestedFilename()!=="experiment.zip")
+    throw Error("Wrong experiment file name "+download.suggestedFilename());
+  if(await f.getByRole("button",{name:/Run EPDE/i}).count())
+    throw Error("Heavy PDE unexpectedly exposed an in-browser run action");
+  console.log("HEAVY_PDE_BROWSER_CONFIG_DOWNLOAD_PASS");
+
+  await f.getByRole("link",{name:/Results/i}).first().click();
+  f=await appFrame();
+  await f.getByText("Import completed experiments").waitFor({timeout:30000});
+  await f.getByText(/Import experiment-results.zip/i).first().waitFor();
+  console.log("RESULTS_IMPORT_UI_PASS");
+}finally{
+  await page.screenshot({path:"portable-heavy-e2e.png",fullPage:true});
+  await browser.close();
+}
