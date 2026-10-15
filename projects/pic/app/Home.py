@@ -17,17 +17,18 @@ env.pin_blas_threads(1)
 
 import streamlit as st
 
-st.set_page_config(page_title="Equation Discovery Lab", page_icon="🧪", layout="wide")
+st.set_page_config(page_title="EPDE Explorer", page_icon="🔎", layout="wide")
+from support.minimal_ui import apply_ui
+apply_ui()
 
 PAGES = {
-    "Workspace": [
-        st.Page("views/10_Discovery_lab.py", title="Run a search", icon="🚀", default=True),
-        st.Page("views/14_Data_catalog.py", title="All datasets · 59+", icon="📚"),
-        st.Page("views/11_Discovery_results.py", title="Results", icon="🗂️"),
-        st.Page("views/12_Discovery_compare.py", title="Compare", icon="⚖️"),
-    ],
-    "Learn": [
-        st.Page("views/9_How_EPDE_works.py", title="How it works · EPDE & SINDy", icon="🧭"),
+    "": [
+        st.Page("views/0_Home.py", title="Home", icon=":material/home:", default=True),
+        st.Page("views/9_How_EPDE_works.py", title="How it works", icon=":material/menu_book:"),
+        st.Page("views/10_Discovery_lab.py", title="Run a search", icon=":material/search:"),
+        st.Page("views/11_Discovery_results.py", title="Results", icon=":material/bar_chart:"),
+        st.Page("views/12_Discovery_compare.py", title="Compare", icon=":material/compare_arrows:"),
+        st.Page("views/14_Data_catalog.py", title="All datasets · 59+", icon=":material/database:"),
     ],
 }
 
@@ -47,7 +48,6 @@ if (os.environ.get("EPDE_SHOW_RESEARCH_PAGES") == "1"
         st.Page("views/8_Benchmark.py", title="Benchmark (legacy)", icon="🏁"),
     ]
 
-st.sidebar.caption("Discover equations with EPDE and PySINDy on the same data. "
-                   "All datasets contains the complete scientific catalogue. "
-                   "Saved runs are grouped by identical inputs for comparison.")
+st.sidebar.markdown("### EPDE Explorer")
+st.sidebar.caption("Equation discovery made simple.")
 st.navigation(PAGES).run()
