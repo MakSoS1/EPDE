@@ -174,18 +174,28 @@ with main_col:
             "Measured data": "Measured",
             "Other data": "Other",
         }
-        # Filter is optional, and the selectbox provides built-in type-ahead search.
+        # Persist Catalog -> Lab selection across Streamlit widget reruns.
+        # Without stable keys the first rerun resets the chosen heavy PDE
+        # to the first Core benchmark dataset.
+        if requested in groups.get(default_group, []):
+            st.session_state["lab_builtin_group"] = default_group
+            st.session_state["lab_builtin_equation"] = requested
+        if st.session_state.get("lab_builtin_group") not in groups:
+            st.session_state["lab_builtin_group"] = default_group
         with st.expander("Filter dataset collection", expanded=False):
             group = st.pills(
                 "Dataset group", list(groups), default=default_group,
                 selection_mode="single",
                 format_func=lambda x: group_labels.get(x, x),
+                key="lab_builtin_group",
             ) or default_group
         names = groups[group]
+        if st.session_state.get("lab_builtin_equation") not in names:
+            st.session_state["lab_builtin_equation"] = names[0]
         record_name = st.selectbox(
             "Equation (search by name)", names,
-            index=names.index(requested) if requested in names else 0,
             format_func=lambda x: f"{dataset_label(x)} · {x}",
+            key="lab_builtin_equation",
         )
         local_full = LOCAL_FULL
         is_heavy = is_local_only(record_name) and not local_full
