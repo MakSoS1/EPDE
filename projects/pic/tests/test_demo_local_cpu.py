@@ -91,7 +91,8 @@ class LocalCpuTests(unittest.TestCase):
         self.assertIn('"input_key": key', lab)
         self.assertIn("queue.submit(owner, req)", lab)
         self.assertIn('st.segmented_control("Data source"', lab)
-        self.assertIn('st.pills("Dataset group"', lab)
+        self.assertIn('"Dataset group"', lab)
+        self.assertIn('Filter dataset collection', lab)
         for removed in ("lab_execution_location", "SERVER_MODE",
                         "Prepare local runs", "Local worker access code"):
             self.assertNotIn(removed, lab)
