@@ -60,6 +60,23 @@ jobs:
           done
           cat /tmp/streamlit-server.log
           exit 1
+      - id: native_pair
+        name: Produce genuine paired EPDE and PySINDy local results for browser import
+        timeout-minutes: 5
+        run: |
+          projects/pic/.venv/bin/python - <<'PY'
+          from pathlib import Path
+          from support.discovery_lab.portable import bundle_bytes, make_manifest
+          runs = [
+              {"method": "epde", "variant": "default",
+               "overrides": {"search": {"evolution": {"population_size": 4,
+                                                      "training_epochs": 1}}}},
+              {"method": "pysindy", "variant": "pysindy", "overrides": {}},
+          ]
+          Path("experiment.zip").write_bytes(bundle_bytes(make_manifest("ode", 0.0, 0, runs)))
+          PY
+          uv run --project projects/pic --python 3.12 --locked --extra cpu --extra app             python projects/pic/portable_experiment.py --bundle experiment.zip
+          test -s experiment-results.zip
       - id: visual
         name: Capture and validate Home, Guide, Search, Results, Compare and Catalog in Chromium
         timeout-minutes: 6
@@ -88,6 +105,13 @@ jobs:
         run: |
           set -o pipefail
           node smoke_heavy_portable.mjs 2>&1 | tee /tmp/portable-heavy-e2e.log
+      - id: imported_compare
+        name: Import actual native results and verify matching input in Compare
+        timeout-minutes: 6
+        working-directory: projects/pic/browser_demo
+        run: |
+          set -o pipefail
+          node smoke_import_compare.mjs 2>&1 | tee /tmp/import-compare-e2e.log
       - name: Publish real website integration status
         if: always()
         env:
@@ -95,6 +119,8 @@ jobs:
           HOST: ${{ steps.server.outcome }}
           VISUAL: ${{ steps.visual.outcome }}
           MOBILE: ${{ steps.mobile.outcome }}
+          NATIVE_PAIR: ${{ steps.native_pair.outcome }}
+          IMPORTED_COMPARE: ${{ steps.imported_compare.outcome }}
           BROWSER: ${{ steps.browser.outcome }}
           HEAVY_BROWSER: ${{ steps.heavy_browser.outcome }}
         run: |
@@ -109,9 +135,11 @@ jobs:
             "browser":os.environ.get("BROWSER"),
             "visual":os.environ.get("VISUAL"),
             "mobile":os.environ.get("MOBILE"),
+            "native_pair":os.environ.get("NATIVE_PAIR"),
+            "imported_compare":os.environ.get("IMPORTED_COMPARE"),
             "heavy_browser":os.environ.get("HEAVY_BROWSER"),
           }
-          data["verified"]=all(data[n]=="success" for n in ("dependencies","streamlit","visual","mobile","browser","heavy_browser"))
+          data["verified"]=all(data[n]=="success" for n in ("dependencies","streamlit","native_pair","visual","mobile","browser","heavy_browser","imported_compare"))
           for k,p in [("browser_log","/tmp/streamlit-e2e.log"),
                       ("streamlit_log","/tmp/streamlit-server.log"),
                       ("install_log","/tmp/streamlit-deps.log")]:
@@ -133,6 +161,7 @@ jobs:
             projects/pic/browser_demo/ui-*.png
             /tmp/minimal-ui-e2e.log
             /tmp/mobile-ui-e2e.log
+            /tmp/import-compare-e2e.log
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         if: failure()
