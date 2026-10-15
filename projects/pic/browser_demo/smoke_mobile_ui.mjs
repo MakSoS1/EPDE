@@ -29,15 +29,24 @@ try{
     await page.waitForTimeout(1000);
     const exception=await page.locator('[data-testid="stException"]').allInnerTexts();
     if(exception.length)throw Error(name+" scientific UI exception: "+exception.join("; ").slice(0,800));
-    let metric=await page.evaluate(()=>({
-      innerWidth:window.innerWidth,
-      scrollWidth:document.documentElement.scrollWidth,
-      height:document.documentElement.scrollHeight,
-      mainWidth:document.querySelector('[data-testid="stMain"]')?.getBoundingClientRect().width,
-    }));
+    let metric=await page.evaluate(()=>{
+      const ids=["stMain","stMainBlockContainer","stAppViewContainer"];
+      const regions=ids.map(id=>{
+        const element=document.querySelector('[data-testid="'+id+'"]');
+        return {id,
+          clientWidth:element?.clientWidth||0,
+          scrollWidth:element?.scrollWidth||0,
+          scrollHeight:element?.scrollHeight||0,
+          boundingWidth:Math.ceil(element?.getBoundingClientRect().width||0)};
+      }).filter(r=>r.clientWidth>0);
+      return {innerWidth:window.innerWidth,
+        documentWidth:document.documentElement.scrollWidth,regions};
+    });
     console.log("MOBILE_STREAMLIT_SCREEN "+name+" "+JSON.stringify(metric));
-    if(metric.scrollWidth>metric.innerWidth+18)
-      throw Error(name+" horizontal overflow on 390px display: "+JSON.stringify(metric));
+    if(metric.documentWidth>metric.innerWidth+18||
+       metric.regions.some(r=>r.scrollWidth>r.clientWidth+18||
+                               r.boundingWidth>metric.innerWidth+18))
+      throw Error(name+" real Streamlit content overflow on 390px display: "+JSON.stringify(metric));
     await page.screenshot({path:"ui-mobile-"+name+".png",fullPage:true});
   }
   console.log("FIVE_SCREEN_MOBILE_QA_PASS");
