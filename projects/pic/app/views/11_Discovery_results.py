@@ -102,8 +102,8 @@ else:
              or (status_filter=="Running" and r.get("state") in ("queued","running"))
              or (status_filter=="Failed" and r.get("state") in ("error","timeout","interrupted","stopped")))]
     if not filtered:
-        st.caption("No matching experiments.")
-        filtered=rows
+        st.info("No experiments match these filters.")
+        st.stop()
     st.dataframe(job_table(filtered),hide_index=True,width="stretch")
     ids=[r["id"] for r in filtered]
     names={r["id"]:f"{r.get('label') or r.get('dataset')} · "+
