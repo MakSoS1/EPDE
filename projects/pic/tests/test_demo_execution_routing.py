@@ -67,7 +67,7 @@ class HostedResourcePolicyTests(unittest.TestCase):
         self.assertIn("make_manifest(record_name", lab)
         self.assertIn("data=bundle_bytes(manifest)", lab)
         self.assertIn("render_heavy_epde(record_name)", lab)
-        self.assertIn('default=["epde", "pysindy"]', lab)
+        self.assertIn('st.session_state.setdefault("lab_discovery_methods", ["epde", "pysindy"])', lab)
         self.assertNotIn("lab_execution_location", lab)
         self.assertIn('"Dataset group"', lab)
         self.assertIn('queue.submit(owner, req)', lab)
