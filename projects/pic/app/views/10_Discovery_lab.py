@@ -27,8 +27,8 @@ from support.discovery_lab.ode import compile_rhs, generate, reference_law, uses
 from support.discovery_lab.uploads import parse_upload
 from support.equations import equation_latex, system_latex
 
-# Internal safety flag; never exposed as a mode picker to visitors.
-LOCAL_FULL = os.environ.get("EPDE_LOCAL_FULL_RUN") == "1"
+# EPDE_LOCAL_FULL_RUN belongs to the separate native scientific process.
+# Streamlit NEVER loads/runs heavy registry datasets, even when launched locally.
 
 from support.minimal_ui import intro, step
 intro("Run a search", "Choose one dataset, configure the methods, then run or export.")
@@ -197,8 +197,7 @@ with main_col:
             format_func=lambda x: f"{dataset_label(x)} · {x}",
             key="lab_builtin_equation",
         )
-        local_full = LOCAL_FULL
-        is_heavy = is_local_only(record_name) and not local_full
+        is_heavy = is_local_only(record_name)
         if is_heavy:
             # Keep heavy data in the registry without loading it on shared hosting.
             from epde_bench.datasets import REGISTRY
@@ -222,15 +221,6 @@ with main_col:
                                          key="heavy_noise_" + record_name))
             seed = int(b.number_input("Seed", 0, 999, 0,
                                       key="heavy_seed_" + record_name))
-        if is_local_only(record_name) and local_full:
-            permission_key = "lab_load_heavy_" + record_name
-            if not st.session_state.get(permission_key):
-                st.warning("This is a large dataset. Loading it may consume substantial RAM "
-                           "and CPU even on your own device.")
-                if st.button("Load original dataset on this device", type="primary"):
-                    st.session_state[permission_key] = True
-                    st.rerun()
-                st.stop()
         if not is_heavy:
             from epde_bench.config import load_config
             try:
@@ -446,7 +436,7 @@ with main_col:
                 nvars = len(field_keys)
             for config in configurations:
                 allowed, reason, _ = classify_epde(record_name, shape, nvars, config)
-                if not allowed and not LOCAL_FULL:
+                if not allowed:
                     ready = False
                     st.warning("The selected dataset or budget exceeds the interactive "
                                "demo limit: " + reason + ". Reduce the search complexity.")
