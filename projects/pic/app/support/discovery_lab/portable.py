@@ -19,7 +19,7 @@ MAX_IMPORT = 2_000_000
 
 def digest(value):
     return hashlib.sha256(json.dumps(
-        value, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        value, ensure_ascii=True, sort_keys=True, separators=(",", ":"),
         allow_nan=False).encode("utf-8")).hexdigest()
 
 
