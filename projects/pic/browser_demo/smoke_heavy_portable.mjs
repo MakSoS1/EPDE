@@ -46,12 +46,12 @@ try{
   await f.getByRole("button",{name:/Use EPDE only for this equation/i})
     .waitFor({state:"hidden",timeout:30000});
   await f.getByRole("button",{name:/Next: configure methods/i}).click();
-  await f.getByText("Configure method settings").waitFor({timeout:30000});
+  await f.getByText(/Configure method settings/).waitFor({timeout:30000});
   const pop=f.getByRole("spinbutton",{name:/Population \/ candidates/i}).first();
   await pop.fill("8");
   await pop.press("Tab");
   await f.getByRole("button",{name:/Next: review configuration/i}).click();
-  await f.getByText("Complete effective scientific configuration").waitFor({timeout:45000});
+  await f.getByText(/Complete effective scientific configuration/).waitFor({timeout:45000});
   await f.getByRole("checkbox",{name:/I have checked the input/i}).check();
   await f.getByText("This equation runs on your computer").waitFor({timeout:30000});
   const downloadButton=f.getByRole("button",{name:/Download experiment.zip/i});
