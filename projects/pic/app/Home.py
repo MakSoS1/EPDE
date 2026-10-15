@@ -33,7 +33,7 @@ PAGES = {
         st.Page("views/10_Discovery_lab.py", title="Run a search", icon=":material/search:"),
         st.Page("views/11_Discovery_results.py", title="Results", icon=":material/bar_chart:"),
         st.Page("views/12_Discovery_compare.py", title="Compare", icon=":material/compare_arrows:"),
-        st.Page("views/14_Data_catalog.py", title="All datasets · 59+", icon=":material/database:"),
+        st.Page("views/14_Data_catalog.py", title="Data catalog", icon=":material/database:"),
     ],
 }
 
