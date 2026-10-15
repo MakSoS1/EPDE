@@ -1,4 +1,4 @@
-name: Actual Streamlit website — browser CPU end-to-end
+name: EPDE Explorer — Streamlit server/native end-to-end
 on:
   push:
     branches: [demo/streamlit-community-cloud]
@@ -92,7 +92,7 @@ jobs:
           set -o pipefail
           node smoke_mobile_ui.mjs 2>&1 | tee /tmp/mobile-ui-e2e.log
       - id: browser
-        name: User opens Streamlit → computes with PySINDy → refreshes → EPDE Lab
+        name: Run EPDE and PySINDy on Streamlit server, compare and reload
         timeout-minutes: 9
         working-directory: projects/pic/browser_demo
         run: |
@@ -151,7 +151,7 @@ jobs:
           git config user.name "github-actions[bot]"
           blob=$(git hash-object -w /tmp/streamlit-e2e-report.json)
           tree=$(printf '100644 blob %s\tresult.json\n' "$blob" | git mktree)
-          commit=$(printf 'Actual Streamlit browser-CPU integration report\n' | git commit-tree "$tree")
+          commit=$(printf 'Streamlit server and native import integration report\n' | git commit-tree "$tree")
           git push --force origin "$commit:refs/heads/ci/demo-streamlit-browser-e2e"
       - uses: actions/upload-artifact@v4
         if: always()
