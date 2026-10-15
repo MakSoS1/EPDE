@@ -38,7 +38,7 @@ class DemoNavigationTests(unittest.TestCase):
         self.assertEqual(public_pages.count("default=True"), 1)
         self.assertIn('title="Run a search"', public_pages)
         self.assertIn('title="Results"', public_pages)
-        self.assertIn('title="All datasets · 59+"', public_pages)
+        self.assertIn('title="Data catalog"', public_pages)
         self.assertNotIn("13_Browser_sindy.py", public_pages)
         self.assertNotIn(" · server", public_pages)
         self.assertNotIn("My computer", public_pages)
