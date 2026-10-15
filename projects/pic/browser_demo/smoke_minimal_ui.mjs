@@ -46,6 +46,10 @@ async function shot(filename, expected){
   if(geometry.mainHeight>4600)
     throw Error(filename+" main content too tall: "+JSON.stringify(geometry));
   await page.screenshot({path:"ui-"+filename+".png",fullPage:true});
+  if(["search","results","compare","catalog"].includes(filename)){
+    const preview=await page.screenshot({type:"jpeg",quality:30,fullPage:true});
+    console.log("MINIMAL_UI_JPEG_"+filename+" "+preview.toString("base64"));
+  }
   console.log("MINIMAL_UI_SCREEN "+filename+" "+JSON.stringify({heading,...geometry}));
 }
 async function go(label){
