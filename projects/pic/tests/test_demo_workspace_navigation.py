@@ -44,7 +44,9 @@ class DemoNavigationTests(unittest.TestCase):
         self.assertNotIn("My computer", public_pages)
         self.assertIn('title="Compare"', public_pages)
         self.assertEqual(public_pages.count("9_How_EPDE_works.py"), 1)
-        self.assertIn('title="How it works · EPDE & SINDy"', public_pages)
+        self.assertIn('title="How it works"', public_pages)
+        self.assertIn('title="Home"', public_pages)
+        self.assertIn('views/0_Home.py', public_pages)
 
     def test_one_launcher_and_two_distinct_review_pages(self):
         lab = (APP / "views/10_Discovery_lab.py").read_text(encoding="utf-8")
