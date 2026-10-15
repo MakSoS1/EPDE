@@ -129,8 +129,9 @@ main_col, summary_col = st.columns([3.0, 1.25], gap="medium")
 with main_col:
     step(1, "Choose method and equation")
     options = ["epde", "pysindy"] + (["llm"] if LLM_READY else [])
+    st.session_state.setdefault("lab_discovery_methods", ["epde", "pysindy"])
     methods = st.pills(
-        "Discovery methods", options, default=["epde", "pysindy"],
+        "Discovery methods", options,
         key="lab_discovery_methods",
         selection_mode="multi", format_func=METHOD_LABELS.get,
         help="Choose one or both. Each method receives identical input data, "
