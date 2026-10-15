@@ -1,0 +1,9 @@
+# Shared EPDE Explorer theme for both Streamlit Cloud and local launch.
+# Native Streamlit colors are preferred over brittle widget-selector overrides.
+[theme]
+base = "light"
+primaryColor = "#1769ED"
+backgroundColor = "#FAFCFF"
+secondaryBackgroundColor = "#F3F7FD"
+textColor = "#172A45"
+font = "sans serif"
