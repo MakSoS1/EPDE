@@ -82,10 +82,8 @@ def render_sindy_settings(*, record_name, problem, arrays, space, source):
     supplied = bool(problem is not None and problem.derivs is not None)
     key = f"sindy_{source}_{record_name or 'custom'}"
 
-    st.markdown("**PySINDy · sparse regression (STLSQ)**")
-    st.caption("Select a derivative estimator, feature library and sparse regression "
-               "strategy. Population, epochs and EPDE Pareto objectives do **not** "
-               "apply to PySINDy.")
+    st.caption("Sparse regression uses its own differentiation and STLSQ settings; "
+               "EPDE population and epochs do not apply.")
     mode_labels = {
         "epde": "Dataset / EPDE derivatives",
         "finite_difference": "Finite differences",
@@ -109,29 +107,29 @@ def render_sindy_settings(*, record_name, problem, arrays, space, source):
     options = {"differentiation": method or "epde"}
 
     pool = search["search_space"]
-    st.markdown("**Candidate terms in the equation**")
-    x, y, z = st.columns(3)
-    pool["data_fun_pow"] = int(x.slider(
-        "Maximum variable power", 1, 4,
-        value=min(4, int(pool.get("data_fun_pow", 3))), key=key + "_field"))
-    pool["deriv_fun_pow"] = int(y.slider(
-        "Maximum derivative power", 1, 4,
-        value=min(4, int(pool.get("deriv_fun_pow", 2))), key=key + "_derivpower"))
-    pool["equation_terms_max_number"] = int(z.slider(
-        "Maximum non-zero terms", 2, 15,
-        value=min(15, int(pool.get("equation_terms_max_number", 10))),
-        key=key + "_terms"))
-    factor = st.pills(
-        "Feature interactions", [1, 2], default=int(initial.get("max_terms_product", 2)),
-        selection_mode="single", format_func=lambda value: (
-            "Individual features" if value == 1 else "Features + pairwise products"),
-        key=key + "_interactions")
-    options["max_terms_product"] = factor or 2
-    pool["equation_factors_max_number"] = (
-        1 if options["max_terms_product"] == 1
-        else {"factors_num": [1, 2], "probas": [0.65, 0.35]})
+    with st.expander("Advanced PySINDy settings · candidate library", expanded=False):
+        x, y, z = st.columns(3)
+        pool["data_fun_pow"] = int(x.slider(
+            "Maximum variable power", 1, 4,
+            value=min(4, int(pool.get("data_fun_pow", 3))), key=key + "_field"))
+        pool["deriv_fun_pow"] = int(y.slider(
+            "Maximum derivative power", 1, 4,
+            value=min(4, int(pool.get("deriv_fun_pow", 2))), key=key + "_derivpower"))
+        pool["equation_terms_max_number"] = int(z.slider(
+            "Maximum non-zero terms", 2, 15,
+            value=min(15, int(pool.get("equation_terms_max_number", 10))),
+            key=key + "_terms"))
+        factor = st.pills(
+            "Feature interactions", [1, 2], default=int(initial.get("max_terms_product", 2)),
+            selection_mode="single", format_func=lambda value: (
+                "Individual features" if value == 1 else "Features + pairwise products"),
+            key=key + "_interactions")
+        options["max_terms_product"] = factor or 2
+        pool["equation_factors_max_number"] = (
+            1 if options["max_terms_product"] == 1
+            else {"factors_num": [1, 2], "probas": [0.65, 0.35]})
 
-    st.markdown("**Sparse regression and selection**")
+    st.markdown("**Basic PySINDy settings**")
     a, b = st.columns(2)
     mode = a.pills("STLSQ sparsity threshold",
                    ["auto", "manual"], default="auto",
@@ -160,6 +158,5 @@ def render_sindy_settings(*, record_name, problem, arrays, space, source):
     options["validation_fraction"] = holdout if holdout is not None else 0.20
     options = validate_sindy_options(options, supplied_derivatives=supplied)
     validate_public_search(search, shape, override=False)
-    st.caption("Independent from EPDE search settings. Both algorithms use "
-               "the same dataset/noise/seed; each stores its own scientific configuration.")
+
     return {"search": search, "pysindy": options}
