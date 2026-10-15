@@ -125,12 +125,13 @@ def example_files():
     return csv, buffer.getvalue()
 
 
-main_col, summary_col = st.columns([3.45, 1.1], gap="large")
+main_col, summary_col = st.columns([3.0, 1.25], gap="medium")
 with main_col:
     step(1, "Choose method and equation")
     options = ["epde", "pysindy"] + (["llm"] if LLM_READY else [])
     methods = st.pills(
         "Discovery methods", options, default=["epde", "pysindy"],
+        key="lab_discovery_methods",
         selection_mode="multi", format_func=METHOD_LABELS.get,
         help="Choose one or both. Each method receives identical input data, "
              "noise and seed; their optimizers and scoring criteria remain distinct."
@@ -199,6 +200,18 @@ with main_col:
         )
         is_heavy = is_local_only(record_name)
         if is_heavy:
+            # The original PySINDy adapter cannot represent every PDE.
+            # One click removes only unsupported methods; no fake solver fallback.
+            from epde_bench.baselines import unsupported_reason
+            incompatibility = unsupported_reason(record_name)
+            if incompatibility and "pysindy" in methods and "epde" in methods:
+                st.caption("PySINDy is not supported for this equation: " + incompatibility)
+                st.button(
+                    "Use EPDE only for this equation",
+                    key="heavy_supported_method_" + record_name,
+                    on_click=lambda: st.session_state.update(
+                        {"lab_discovery_methods": ["epde"]}),
+                )
             # Keep heavy data in the registry without loading it on shared hosting.
             from epde_bench.datasets import REGISTRY
             label = dataset_label(record_name)
