@@ -47,7 +47,10 @@ try{
   await f.getByRole("button",{name:/Back to settings/i}).click();
   await f.getByText(/Configure method settings/).waitFor({timeout:35000});
   const restored=f.getByRole("spinbutton",{name:/Population \/ candidates/i}).first();
-  if(await restored.inputValue()!=="8")
+  await restored.waitFor({timeout:30000});
+  for(let attempt=0;attempt<30 && (await restored.inputValue())!=="8";attempt++)
+    await page.waitForTimeout(300);
+  if((await restored.inputValue())!=="8")
     throw Error("EPDE numeric setting lost on back navigation: "+await restored.inputValue());
   await f.getByRole("button",{name:/Back to data/i}).click();
   await f.getByText("Governing equation",{exact:true}).waitFor({timeout:35000});
