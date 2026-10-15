@@ -1,102 +1,95 @@
-# Streamlit Community Cloud
+# EPDE Explorer — deployment and release checklist
 
-Public review demo: https://epde-explorer-demo.streamlit.app/
+## Correct source for the current minimal six-page Streamlit website
 
-Deployed on 2026-10-09 from `demo/streamlit-community-cloud` in `MakSoS1/EPDE`.
-Cloud verification: the short live evolution completed in 2.632 seconds; a
-standard seed-0 oscillator search completed with status `ok`, correct selected
-terms and 0.58% coefficient error. Its saved record appeared on Results and was
-still available after reloading the application. Full cloud campaigns and
-large uploads have not been verified.
-
-Deploy the existing application from the GitHub fork. No separate website or
-interface is needed. Community Cloud requires the app and its dependencies to
-have been pushed to the selected GitHub branch; it cannot deploy local changes.
-
-Use these settings at https://share.streamlit.io:
-
-| Setting | Value |
+| Setting | Required value |
 | --- | --- |
-| Repository | `MakSoS1/EPDE` |
-| Branch | `demo/streamlit-community-cloud` |
-| Main file path | `projects/pic/app/Home.py` |
-| Python version (Advanced settings) | `3.13` |
+| GitHub repository | `MakSoS1/EPDE` |
+| Git branch | `demo/streamlit-community-cloud` |
+| Main app file | `projects/pic/app/Home.py` |
+| Python interpreter | `3.12` |
+| Dependency manifest | `projects/pic/app/requirements.txt` |
 
-No application secrets are required. `requirements.txt` beside `Home.py` installs
-the app dependencies and Linux CPU-only PyTorch. The app and its subprocesses
-import EPDE from this repository, preserving the version under review. Notebook
-execution dependencies are not needed for the web application.
+The **same** Streamlit interface provides Home, How it works, Run a search,
+Results, Compare and Data catalog. A separate JavaScript-only PySINDy site is
+neither deployed nor needed for the scientific workflow.
 
-After the build, verify the application at its public URL:
+- Small ODE/PDE: hosted EPDE and PySINDy run on the Streamlit server.
+- Large PDEs: the UI never attempts to load, preprocess or run huge datasets,
+  even when Streamlit itself is launched on a workstation. It exports
+  `experiment.zip` and offers the repository ZIP and operating-system-specific
+  launcher instructions.
+- The user launches the *native scientific process* using `run-portable.cmd`
+  on Windows or `bash run-portable.sh` on macOS/Linux.
+- The user uploads `experiment-results.zip` on Results and compares only
+  identically fingerprinted numerical inputs. Each method stores its own
+  scientific options and the full recovered equations.
+- An unsupported PySINDy formulation is never replaced with a different PDE.
+  The UI offers an EPDE-only shortcut instead.
 
-1. Open Overview, Data sets and Derivatives; check that plots render.
-2. On How EPDE works, run the short evolution and inspect the equation and fronts.
-3. Run one default oscillator search with one worker. Check its terminal status
-   and open the saved result. This tests background processes as well as the UI.
-4. Test a small upload and open its saved result.
+## Current public deployment
 
-Community Cloud has limited CPU and memory. Successful local checks do not prove
-that a full benchmark fits those limits; validate small runs on the hosted app
-before inviting reviewers. Hosted searches run on Community Cloud, not on the
-visitor's computer.
+The former public URL is https://epde-explorer-demo.streamlit.app/.
+On **2026-10-16** the independent Chromium check still saw the **previous
+navigation and UI**, while the actual six-page app passed local GitHub Actions.
+Therefore the former public URL is NOT evidence that this Git branch has
+been deployed.
 
-Results, uploads and job controls currently belong to the shared application
-instance; they are not isolated per viewer. Use public demonstration data. Treat
-cloud-generated files as temporary and download results you need to keep before
-restarting or deleting the app.
+Community Cloud follows its originally deployed GitHub coordinates
+(owner/repository/branch/entrypoint), which cannot be changed simply by
+pushing commits to another branch. To release without risking the old app:
 
-To end the review demo, delete the app from its Community Cloud management menu.
-This does not delete the GitHub repository.
+1. Sign in to https://share.streamlit.io/ as the owner of the deployment.
+2. Create a second app from repository `MakSoS1/EPDE`, branch
+   `demo/streamlit-community-cloud`, entrypoint
+   `projects/pic/app/Home.py`, Python 3.12.
+3. Use a **new temporary subdomain** for that app. Wait for dependency
+   installation and verify that all six pages appear.
+4. Check a short oscillator search, Results/Compare, native-only
+   Navier–Stokes export, and actual native-result ZIP import.
+5. Only after that succeeds, back up anything still needed from the old app
+   and decide whether to delete/redeploy the original app and reassign
+   `epde-explorer-demo` to the new deployment.
+   Deleting an app can lose temporary results, analytics and share settings.
 
-Official documentation:
+Changing the branch of an existing Streamlit Community Cloud deployment is
+not an ordinary toggle in its app Settings. Official Streamlit guidance says
+GitHub coordinate changes generally require delete/redeploy.
+Do not delete the existing public app before a replacement has passed checks.
 
+Documentation:
 - https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/deploy
-- https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/app-dependencies
+- https://docs.streamlit.io/deploy/streamlit-community-cloud/manage-your-app/rename-your-app
+- https://docs.streamlit.io/deploy/streamlit-community-cloud/manage-your-app/edit-your-app
 
-## 2026-10-12 supervisor-review update — deploy after CI
+## Release tests
 
-The scientific and UI changes developed on **research/nir1-mdl-factorial-2026-10-14**
-are separate from the original review deployment. Do not deploy from `main`,
-`nir1`, or the older `demo/streamlit-community-cloud` unless you deliberately
-merge/cherry-pick the reviewed changes there.
+The workflow `.github/workflows/demo-streamlit-e2e.yml` boots **real**
+Streamlit in GitHub Actions with locked scientific dependencies, runs Chromium
+and saves snapshots of the six desktop pages and mobile-width views.
 
-To test the amended version yourself in Streamlit Community Cloud:
+The CI gate checks:
+- the six page routes and layout, and width overflow in real Streamlit scroll
+  containers at 390 px;
+- paired hosted EPDE and PySINDy submission, navigation and saved-session reload;
+- a native-only heavy PDE that exports the config and offers platform guidance;
+- a genuine portable scientific job using the original EPDE/PySINDy Python
+  methods, ZIP import through the Results UI, and matching-input Compare.
 
-1. In your Streamlit deployment settings select repository `MakSoS1/EPDE`,
-   branch `research/nir1-mdl-factorial-2026-10-14` and entrypoint
-   `projects/pic/app/Home.py`.
-2. Confirm the GitHub Actions workflow `nir1-streamlit-postcall-qa.yml` passes
-   before switching the production deployment branch. Do not claim that GitHub
-   page tests establish actual hosted behaviour.
-3. Exercise the five scientific flows: Signal check with intercept OFF and ON;
-   Derivatives with polynomial degree >= requested derivative order and valid odd
-   window; Run a search with 1/x on a **nonzero** spatial coordinate domain;
-   SINDy against EPDE on the same record; and YAML import/export roundtrip.
-4. Open Results for both methods and save the exported JSON. Test with public,
-   non-sensitive data only and compare hosted run settings with those in GitHub.
+`.github/workflows/portable-handoff-qa.yml` adds scientific ZIP, tampering,
+platform-launcher and source/data fingerprint tests.
+`.github/workflows/demo-public-cloud-smoke.yml` independently audits the
+**deployed** public site and must not be confused with a passing local CI build.
 
-### Important scope and security warnings
+Scientific interpretation: inputs are compared by hashes of source/data,
+loader settings and the noise realization. In-sample solution R² is not
+out-of-sample forecast accuracy; EPDE Pareto objectives and PySINDy STLSQ
+internal scores are not the same quantity. Native input manifests use
+self-reported hashes and are consistency-checked, not recomputed by Cloud.
 
-- The `pysindy` adapter is functional and has its own page; there is no LLM
-  provider integration, secret key, cost quota, or arbitrary user-submitted
-  Python expression in this release. Those require a joint security/service
-  design with the LLM and benchmark owners.
-- The additional `1/x` term is explicitly allowlisted and is rejected at
-  x=0. Do not attempt to work around a singular grid by dividing by an
-  arbitrary epsilon without including that modelling assumption in the law.
-- Import accepts declarative, size-bounded YAML and known token-family names;
-  it does not run source code. Configuration may still request expensive
-  calculations. Do not expose open-ended concurrent heavy searches to anonymous
-  users on Community Cloud.
-- The existing Streamlit Community Cloud demo **does not isolate per-user uploads,
-  process control and result files**. This update does NOT magically provide
-  authentication, paid-API metering, user identity, multi-tenant isolation,
-  or durable storage. Hosting as a public production service requires those
-  architectural changes. For now, use a controlled scientific demo only.
-- Spectral and ANN differentiation were explicitly deferred in the 12 Oct
-  supervisor meeting; neither is advertised as repaired here.
-- The `projects/pic` directory name remains for historical import/API
-  compatibility; visible product labels use EPDE Explorer. Renaming it would
-  break the reproducible benchmark paths and is deliberately deferred.
+## Preservation of previous documentation
 
-Regression source: `projects/pic/tests/test_streamlit_supervisor_20261012.py`.
+For historical context only, see
+[ARCHIVE_DEPLOYMENT_2026-10-12.md](ARCHIVE_DEPLOYMENT_2026-10-12.md)
+and [ARCHIVE_LOCAL_BROWSER_WORKER.md](ARCHIVE_LOCAL_BROWSER_WORKER.md).
+Those old browser-bridge instructions DO NOT describe the current UI.
