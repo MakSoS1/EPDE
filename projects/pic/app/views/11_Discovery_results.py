@@ -12,47 +12,43 @@ from support.discovery_lab import job_queue as queue
 from support.discovery_lab import ui
 from support.discovery_lab.session import current_owner
 
-st.title("🗂️ Results")
+from support.minimal_ui import intro
+intro("Results", "Review experiments, open discovered equations, or import a local run.")
 owner = current_owner()
-st.caption("All your Run a search experiments appear here, including their data, methods, "
-           "status and scientific results. Open a result to inspect or download it.")
-st.page_link("views/10_Discovery_lab.py", label="Run a search", icon="🚀")
+st.page_link("views/10_Discovery_lab.py", label="Start a new search", icon=":material/search:")
 
-st.subheader("Import completed experiments")
-st.caption("After running a downloaded experiment on your computer, upload "
-           "experiment-results.zip here. Imported runs are checked for matching "
-           "data, scientific source, noise and seed before they can enter Compare. "
-           "Uploaded scientific results are user-supplied claims, not independently "
-           "verified benchmark evidence.")
-archive = st.file_uploader("Import experiment-results.zip",
-                           type=["zip"], key="import_portable_results",
-                           help="One or two native EPDE/PySINDy results (max 2 MB).")
-if archive is not None and st.button("Import these results", type="primary"):
-    try:
-        from support.discovery_lab.portable import read_results, input_key
-        records = read_results(archive.getvalue())
-        if len(queue.list_jobs(owner)) + len(records) > queue.MAX_OWNER_JOBS:
-            raise ValueError("Too many saved experiments in this session")
-        jobs = []
-        for record in records:
-            dataset = record["dataset"]
-            import_request = {
-                "method": record["method"],
-                "source": "record",
-                "dataset": dataset,
-                "variant": record.get("variant", "default"),
-                "noise": record["noise"], "seed": record["seed"],
-                "effort": record.get("effort", "standard"),
-                "display": {
-                    "label": (record.get("problem") or {}).get("title", dataset),
-                    "input_key": input_key(record),
-                },
-            }
-            jobs.append(queue.save_client_result(owner, import_request, record))
-        st.success(f"Imported {len(jobs)} scientifically identified result(s). "
-                   "They are now available below and under Compare.")
-    except (ValueError, KeyError, TypeError, OSError, json.JSONDecodeError, zipfile.BadZipFile) as exc:
-        st.error("Result import rejected: " + str(exc))
+with st.expander("Import completed experiments · experiment-results.zip", expanded=False):
+    st.caption("Upload experiment-results.zip from the local launcher. File metadata "
+               "is checked for internal consistency; scientific results are not rerun.")
+    archive = st.file_uploader("Import experiment-results.zip",
+                               type=["zip"], key="import_portable_results",
+                               help="One or two native EPDE/PySINDy results (max 2 MB).")
+    if archive is not None and st.button("Import these results", type="primary"):
+        try:
+            from support.discovery_lab.portable import read_results, input_key
+            records = read_results(archive.getvalue())
+            if len(queue.list_jobs(owner)) + len(records) > queue.MAX_OWNER_JOBS:
+                raise ValueError("Too many saved experiments in this session")
+            jobs = []
+            for record in records:
+                dataset = record["dataset"]
+                import_request = {
+                    "method": record["method"],
+                    "source": "record",
+                    "dataset": dataset,
+                    "variant": record.get("variant", "default"),
+                    "noise": record["noise"], "seed": record["seed"],
+                    "effort": record.get("effort", "standard"),
+                    "display": {
+                        "label": (record.get("problem") or {}).get("title", dataset),
+                        "input_key": input_key(record),
+                    },
+                }
+                jobs.append(queue.save_client_result(owner, import_request, record))
+            st.success(f"Imported {len(jobs)} scientifically identified result(s). "
+                       "They are now available below and under Compare.")
+        except (ValueError, KeyError, TypeError, OSError, json.JSONDecodeError, zipfile.BadZipFile) as exc:
+            st.error("Result import rejected: " + str(exc))
 st.divider()
 
 # ------------------------------------------------------------------ results
@@ -63,13 +59,12 @@ STATE_TEXT = {"queued": "⏳ waiting", "running": "⚙️ running", "finished": 
 
 def job_table(rows):
     return pd.DataFrame([{
-        "data": r.get("label") or r.get("dataset"),
-        "method": ui.METHOD_NAMES.get(r.get("method"), r.get("method")),
-        "noise, %": r.get("noise", 0), "seed": r.get("seed", 0),
-        "budget": r.get("effort", "standard"),
-        "status": STATE_TEXT.get(r.get("state"), r.get("state")),
-        "time, s": (round((r.get("ended") or time.time()) - r["started"])
-                    if r.get("started") else None),
+        "Experiment": r.get("label") or r.get("dataset"),
+        "Method": ui.METHOD_NAMES.get(r.get("method"), r.get("method")),
+        "Status": STATE_TEXT.get(r.get("state"), r.get("state")),
+        "Time (s)": (round((r.get("ended") or time.time()) - r["started"])
+                     if r.get("started") else None),
+        "Seed": r.get("seed", 0),
     } for r in rows])
 
 
@@ -83,31 +78,42 @@ def live_status():
     if before - now:
         st.rerun(scope="app")                     # something finished: refresh the whole page
     if active:
-        st.dataframe(job_table(active), hide_index=True, width="stretch")
-        st.caption("You can leave this page while searches are running.")
+        st.caption(f"{len(active)} experiment(s) running or queued; this list updates automatically.")
 
 
 rows = queue.list_jobs(owner)
 if not rows:
-    st.info("No experiments yet. Start one in **Run a search**.")
+    st.info("No experiments yet. Start in Run a search, or import a local results ZIP.")
 else:
     live_status()
-    st.dataframe(job_table(rows), hide_index=True, width="stretch")
-    ids = [r["id"] for r in rows]
-    names = {r["id"]: f"{r.get('label') or r.get('dataset')} · "
-                      f"{ui.METHOD_NAMES.get(r.get('method'), r.get('method'))} · "
-                      f"noise {r.get('noise', 0):g} % · {STATE_TEXT.get(r.get('state'), '')}"
-             for r in rows}
-    current = st.session_state.get("discovery_selected_job")
-    if len(ids) <= 6:
-        chosen = st.pills("Open a result", ids,
-                          default=current if current in ids else ids[0],
-                          selection_mode="single", format_func=names.get) or ids[0]
-    else:
-        chosen = st.selectbox("Open a result", ids,
-                              index=ids.index(current) if current in ids else 0,
-                              format_func=names.get)
-    st.session_state["discovery_selected_job"] = chosen
+    a,b,c=st.columns(3)
+    a.metric("Experiments",len(rows))
+    b.metric("Completed",sum(r.get("state")=="finished" for r in rows))
+    c.metric("In progress",sum(r.get("state") in ("queued","running") for r in rows))
+    search = st.text_input("Find an experiment", placeholder="Dataset or method", key="results_search")
+    status_filter=st.pills("Status",["All","Completed","Running","Failed"],default="All",
+                           selection_mode="single",key="results_status") or "All"
+    filtered=[r for r in rows if (
+        not search or search.casefold() in str(
+            (r.get("label") or r.get("dataset") or "")+" "+
+            ui.METHOD_NAMES.get(r.get("method"),r.get("method",""))).casefold())
+        and (status_filter=="All"
+             or (status_filter=="Completed" and r.get("state")=="finished")
+             or (status_filter=="Running" and r.get("state") in ("queued","running"))
+             or (status_filter=="Failed" and r.get("state") in ("error","timeout","interrupted","stopped")))]
+    if not filtered:
+        st.caption("No matching experiments.")
+        filtered=rows
+    st.dataframe(job_table(filtered),hide_index=True,width="stretch")
+    ids=[r["id"] for r in filtered]
+    names={r["id"]:f"{r.get('label') or r.get('dataset')} · "+
+           f"{ui.METHOD_NAMES.get(r.get('method'),r.get('method'))} · "+
+           f"{STATE_TEXT.get(r.get('state'),r.get('state'))}" for r in filtered}
+    current=st.session_state.get("discovery_selected_job")
+    chosen=st.selectbox("Inspect result",ids,
+                        index=ids.index(current) if current in ids else 0,
+                        format_func=names.get,key="results_selected")
+    st.session_state["discovery_selected_job"]=chosen
     job = next(r for r in rows if r["id"] == chosen)
     record = queue.result(owner, chosen)
     if job.get("state") in ("queued", "running"):
@@ -176,9 +182,9 @@ else:
                                  "side, with the derivatives used by the search.")
         cols[offset + 1].metric("candidates", len(record.get("front") or []))
         cols[offset + 2].metric("search time", ui._fmt(record.get("fit_seconds"), "{:.1f} s"))
-        st.markdown("**Solution of the equation against the data**")
-        ui.solution_plots([(ui.METHOD_NAMES.get(record.get("method")), record)])
-        st.caption("In-sample check on the same record the method saw; it is not a forecast.")
+        with st.expander("Solution fit and diagnostics", expanded=False):
+            st.caption("In-sample reconstruction on the search data, not independent forecasting.")
+            ui.solution_plots([(ui.METHOD_NAMES.get(record.get("method")), record)])
         with st.expander("Candidates (Pareto front)"):
             ui.pareto(record)
             for i, candidate in enumerate(record.get("front") or []):
@@ -189,7 +195,7 @@ else:
         st.download_button("Download result (JSON)", json.dumps(export, indent=1, ensure_ascii=False),
                            f"discovery_{chosen[:8]}.json", "application/json")
     if job.get("state") not in ("queued", "running"):
-        if st.button("Delete this result"):
+        if st.button("Delete this result", type="secondary"):
             queue.delete_job(owner, chosen)
             st.session_state.pop("discovery_selected_job", None)
             st.rerun()
