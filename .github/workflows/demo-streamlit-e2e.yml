@@ -4,7 +4,10 @@ on:
     branches: [demo/streamlit-community-cloud]
     paths:
       - 'projects/pic/app/Home.py'
-      - 'projects/pic/app/views/10_Discovery_lab.py'
+      - 'projects/pic/app/views/**'
+      - 'projects/pic/app/support/minimal_ui.py'
+      - 'projects/pic/app/support/discovery_lab/lab_settings.py'
+      - 'projects/pic/app/support/discovery_lab/sindy_settings.py'
       - 'projects/pic/app/views/13_Browser_sindy.py'
       - 'projects/pic/app/support/discovery_lab/**'
       - 'projects/pic/browser_demo/**'
@@ -57,6 +60,13 @@ jobs:
           done
           cat /tmp/streamlit-server.log
           exit 1
+      - id: visual
+        name: Capture and validate Home, Guide, Search, Results, Compare and Catalog in Chromium
+        timeout-minutes: 6
+        working-directory: projects/pic/browser_demo
+        run: |
+          set -o pipefail
+          node smoke_minimal_ui.mjs 2>&1 | tee /tmp/minimal-ui-e2e.log
       - id: browser
         name: User opens Streamlit → computes with PySINDy → refreshes → EPDE Lab
         timeout-minutes: 9
@@ -75,6 +85,7 @@ jobs:
         env:
           DEPS: ${{ steps.env.outcome }}
           HOST: ${{ steps.server.outcome }}
+          VISUAL: ${{ steps.visual.outcome }}
           BROWSER: ${{ steps.browser.outcome }}
           HEAVY_BROWSER: ${{ steps.heavy_browser.outcome }}
         run: |
@@ -87,9 +98,10 @@ jobs:
             "dependencies":os.environ.get("DEPS"),
             "streamlit":os.environ.get("HOST"),
             "browser":os.environ.get("BROWSER"),
+            "visual":os.environ.get("VISUAL"),
             "heavy_browser":os.environ.get("HEAVY_BROWSER"),
           }
-          data["verified"]=all(data[n]=="success" for n in ("dependencies","streamlit","browser","heavy_browser"))
+          data["verified"]=all(data[n]=="success" for n in ("dependencies","streamlit","visual","browser","heavy_browser"))
           for k,p in [("browser_log","/tmp/streamlit-e2e.log"),
                       ("streamlit_log","/tmp/streamlit-server.log"),
                       ("install_log","/tmp/streamlit-deps.log")]:
@@ -103,6 +115,14 @@ jobs:
           tree=$(printf '100644 blob %s\tresult.json\n' "$blob" | git mktree)
           commit=$(printf 'Actual Streamlit browser-CPU integration report\n' | git commit-tree "$tree")
           git push --force origin "$commit:refs/heads/ci/demo-streamlit-browser-e2e"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: minimal-six-screen-streamlit-visuals
+          path: |
+            projects/pic/browser_demo/ui-*.png
+            /tmp/minimal-ui-e2e.log
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
