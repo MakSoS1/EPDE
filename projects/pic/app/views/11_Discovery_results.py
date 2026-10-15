@@ -102,6 +102,30 @@ else:
             ui.latex(found, axes)
             st.caption("No known law for these data: judge the equation by how its solution "
                        "matches the data below.")
+        # Scientific options are recorded per method. Never show EPDE
+        # population/epochs as if they controlled PySINDy's optimizer.
+        cfg = record.get("config") or {}
+        search = record.get("search_config") or cfg.get("search") or {}
+        pool = search.get("search_space") or {}
+        if record.get("method") == "pysindy":
+            opts = cfg.get("pysindy") or {}
+            st.caption(
+                f"PySINDy STLSQ · threshold: {opts.get('threshold', 'auto')} · "
+                f"derivatives: {opts.get('differentiation', 'epde')} · "
+                f"max non-zero terms: {pool.get('equation_terms_max_number', 10)} · "
+                f"holdout: {float(opts.get('validation_fraction', 0.20)):.0%}")
+            with st.expander("PySINDy configuration actually used"):
+                st.json({"pysindy": opts, "search_space": pool,
+                         "preprocessing": search.get("preprocessing")})
+        elif record.get("method") == "epde":
+            evo = search.get("evolution") or {}
+            st.caption(
+                f"EPDE evolution · population: {evo.get('population_size', 'default')} · "
+                f"epochs: {evo.get('training_epochs', 'default')} · "
+                f"maximum terms: {pool.get('equation_terms_max_number', 10)}")
+            with st.expander("EPDE configuration actually used"):
+                st.json(search)
+
         scores = ui.solution_scores(record)
         cols = st.columns(max(1, len(scores)) + 3)
         for col, (var, (r2, nrmse)) in zip(cols, scores.items()):
