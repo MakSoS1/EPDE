@@ -3,8 +3,48 @@ import streamlit as st
 from support import diagrams
 from support.common import link as page_link
 
-st.title('🧭 How EPDE and SINDy work')
-choice = st.segmented_control('Method', ['EPDE', 'PySINDy'], default='EPDE')
+from support.minimal_ui import intro
+intro("How it works", "Four steps from numerical data to a recovered equation.")
+
+cols=st.columns(4, gap="small")
+for col,number,title,description in zip(
+        cols,range(1,5),
+        ["Choose data","Set methods","Run or export","Review & compare"],
+        ["Pick a registered equation or upload data.",
+         "Start with defaults, expand advanced controls when needed.",
+         "Light searches run on the server; heavy PDEs are downloaded.",
+         "Inspect recovered laws and compare matching numerical inputs."]):
+    with col:
+        with st.container(border=True):
+            st.markdown(f"**{number}. {title}**")
+            st.caption(description)
+
+left,right=st.columns(2,gap="medium")
+with left:
+    with st.container(border=True):
+        st.markdown("**Light equations · hosted**")
+        st.caption("Run EPDE and PySINDy on the Streamlit server within its limits. "
+                   "Nothing is installed on the visitor's computer.")
+with right:
+    with st.container(border=True):
+        st.markdown("**Heavy equations · local**")
+        st.caption("Configure everything here, download an experiment and the repo, "
+                   "run the launcher on your computer, then import the resulting ZIP.")
+
+with st.expander("How scientific comparisons are validated", expanded=False):
+    st.write("Only the same numerical input, source, noise realization and loader "
+             "parameters permit a comparison group. EPDE Pareto objectives and "
+             "PySINDy STLSQ objectives are different quantities. Solution fit shown "
+             "on the search data is not independent forecasting accuracy.")
+    st.page_link("views/12_Discovery_compare.py",
+                 label="Open Compare",icon=":material/compare_arrows:")
+
+st.subheader("Explore how each method works")
+choice = st.segmented_control('Detailed guide', ['Overview','EPDE', 'PySINDy'], default='Overview')
+if choice == 'Overview':
+    st.caption("Select a method above to open its complete original technical guide, "
+               "interactive architecture and runnable educational demonstrations.")
+    st.stop()
 if choice == 'PySINDy':
     from support.sindy_guide import render_sindy_guide
     render_sindy_guide()
@@ -16,8 +56,8 @@ from support.guide import reading_notes
 from support.interfaces import page_interfaces
 reading_notes('How EPDE works')
 page_interfaces('How EPDE works')
-st.subheader('EPDE — evolutionary equation discovery')
-st.caption('Choose a stage to see its internals and the original interactive LikeC4 architecture.')
+st.subheader("EPDE architecture and search")
+st.caption("Choose a stage to inspect the actual evolutionary search pipeline.")
 
 STAGES = {
     'settings': ('Search settings',
