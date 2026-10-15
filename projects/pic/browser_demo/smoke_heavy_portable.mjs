@@ -23,7 +23,7 @@ async function appFrame(timeout=90000){
 try{
   await page.goto(base,{waitUntil:"domcontentloaded",timeout:45000});
   let f=await appFrame();
-  await f.getByRole("link",{name:/All datasets/i}).first().click();
+  await f.getByRole("link",{name:/Data catalog/i}).first().click();
   await f.getByRole("textbox",{name:/Search dataset or equation/i}).fill("Navier");
   await f.getByText(/Navier.Stokes/i).first().waitFor({timeout:30000});
   console.log("CATALOG_PRESELECT", (await f.locator("body").innerText()).slice(-950));
