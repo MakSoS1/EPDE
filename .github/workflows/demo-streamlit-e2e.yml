@@ -79,6 +79,7 @@ jobs:
         timeout-minutes: 8
         working-directory: projects/pic/browser_demo
         run: |
+          set -o pipefail
           node smoke_heavy_portable.mjs 2>&1 | tee /tmp/portable-heavy-e2e.log
       - name: Publish real website integration status
         if: always()
