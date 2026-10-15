@@ -1,92 +1,79 @@
-# Visitor-CPU execution — existing Streamlit demo
+# EPDE Explorer — run a heavy scientific experiment from the browser UI
 
-The application remains at https://epde-explorer-demo.streamlit.app and continues
-using free Streamlit Community Cloud. For native computation, visitors start a
-small Python worker on their own computer. The browser talks directly to its
-loopback endpoint. There is no paid compute hosting and no second website.
+This is the **current** supported workflow. You do **not** run PySINDy
+inside your web browser, and you do **not** connect the Streamlit page to an
+open localhost worker. A heavy PDE is configured in the browser but computed
+by the original, separate native Python launcher on your own computer.
 
-## Simplest Windows x64 setup (one user-approved download)
+## Browser configuration
 
-A native launcher is provided at
-[EPDE-Start.cmd](../native_launcher/EPDE-Start.cmd). A GitHub Actions
-Windows runner separately tests its bootstrap before it is offered as a
-release asset. Use the public
-[release page](https://github.com/MakSoS1/EPDE/releases/tag/epde-native-launcher-v1)
-**only after that release exists and the verification reports success**.
+Open **Run a search** in the six-page Streamlit app, then:
 
-Download the launcher and explicitly open it. It downloads verified uv
-0.13.0, automatically installs Python 3.12, fetches a fixed repository
-source revision, then installs the locked EPDE/PySINDy scientific
-dependencies into your own user-profile directory. The code used for
-equation search is the original EpdeSearch pipeline, not EvoSparse.
-Initial setup downloads a large Python/PyTorch/data environment and can
-take some time. The launcher opens the existing website and displays
-its random local worker access code in the console.
+1. Select the equation in the full Data catalog (for example,
+   Navier–Stokes cylinder wake). The scientific arrays are not loaded online.
+2. Configure the chosen method and full scientific options. If PySINDy cannot
+   represent the equation, choose the offered **Use EPDE only** action.
+3. Download **experiment.zip**. It contains method-specific settings,
+   original dataset reference, noise, seed, source fingerprint and checksum.
+4. Download the repo ZIP using the adjacent button, or clone the exact branch:
 
-It does **not** bypass a browser's security model or silently execute
-a program from the website. It targets Windows x64, not macOS or Linux,
-and requires the user's informed approval to run downloaded code.
-An unsigned batch file may be restricted by enterprise policies.
+   ```bash
+   git clone --branch demo/streamlit-community-cloud --single-branch https://github.com/MakSoS1/EPDE.git
+   ```
 
-## Alternative developer installation (Windows, macOS, Linux)
+5. Extract the repository (if downloaded as a ZIP). Put the downloaded
+   **experiment.zip** file in its top-level folder, beside run-portable.cmd
+   and run-portable.sh.
 
-Install Git and uv (https://docs.astral.sh/uv/getting-started/installation/).
-Open Windows PowerShell, macOS Terminal, or a Linux shell, then run:
+## Start the local calculation
 
-~~~bash
-git clone --branch demo/streamlit-community-cloud https://github.com/MakSoS1/EPDE.git
-cd EPDE/projects/pic
-uv sync --locked --extra cpu --extra app
-uv run --locked --extra cpu --extra app python app/local_worker_service.py
-~~~
+**Windows:** double-click `run-portable.cmd` from the extracted repository.
+The console remains open with success/error details.
 
-The worker prints a randomly generated access code. Keep the terminal running.
-On the website open Lab, select **My computer**, enter the code, choose EPDE
-and/or PySINDy, then **Prepare local runs**. Press **Run on my CPU** inside
-the browser component. Paired searches run in sequence and appear in the same
-Results/Compare sections when each completes. Ctrl+C stops the worker.
+**macOS or Linux:** open Terminal in the extracted repository root and run:
 
-Modern browsers may ask for permission to reach localhost. Allow that
-permission for the demo site when prompted. If a corporate browser policy,
-privacy extension or mixed-content rule blocks this request, local execution
-cannot work without an approved exception. The Demo server option remains
-a limited backup, and no browser security policy should be disabled.
+```bash
+bash run-portable.sh
+```
 
-## Technical and security boundaries
+The launcher checks for uv and installs its official distribution when
+necessary. It creates the locked Python 3.12 / CPU PyTorch environment on
+the computer. The first run therefore needs network access, time and local
+disk space. Running or downloading an executable requires the user's consent;
+corporate endpoint policies may block unsigned launchers.
 
-- The local server binds only to 127.0.0.1:8765, never a LAN interface.
-- A unique session code is printed on each restart. Only the demo origin
-  and local development origins are allowed through CORS; Private Network
-  Access preflight is supported where browsers implement it.
-- Only registered scientific methods and data types are accepted. Native
-  EPDE/PySINDy execute in a fresh, resource-limited process for up to ten
-  minutes. No browser-provided Python scripts, commands or pickle files
-  are run. Only one job executes at a time.
-- Uploaded files use Streamlit's file uploader before the browser passes a
-  numerical NPZ to the local worker. The file therefore ALSO touches the
-  free Streamlit server; this build is not a guarantee of private local-only
-  data handling.
-- Results return as a versioned JSON record to the site's existing
-  Results/Compare session storage. This storage is ephemeral: a Streamlit
-  Cloud reboot/container change may remove results. Download important JSON.
-- The worker uses visitor CPU, NOT CUDA/GPU in this initial version.
-- The access code is entered into a Streamlit input, so the site server
-  can see the value transiently. It must not be reused as another password.
+The scientific calculations use the original EPDE/PySINDy Python entrypoints
+in separate processes. `EPDE_LOCAL_FULL_RUN` is only for those scientific
+processes; it is **never** an override to load heavy PDEs in Streamlit.
 
-## Why not completely in browser with no installation?
+Successful native execution creates `experiment-results.zip` in the
+repository root. The website never accesses your machine or its local files
+without you explicitly uploading that ZIP.
 
-The real EPDE pipeline uses normal CPython libraries, process isolation
-and components not available as equivalent Pyodide/WebAssembly modules.
-Pyodide's multiprocessing and subprocess are not functional. A substitute
-sparse-regression algorithm written in JavaScript is not the same method.
-For that reason native computation requires the visitor to explicitly start
-a local worker. Free hosting still serves only the interface and manages
-lightweight metadata.
+## Review and compare
 
-## Testing status
+Open **Results → Import completed experiments**, upload
+`experiment-results.zip`, and press **Import these results**. Then open
+**Compare**, choose a shared verified input group and inspect Equations,
+Metrics and Solution fit.
 
-Automated repository CI checks Python/JS syntax, CORS authentication,
-scientific configuration safety and a native PySINDy smoke test. Real
-browser-to-local-worker communication must additionally be tested with
-browser local-network permissions on the target OS and cannot be certified
-by server-side unit tests alone.
+Matching titles alone never make two experiments equivalent. The import
+validates source/data fingerprints, loader settings, noise/seed and scientific
+configuration. Uploaded records are self-reported and cannot be independently
+attested without recomputing the large original dataset.
+
+If the original large scientific source data are absent in your checkout,
+the native launch fails with an explanatory error rather than inventing
+equations. Consult `projects/pic/DATASETS.md` and the catalog's
+availability metadata. Recreate/export the config after updating the
+scientific source if a manifest-source fingerprint mismatch is reported.
+
+The current PySINDy implementation is the named EPDE-compatible sparse
+regression baseline, not an unchanged copy of `PDEComp/native`.
+Unsupported methods must never be silently substituted.
+
+## Historical protocol
+
+The old local bridge/service and its instructions are kept separately in
+[ARCHIVE_LOCAL_BROWSER_WORKER.md](ARCHIVE_LOCAL_BROWSER_WORKER.md).
+It is not a visible execution mode in Run a search.
