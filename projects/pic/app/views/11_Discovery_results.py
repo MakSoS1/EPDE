@@ -50,7 +50,7 @@ if archive is not None and st.button("Import these results", type="primary"):
             jobs.append(queue.save_client_result(owner, import_request, record))
         st.success(f"Imported {len(jobs)} scientifically identified result(s). "
                    "They are now available below and under Compare.")
-    except (ValueError, KeyError, TypeError, OSError, json.JSONDecodeError) as exc:
+    except (ValueError, KeyError, TypeError, OSError, json.JSONDecodeError, __import__("zipfile").BadZipFile) as exc:
         st.error("Result import rejected: " + str(exc))
 st.divider()
 
