@@ -16,8 +16,10 @@ try{
   if(!/rgb\(16, 26, 41\)/.test(dark))throw Error("Dark theme not applied to app: "+dark);
   console.log("DARK_THEME_SWITCH_PASS "+dark);
   await f.getByText("Light",{exact:true}).first().click();
+  await page.waitForFunction(
+    ()=>getComputedStyle(document.querySelector(".stApp")).backgroundColor==="rgb(250, 252, 255)",
+    null,{timeout:15000});
   const light=await f.evaluate(()=>getComputedStyle(document.querySelector(".stApp")).backgroundColor);
-  if(!/rgb\(250, 252, 255\)/.test(light))throw Error("Light theme not restored: "+light);
   console.log("LIGHT_THEME_SWITCH_PASS "+light);
 
   await f.getByRole("link",{name:/Run a search/i}).first().click();
