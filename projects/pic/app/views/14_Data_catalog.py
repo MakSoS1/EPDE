@@ -126,7 +126,9 @@ with right:
     st.markdown("**Scientific source details**")
     st.caption("Original registered data files: " + str(row["files"]))
     from epde_bench.datasets import REGISTRY
-    st.code(inspect.getsource(REGISTRY[selected].loader), language="python")
+    if st.checkbox("Show full original Python loader", value=False,
+                   key="catalog_show_loader"):
+        st.code(inspect.getsource(REGISTRY[selected].loader), language="python")
 
 st.caption("Catalog entries describe scientific source records; not all external data "
            "files are included with the repository. Browsing never loads heavy arrays.")
