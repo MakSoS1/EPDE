@@ -1,0 +1,80 @@
+name: Portable EPDE experiment handoff QA
+on:
+  push:
+    branches: [demo/streamlit-community-cloud]
+    paths:
+      - 'projects/pic/app/support/discovery_lab/portable.py'
+      - 'projects/pic/app/support/discovery_lab/heavy_settings.py'
+      - 'projects/pic/app/views/10_Discovery_lab.py'
+      - 'projects/pic/app/views/11_Discovery_results.py'
+      - 'projects/pic/app/views/12_Discovery_compare.py'
+      - 'projects/pic/portable_experiment.py'
+      - 'run-portable.cmd'
+      - 'run-portable.sh'
+      - 'projects/pic/tests/test_portable_handoff.py'
+      - '.github/workflows/portable-handoff-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  linux-science:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: '.:projects/pic:projects/pic/app'
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+      - name: Check Python and launcher syntax
+        run: |
+          python -m compileall -q projects/pic/app/views/10_Discovery_lab.py projects/pic/app/views/11_Discovery_results.py projects/pic/app/views/12_Discovery_compare.py projects/pic/app/support/discovery_lab/portable.py projects/pic/app/support/discovery_lab/heavy_settings.py projects/pic/portable_experiment.py
+          bash -n run-portable.sh
+      - name: Install original locked dependencies
+        run: uv sync --project projects/pic --extra cpu --extra app --locked
+      - name: Test portability, fingerprinting and invalid imports
+        run: |
+          projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_portable_handoff.py' -v
+      - name: Run original native PySINDy via downloaded experiment
+        run: |
+          projects/pic/.venv/bin/python - <<'PY'
+          from pathlib import Path
+          from support.discovery_lab.portable import make_manifest, bundle_bytes
+          m=make_manifest("ode",0.0,0,[{"method":"pysindy","variant":"pysindy","overrides":{}}])
+          Path("experiment.zip").write_bytes(bundle_bytes(m))
+          PY
+          uv run --project projects/pic --python 3.12 --locked --extra cpu --extra app python projects/pic/portable_experiment.py --bundle experiment.zip
+          projects/pic/.venv/bin/python - <<'PY'
+          from pathlib import Path
+          from support.discovery_lab.portable import read_results
+          records=read_results(Path("experiment-results.zip").read_bytes())
+          assert len(records)==1
+          assert records[0]["status"]=="ok", records[0].get("error")
+          assert records[0]["method"]=="pysindy" and records[0]["comparison_input_sha256"]
+          print("NATIVE_IMPORT_ROUNDTRIP_OK")
+          PY
+      - name: Check prior scientific paired-run tests
+        run: |
+          projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_paired_lab_runs.py' -v
+  desktop-launcher:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Windows native launcher paths
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Test-Path run-portable.cmd)) { throw "Missing launcher" }
+          if (-not (Test-Path projects/pic/portable_experiment.py)) { throw "Missing runner" }
+      - name: Check macOS shell syntax
+        if: runner.os != 'Windows'
+        run: bash -n run-portable.sh
