@@ -25,8 +25,12 @@ try{
   let f=await appFrame();
   await f.getByRole("link",{name:/All datasets/i}).first().click();
   await f.getByRole("textbox",{name:/Search dataset or equation/i}).fill("Navier");
+  await f.getByText(/Navier.Stokes/i).first().waitFor({timeout:30000});
+  console.log("CATALOG_PRESELECT", (await f.locator("body").innerText()).slice(-950));
   await f.getByRole("button",{name:/Use this record in Lab/i}).click();
   f=await appFrame();
+  await f.getByRole("heading",{name:"Run a search"}).waitFor({timeout:30000});
+  console.log("HEAVY_SELECTED_PAGE", (await f.locator("body").innerText()).slice(0,5100));
   await f.getByText(/requires native scientific computing/i).waitFor({timeout:45000});
   await f.getByText("Configure method settings").waitFor({timeout:30000});
   // The initial choice includes two methods; original PySINDy adapter must
@@ -57,6 +61,12 @@ try{
   await importPanel.click();
   await f.getByText(/Import experiment-results.zip/i).first().waitFor();
   console.log("RESULTS_IMPORT_UI_PASS");
+}catch(error){
+  console.error("HEAVY_BROWSER_FAILURE:",error.message);
+  for(const frame of page.frames()){
+    try{console.error("PAGE_ON_FAILURE",frame.url(),(await frame.locator("body").innerText()).slice(0,8500))}catch(_){}
+  }
+  throw error;
 }finally{
   await page.screenshot({path:"portable-heavy-e2e.png",fullPage:true});
   await browser.close();
