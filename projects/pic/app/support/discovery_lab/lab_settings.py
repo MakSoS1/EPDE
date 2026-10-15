@@ -153,26 +153,19 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
     """
     built_in = record_name is not None
     if built_in:
-        c1, c2 = st.columns([2, 3])
-        variant = c1.pills("EPDE profile", EPDE_VARIANTS, default="default",
-                           selection_mode="single",
-                           key=f"lab_variant_{record_name}",
-                           help="Choose a reproducible EPDE variant. Dataset-specific "
-                                "YAML is loaded automatically.") or "default"
+        # EPDE variants are a researcher option, not required for first-time users.
+        # Keep the exact pre-existing variant and layered YAML semantics.
+        with st.expander("Change EPDE scientific profile", expanded=False):
+            variant = st.pills(
+                "EPDE profile", EPDE_VARIANTS, default="default",
+                selection_mode="single", key=f"lab_variant_{record_name}",
+                help="Reproducible dataset-specific EPDE variant loaded from YAML",
+            ) or "default"
+            st.caption("The selected profile is reproducible, not necessarily optimal. "
+                       "Each method retains its own optimizer and score.")
         cfg = load_config(record_name, variant)
         base = copy.deepcopy(cfg["search"])
         shape = tuple(problem.shape)
-        if variant != "default":
-            c2.info(f"Selected EPDE variant: {variant}. Other method outputs remain "
-                    "method-specific; their score axes are not directly comparable.")
-        else:
-            c2.caption("The original repository's per-equation profile is loaded "
-                       "automatically from the layered YAML settings. "
-                       "It is a reproducible baseline, not a proven optimal model.")
-        if "pysindy" in methods:
-            st.caption("PySINDy uses the same data, derivative estimator and candidate "
-                       "features in this experiment; its STLSQ optimizer and "
-                       "selection procedure remain separate.")
         context = f"Saved record: configs/{record_name}.yaml + {variant} variant"
     else:
         variant = "default"
@@ -191,8 +184,7 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
                            "freq": float(space["frequency"]), "meaningful": True})
         base["search_space"]["tokens"] = tokens
         context = "Universal bounded starting profile for new data"
-        st.caption("General-purpose starting settings, not tuned to your unknown equation. "
-                   "Start with Preset, then switch to Advanced for further controls.")
+        st.caption("General-purpose starting settings; adjust the budget below or open Advanced.")
 
     with st.expander("About the loaded scientific profile", expanded=False):
         _profile_summary(base, context)
