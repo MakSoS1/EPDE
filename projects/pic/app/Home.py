@@ -19,6 +19,9 @@ import streamlit as st
 
 st.set_page_config(page_title="EPDE Explorer", page_icon="🔎", layout="wide")
 from support.minimal_ui import apply_ui
+st.sidebar.segmented_control("Appearance", ["Light", "Dark"],
+                             default="Light", selection_mode="single",
+                             key="epde_appearance", help="Switch the entire app between light and dark mode.")
 apply_ui()
 
 # Keep the private session recovery code in the URL even on Home, Guide and Catalog.
