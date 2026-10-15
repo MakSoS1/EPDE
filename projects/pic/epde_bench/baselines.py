@@ -77,17 +77,18 @@ class UnsupportedProblem(ValueError):
         super().__init__(f'{self.problem}: PySINDy baseline unsupported: {reason}')
 
 
-def _columns(blocks, lhs_order):
+def _columns(blocks, lhs_order, max_factors=2):
     """Single blocks and products of two blocks of different families; a
     term must hold at least one meaningful factor (as in EPDE). Time
     derivatives of order >= the left-hand side's (of ANY variable) are left
     out, as in SINDy/PDE-FIND: u_t = f(u, u_x, ...), u_tt = f(u, u_t, ...)."""
     usable = [b for b in blocks if b[4] < lhs_order]
     cols = [(b[0], b[1]) for b in usable if b[3]]
-    for a, b in combinations(usable, 2):
-        if a[2] == b[2] or not (a[3] or b[3]):
-            continue
-        cols.append((f'{a[0]} * {b[0]}', a[1] * b[1]))
+    if max_factors == 2:
+        for a, b in combinations(usable, 2):
+            if a[2] == b[2] or not (a[3] or b[3]):
+                continue
+            cols.append((f'{a[0]} * {b[0]}', a[1] * b[1]))
     return cols
 
 
@@ -103,20 +104,21 @@ def _fit(X_tr, y_tr, X_va, y_va, threshold, normalize):
     return {'coef': coef, 'k': k, 'mse': float(np.mean(resid ** 2))}
 
 
-def _n_columns(blocks) -> int:
+def _n_columns(blocks, max_factors=2) -> int:
     usable = [(fam, meaningful) for _, _, fam, meaningful, order in blocks if order < 1]
     n = sum(1 for _, m in usable if m)
-    n += sum(1 for (fa, ma), (fb, mb) in combinations(usable, 2) if fa != fb and (ma or mb))
+    if max_factors == 2:
+        n += sum(1 for (fa, ma), (fb, mb) in combinations(usable, 2) if fa != fb and (ma or mb))
     return n
 
 
-def _rows(problem, search, seed, n_columns=1):
+def _rows(problem, search, seed, n_columns=1, val_fraction=VAL_FRACTION):
     """Flat indices (into the trimmed interior) of the training and the
     held-out rows: split in time, then subsampled if too many."""
     inner = _interior(problem, search)
     n_t = problem.shape[0]
     t_idx = np.arange(n_t)[inner[0]]
-    split = t_idx[int(len(t_idx) * (1 - VAL_FRACTION))]
+    split = t_idx[int(len(t_idx) * (1 - val_fraction))]
     time_of_row = np.broadcast_to(
         np.arange(n_t).reshape((-1,) + (1,) * (len(problem.shape) - 1)),
         problem.shape)[inner].ravel()
@@ -146,10 +148,27 @@ def run_pysindy(problem, data, cfg, seed: int = 0):
     if method != 'epde' and problem.derivs is not None:
         raise ValueError('independent baseline differentiation cannot discard supplied derivatives; '
                          "use pysindy.differentiation='epde'")
+    threshold = opts.get('threshold', 'auto')
+    if threshold != 'auto':
+        if isinstance(threshold, bool) or not np.isfinite(float(threshold)) or not 1e-6 <= float(threshold) <= 100:
+            raise ValueError('PySINDy STLSQ threshold must be auto or 1e-6 to 100')
+        threshold = float(threshold)
+    max_factors = opts.get('max_terms_product', 2)
+    if type(max_factors) is not int or max_factors not in (1, 2):
+        raise ValueError('PySINDy factor count must be 1 or 2')
+    normalization = opts.get('normalize_columns', 'auto')
+    if normalization not in ('auto', 'on', 'off'):
+        raise ValueError('PySINDy column normalization must be auto/on/off')
+    val_fraction = opts.get('validation_fraction', VAL_FRACTION)
+    if isinstance(val_fraction, bool) or not 0.10 <= float(val_fraction) <= 0.40:
+        raise ValueError('PySINDy validation fraction must be 0.10 to 0.40')
+    val_fraction = float(val_fraction)
+
     search = resolve_for_problem(cfg, problem)
     t0 = time.perf_counter()
     blocks, lhs_options = _blocks(problem, data, search, method=method)
-    inner, train, val = _rows(problem, search, seed, _n_columns(blocks))
+    inner, train, val = _rows(problem, search, seed, _n_columns(blocks, max_factors),
+                              val_fraction=val_fraction)
     rows = np.concatenate([train, val])
     n_train = train.size
 
@@ -161,21 +180,24 @@ def run_pysindy(problem, data, cfg, seed: int = 0):
     lhs_options = {var: [(name, reduce(arr), k) for name, arr, k in opts_]
                    for var, opts_ in lhs_options.items()}
     max_terms = int(search.get('search_space', {}).get('equation_terms_max_number', 10))
-    thresholds = np.logspace(-4, 2, 49)
+    thresholds = np.logspace(-4, 2, 49) if threshold == 'auto' else [threshold]
+    normalizations = (True, False) if normalization == 'auto' else (normalization == 'on',)
 
     equations = []
     info = {'lhs': {}, 'threshold': {}, 'library_size': {}, 'train_rows': int(n_train),
-            'val_rows': int(val.size), 'differentiation': method}
+            'val_rows': int(val.size), 'differentiation': method,
+            'threshold_mode': threshold, 'normalization_mode': normalization,
+            'validation_fraction': val_fraction, 'max_terms_product': max_factors}
     total_mse, total_terms = 0.0, 0
     for var, options in lhs_options.items():
         candidates = []
         for lhs_name, y, lhs_order in options:
-            cols = _columns(blocks, lhs_order)
+            cols = _columns(blocks, lhs_order, max_factors)
             names = [c[0] for c in cols]
             X = np.stack([c[1] for c in cols], axis=1)
             scale = float(np.std(y)) or 1.0
             X_tr, y_tr, X_va, y_va = X[:n_train], y[:n_train] / scale, X[n_train:], y[n_train:] / scale
-            for normalize in (True, False):
+            for normalize in normalizations:
                 for thr in thresholds:
                     res = _fit(X_tr, y_tr, X_va, y_va, thr, normalize)
                     if res is None:
