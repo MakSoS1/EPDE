@@ -21,6 +21,11 @@ st.set_page_config(page_title="EPDE Explorer", page_icon="🔎", layout="wide")
 from support.minimal_ui import apply_ui
 apply_ui()
 
+# Keep the private session recovery code in the URL even on Home, Guide and Catalog.
+# Otherwise a hard reload on a non-experiment page would lose Results/Compare.
+from support.discovery_lab.session import current_owner
+current_owner(show_sidebar=False)
+
 PAGES = {
     "": [
         st.Page("views/0_Home.py", title="Home", icon=":material/home:", default=True),
