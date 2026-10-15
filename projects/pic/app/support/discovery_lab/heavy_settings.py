@@ -43,7 +43,7 @@ def render_heavy_sindy(name):
     from epde_bench.baselines import unsupported_reason
     reason = unsupported_reason(name)
     if reason:
-        st.error("PySINDy's current scientific adapter cannot represent this equation: " + reason)
+        st.error("PySINDy's current scientific adapter cannot represent this equation: " + reason + ". Deselect PySINDy in step 1 to export EPDE alone.")
         return None
     cfg = load_config(name, "pysindy")
     search = copy.deepcopy(cfg["search"])
