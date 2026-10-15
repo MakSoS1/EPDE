@@ -24,7 +24,9 @@ try{
   await page.goto(base,{waitUntil:"domcontentloaded",timeout:45000});
   let f=await appFrame();
   await f.getByRole("link",{name:/Data catalog/i}).first().click();
-  await f.getByRole("textbox",{name:/Search dataset or equation/i}).fill("Navier");
+  const searchBox=f.getByRole("textbox",{name:/Search dataset or equation/i});
+  await searchBox.fill("Navier");
+  await searchBox.press("Enter"); // Streamlit commits text inputs on Enter/blur
   await f.getByText(/Navier.Stokes/i).first().waitFor({timeout:30000});
   console.log("CATALOG_PRESELECT", (await f.locator("body").innerText()).slice(-950));
   await f.getByRole("button",{name:/Use this record in Lab/i}).click();
