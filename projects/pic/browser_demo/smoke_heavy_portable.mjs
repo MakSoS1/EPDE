@@ -40,6 +40,11 @@ try{
   await f.getByRole("button",{name:/Use EPDE only for this equation/i})
     .waitFor({timeout:30000});
   await f.getByRole("button",{name:/Use EPDE only for this equation/i}).click();
+  // Wait for the full Streamlit rerun rather than interacting with stale controls.
+  await f.getByText(/Both algorithms will be saved as separate experiments/)
+    .waitFor({state:"hidden",timeout:30000});
+  await f.getByRole("button",{name:/Use EPDE only for this equation/i})
+    .waitFor({state:"hidden",timeout:30000});
   await f.getByText("This equation runs on your computer").waitFor({timeout:30000});
   const pop=f.getByRole("spinbutton",{name:/Population \/ candidates/i}).first();
   await pop.fill("8");
