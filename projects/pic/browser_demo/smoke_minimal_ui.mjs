@@ -29,7 +29,10 @@ async function shot(filename, expected){
     throw Error(filename+" unexpected heading "+heading);
   // Do not screenshot partially streamed Streamlit pages: settings often mount
   // seconds after the first title, especially on a cold scientific worker.
-  if(filename==="search")await f.getByText("Run or export",{exact:true}).waitFor({timeout:90000});
+  if(filename==="search"){
+    await f.getByText("Run or export",{exact:true}).waitFor({timeout:90000});
+    await f.getByText("Experiment summary",{exact:true}).waitFor({timeout:90000});
+  }
   if(filename==="catalog")await f.getByRole("button",{name:/Use this record in Lab/i}).waitFor({timeout:60000});
   if(filename==="results")await f.getByText(/Import completed experiments/i).first().waitFor({timeout:60000});
   // Wait for Streamlit reruns, not just a blank application shell.
@@ -52,12 +55,16 @@ async function shot(filename, expected){
   // A giant always-expanded page is a failed minimalist redesign.
   if(geometry.mainHeight>4600)
     throw Error(filename+" main content too tall: "+JSON.stringify(geometry));
+  if(filename==="search")await page.setViewportSize({width:1440,height:1850});
+  else if(filename==="catalog")await page.setViewportSize({width:1440,height:1300});
+  await page.waitForTimeout(450);
   await page.screenshot({path:"ui-"+filename+".png",fullPage:true});
   if(["search","results","compare","catalog"].includes(filename)){
     const preview=await page.screenshot({type:"jpeg",quality:30,fullPage:true});
     console.log("MINIMAL_UI_JPEG_"+filename+" "+preview.toString("base64"));
   }
   console.log("MINIMAL_UI_SCREEN "+filename+" "+JSON.stringify({heading,...geometry}));
+  await page.setViewportSize({width:1440,height:960});
 }
 async function go(label){
   const f=await frame();
