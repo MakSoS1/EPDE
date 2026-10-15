@@ -29,6 +29,8 @@ async function shot(filename, expected){
     throw Error(filename+" unexpected heading "+heading);
   // Wait for Streamlit reruns, not just a blank application shell.
   await page.waitForTimeout(850);
+  const exceptions=await f.locator('[data-testid="stException"]').allInnerTexts();
+  if(exceptions.length)throw Error(filename+" Streamlit exception: "+exceptions.join(" | ").slice(0,1600));
   const geometry=await f.evaluate(()=>{
     const main=document.querySelector('[data-testid="stMainBlockContainer"]')
        || document.querySelector('[data-testid="stMain"]');
