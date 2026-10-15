@@ -84,6 +84,13 @@ jobs:
         run: |
           set -o pipefail
           node smoke_minimal_ui.mjs 2>&1 | tee /tmp/minimal-ui-e2e.log
+      - id: wizard
+        name: Verify true wizard stages, backward settings persistence and light/dark mode
+        timeout-minutes: 6
+        working-directory: projects/pic/browser_demo
+        run: |
+          set -o pipefail
+          node smoke_wizard_theme.mjs 2>&1 | tee /tmp/wizard-theme-e2e.log
       - id: mobile
         name: Verify five Streamlit pages at mobile viewport (390px)
         timeout-minutes: 7
@@ -119,6 +126,7 @@ jobs:
           HOST: ${{ steps.server.outcome }}
           VISUAL: ${{ steps.visual.outcome }}
           MOBILE: ${{ steps.mobile.outcome }}
+          WIZARD: ${{ steps.wizard.outcome }}
           NATIVE_PAIR: ${{ steps.native_pair.outcome }}
           IMPORTED_COMPARE: ${{ steps.imported_compare.outcome }}
           BROWSER: ${{ steps.browser.outcome }}
@@ -135,11 +143,12 @@ jobs:
             "browser":os.environ.get("BROWSER"),
             "visual":os.environ.get("VISUAL"),
             "mobile":os.environ.get("MOBILE"),
+            "wizard":os.environ.get("WIZARD"),
             "native_pair":os.environ.get("NATIVE_PAIR"),
             "imported_compare":os.environ.get("IMPORTED_COMPARE"),
             "heavy_browser":os.environ.get("HEAVY_BROWSER"),
           }
-          data["verified"]=all(data[n]=="success" for n in ("dependencies","streamlit","native_pair","visual","mobile","browser","heavy_browser","imported_compare"))
+          data["verified"]=all(data[n]=="success" for n in ("dependencies","streamlit","native_pair","visual","wizard","mobile","browser","heavy_browser","imported_compare"))
           for k,p in [("browser_log","/tmp/streamlit-e2e.log"),
                       ("streamlit_log","/tmp/streamlit-server.log"),
                       ("install_log","/tmp/streamlit-deps.log")]:
@@ -161,6 +170,7 @@ jobs:
             projects/pic/browser_demo/ui-*.png
             /tmp/minimal-ui-e2e.log
             /tmp/mobile-ui-e2e.log
+            /tmp/wizard-theme-e2e.log
             /tmp/import-compare-e2e.log
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4
