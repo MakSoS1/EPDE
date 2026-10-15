@@ -31,11 +31,7 @@ def render_heavy_epde(name):
         "Maximum terms", 2, 15,
         value=min(15, max(2, int(sp.get("equation_terms_max_number", 10)))),
         key="portable_epde_terms_" + name))
-    with st.expander("Advanced EPDE: effective scientific configuration"):
-        import yaml
-        st.caption("The full dataset-specific configuration is preserved. "
-                   "The following declarative YAML is included in your download.")
-        st.code(yaml.safe_dump({"search": search}, sort_keys=False), language="yaml")
+    st.caption("The complete dataset-specific EPDE YAML is shown on the review screen.")
     return {"method": "epde", "variant": "default", "overrides": {"search": search}}
 
 
@@ -76,9 +72,6 @@ def render_heavy_sindy(name):
                    threshold=threshold, max_terms_product=factors,
                    validation_fraction=holdout or 0.20)
     options = validate_sindy_options(options)
-    with st.expander("Advanced PySINDy: effective scientific configuration"):
-        import yaml
-        st.code(yaml.safe_dump({"search": search, "pysindy": options},
-                               sort_keys=False), language="yaml")
+    st.caption("The full PySINDy scientific configuration is shown on the review screen.")
     return {"method": "pysindy", "variant": "pysindy",
             "overrides": {"search": search, "pysindy": options}}
