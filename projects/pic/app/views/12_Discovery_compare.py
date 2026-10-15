@@ -70,8 +70,8 @@ else:
         with equation_tab:
             truth=(first.get("problem") or {}).get("truth")
             if truth:
-                with st.expander("Known reference law",expanded=False):
-                    ui.latex(truth,axes)
+                st.markdown("**Known reference law**")
+                ui.latex(truth,axes)
             cards=st.columns(len(chosen),gap="medium")
             for card,(name,record) in zip(cards,chosen):
                 with card:
@@ -105,17 +105,16 @@ else:
         with plots_tab:
             st.caption("Plots show solution reconstruction against the original data.")
             ui.solution_plots(chosen)
-        with st.expander("About scientific comparability",expanded=False):
-            st.write("An identical dataset label or seed is not enough to establish "
-                     "equivalence. Imported results report source/data hashes, and "
-                     "the site checks internal consistency without rerunning experiments. "
-                     "Comparisons should consider model terms, coefficient errors and "
-                     "common evaluation metrics. Multiple random seeds are required "
-                     "for statistically meaningful conclusions.")
+        st.caption("Comparison groups require matching source/data fingerprints, "
+                   "loader settings and noise realization; identical titles or seeds "
+                   "alone are insufficient. Native imports are consistency-checked but "
+                   "not independently rerun. Multiple seeds are needed for strong claims.")
 
 # Curated published benchmark archives remain available without exposing
 # other visitors' private files from the shared app/results directory.
-with st.expander("Published benchmark archive (read-only)", expanded=False):
+if st.checkbox("Show published benchmark archives", value=False,
+               key="compare_show_archives"):
+    st.subheader("Published benchmark archive (read-only)")
     from pathlib import Path
     from support.common import PIC_DIR
 
