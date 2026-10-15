@@ -64,12 +64,19 @@ jobs:
         run: |
           set -o pipefail
           node smoke_streamlit.mjs 2>&1 | tee /tmp/streamlit-e2e.log
+      - id: heavy_browser
+        name: Download heavy PDE experiment after configuring it in the real browser
+        timeout-minutes: 8
+        working-directory: projects/pic/browser_demo
+        run: |
+          node smoke_heavy_portable.mjs 2>&1 | tee /tmp/portable-heavy-e2e.log
       - name: Publish real website integration status
         if: always()
         env:
           DEPS: ${{ steps.env.outcome }}
           HOST: ${{ steps.server.outcome }}
           BROWSER: ${{ steps.browser.outcome }}
+          HEAVY_BROWSER: ${{ steps.heavy_browser.outcome }}
         run: |
           python - <<'PY'
           import json,os,pathlib,datetime
@@ -80,8 +87,9 @@ jobs:
             "dependencies":os.environ.get("DEPS"),
             "streamlit":os.environ.get("HOST"),
             "browser":os.environ.get("BROWSER"),
+            "heavy_browser":os.environ.get("HEAVY_BROWSER"),
           }
-          data["verified"]=all(data[n]=="success" for n in ("dependencies","streamlit","browser"))
+          data["verified"]=all(data[n]=="success" for n in ("dependencies","streamlit","browser","heavy_browser"))
           for k,p in [("browser_log","/tmp/streamlit-e2e.log"),
                       ("streamlit_log","/tmp/streamlit-server.log"),
                       ("install_log","/tmp/streamlit-deps.log")]:
