@@ -152,6 +152,7 @@ source = st.segmented_control("Data source",
 arrays, record_name, label, reference, origin = None, None, None, None, None
 noise, seed = 0.0, 0
 space = {}
+is_heavy = False
 
 if source == "Built-in equation":
     groups = lab_records()
@@ -191,24 +192,30 @@ if source == "Built-in equation":
             format_func=lambda x: f"{dataset_label(x)} · {x}")
     st.caption(f"Selected: **{dataset_label(record_name)}**")
     local_full = LOCAL_FULL
-    if is_local_only(record_name) and not local_full:
+    is_heavy = is_local_only(record_name) and not local_full
+    if is_heavy:
+        # Keep heavy data in the registry without loading it on shared hosting.
         from epde_bench.datasets import REGISTRY
-        spec = REGISTRY[record_name]
         label = dataset_label(record_name)
+        spec = REGISTRY[record_name]
         st.info("**" + label + "** · " + spec.kind + " · " + spec.suite)
-        st.caption("Original scientific files: " + spec.files)
         laws = declared_equations(record_name)
         if laws:
-            st.markdown("**Declared equation(s)**")
+            st.markdown("**Declared governing equation(s)**")
             for law in laws:
                 st.code(law, language=None)
-        st.warning("This record is too resource-intensive for an interactive "
-                   "demo. Its scientific description remains available in the "
-                   "full catalogue. You can run the complete project from GitHub.")
-        st.page_link("views/14_Data_catalog.py", label="Inspect the complete dataset")
-        st.link_button("Open EPDE repository", 
-                       "https://github.com/MakSoS1/EPDE/tree/demo/streamlit-community-cloud")
-        st.stop()
+        st.warning("This equation requires native scientific computing. "
+                   "Choose the complete EPDE/PySINDy settings below, then download "
+                   "the repository and an exact experiment configuration. "
+                   "No heavy dataset is loaded or searched on this website.")
+        st.page_link("views/14_Data_catalog.py",
+                     label="Inspect original data and availability")
+        a, b = st.columns(2)
+        noise = float(a.number_input("Noise, % of standard deviation",
+                                     0.0, 10.0, 0.0, 0.5,
+                                     key="heavy_noise_" + record_name))
+        seed = int(b.number_input("Seed", 0, 999, 0,
+                                  key="heavy_seed_" + record_name))
     if is_local_only(record_name) and local_full:
         permission_key = "lab_load_heavy_" + record_name
         if not st.session_state.get(permission_key):
@@ -218,34 +225,35 @@ if source == "Built-in equation":
                 st.session_state[permission_key] = True
                 st.rerun()
             st.stop()
-    from epde_bench.config import load_config
-    try:
-        original_profile = load_config(record_name, "default")
-        problem = load_problem(record_name, json.dumps(
-            original_profile.get("loader", {}), sort_keys=True))
-    except (FileNotFoundError, OSError, ValueError, KeyError) as exc:
-        st.error("The dataset is registered, but the numerical files or "
-                 "its configuration are not available in this checkout: " + str(exc))
-        st.caption("Registration does not guarantee that large or externally "
-                   "distributed scientific data files have been downloaded.")
-        st.stop()
-    label = dataset_label(record_name)
-    if problem.truth:
-        st.markdown("**Known law** — used only to evaluate the result, never as input to discovery")
-        st.latex(system_latex(problem.truth, problem.axis_names))
-    else:
-        st.caption("No authoritative reference equation is declared for this record. "
-                   "Reconstruction is evaluated against its numerical data only.")
-    if not is_local_only(record_name):
-        preview(problem)
-    else:
-        st.caption("Large dataset preview is disabled by default to preserve memory.")
-    a, b = st.columns(2)
-    noise = a.number_input("Noise, % of the standard deviation", 0.0, 10.0, 0.0, 0.5,
-                           help="Gaussian noise added to the data before the search.")
-    seed = int(b.number_input("Seed", 0, 999, 0, help="Fixes the noise and the search."))
-    st.caption(f"{problem.kind.replace('_', ' ')}, grid {' × '.join(map(str, problem.shape))}. "
-               "Derivatives, tokens and boundary are the stored settings of this record.")
+    if not is_heavy:
+        from epde_bench.config import load_config
+        try:
+            original_profile = load_config(record_name, "default")
+            problem = load_problem(record_name, json.dumps(
+                original_profile.get("loader", {}), sort_keys=True))
+        except (FileNotFoundError, OSError, ValueError, KeyError) as exc:
+            st.error("The dataset is registered, but the numerical files or "
+                     "its configuration are not available in this checkout: " + str(exc))
+            st.caption("Registration does not guarantee that large or externally "
+                       "distributed scientific data files have been downloaded.")
+            st.stop()
+        label = dataset_label(record_name)
+        if problem.truth:
+            st.markdown("**Known law** — used only to evaluate the result, never as input to discovery")
+            st.latex(system_latex(problem.truth, problem.axis_names))
+        else:
+            st.caption("No authoritative reference equation is declared for this record. "
+                       "Reconstruction is evaluated against its numerical data only.")
+        if not is_local_only(record_name):
+            preview(problem)
+        else:
+            st.caption("Large dataset preview is disabled by default to preserve memory.")
+        a, b = st.columns(2)
+        noise = a.number_input("Noise, % of the standard deviation", 0.0, 10.0, 0.0, 0.5,
+                               help="Gaussian noise added to the data before the search.")
+        seed = int(b.number_input("Seed", 0, 999, 0, help="Fixes the noise and the search."))
+        st.caption(f"{problem.kind.replace('_', ' ')}, grid {' × '.join(map(str, problem.shape))}. "
+                   "Derivatives, tokens and boundary are the stored settings of this record.")
 elif source == "Generate an ODE":
     st.caption("Type the right-hand side of du/dt = f(t, u). Allowed: t, u, numbers, + − * / **, "
                "sin, cos, tanh. The expression is parsed, never executed as code.")
@@ -330,6 +338,7 @@ from support.discovery_lab.sindy_settings import render_sindy_settings
 variant, overrides, settings, selected_budget = "default", {}, None, "Preset"
 sindy_settings = None
 settings_valid = True
+heavy_methods = []
 
 
 def epde_editor():
@@ -352,7 +361,30 @@ def sindy_editor():
 
 
 try:
-    if "epde" in methods and "pysindy" in methods:
+    if is_heavy:
+        from support.discovery_lab.heavy_settings import render_heavy_epde, render_heavy_sindy
+        if "epde" in methods and "pysindy" in methods:
+            epde_tab, sindy_tab = st.tabs(
+                ["🧬 EPDE · Evolution", "📐 PySINDy · Sparse regression"])
+            with epde_tab:
+                heavy_methods.append(render_heavy_epde(record_name))
+            with sindy_tab:
+                candidate = render_heavy_sindy(record_name)
+                if candidate is not None:
+                    heavy_methods.append(candidate)
+                else:
+                    settings_valid = False
+        elif "epde" in methods:
+            heavy_methods.append(render_heavy_epde(record_name))
+        elif "pysindy" in methods:
+            candidate = render_heavy_sindy(record_name)
+            if candidate is not None:
+                heavy_methods.append(candidate)
+            else:
+                settings_valid = False
+        else:
+            st.info("Select EPDE and/or PySINDy to configure the native experiment.")
+    elif "epde" in methods and "pysindy" in methods:
         epde_tab, sindy_tab = st.tabs(
             ["🧬 EPDE · Evolution", "📐 PySINDy · Sparse regression"])
         with epde_tab:
@@ -383,8 +415,10 @@ budget_code = {
 st.subheader("4 · Run the search")
 ready = settings_valid and bool(methods) and (record_name is not None or arrays is not None)
 ready = ready and ("epde" not in methods or (settings is not None or record_name is not None))
-ready = ready and ("pysindy" not in methods or sindy_settings is not None)
-if ready:
+ready = ready and ("pysindy" not in methods or sindy_settings is not None or is_heavy)
+if is_heavy:
+    ready = settings_valid and bool(methods) and len(heavy_methods) == len(methods)
+if ready and not is_heavy:
     from support.discovery_lab.execution_policy import classify_epde
     from epde_bench.config import load_config, resolve_for_problem
     try:
@@ -416,7 +450,37 @@ if ready:
         ready = False
         st.warning("Please correct the scientific configuration before running.")
 
-if st.button("Run " + " & ".join(METHOD_LABELS[m] for m in methods)
+if is_heavy:
+    st.markdown("**Run this exact experiment on your computer**")
+    st.caption("The ZIP contains the complete selected method configurations, "
+               "dataset name, noise, seed, scientific source fingerprint, "
+               "and a manifest checksum. No numerical data are transferred.")
+    if ready:
+        try:
+            from support.discovery_lab.portable import make_manifest, bundle_bytes
+            manifest = make_manifest(record_name, float(noise), int(seed), heavy_methods)
+            st.download_button(
+                "1 · Download experiment.zip",
+                data=bundle_bytes(manifest),
+                file_name="experiment.zip",
+                mime="application/zip",
+                type="primary",
+                key="heavy_export_" + record_name,
+            )
+        except (ValueError, TypeError, OSError) as exc:
+            st.error("Could not prepare reproducible experiment: " + str(exc))
+    else:
+        st.warning("Choose supported methods and correct their settings to export.")
+    st.link_button(
+        "2 · Download the original EPDE repository (ZIP)",
+        "https://github.com/MakSoS1/EPDE/archive/refs/heads/demo/streamlit-community-cloud.zip")
+    st.caption("Extract the repository, copy experiment.zip to its root, "
+               "then double-click run-portable.cmd (Windows) or run "
+               "bash run-portable.sh (macOS/Linux). The first launch downloads "
+               "the pinned Python/PyTorch environment. This may take time.")
+    st.caption("Finally upload experiment-results.zip under Results. "
+               "Compare only groups runs with verified matching inputs.")
+elif st.button("Run " + " & ".join(METHOD_LABELS[m] for m in methods)
              if methods else "Choose a method",
              type="primary", disabled=not ready, key="lab_start"):
     try:
