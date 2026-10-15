@@ -567,7 +567,7 @@ with main_col:
             available = [m for m in methods if m in review]
             panels = (st.tabs([METHOD_LABELS.get(m, m) for m in available])
                       if len(available) > 1 else
-                      [st.container()] for _ in available)
+                      [st.container() for _ in available])
             for method, panel in zip(available, panels):
                 with panel:
                     st.markdown("**" + METHOD_LABELS.get(method, method) + "**")
