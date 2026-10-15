@@ -8,7 +8,7 @@ visual app.
 
 What it consists of:
 
-- **a collection of 29 records**: synthetic ordinary and partial differential
+- **the full registry of 59+ records**: synthetic ordinary and partial differential
   equations with known laws and measured records (pendulums, a robot arm, a ball on a
   beam, sea surface temperature). Each record comes with its grid, its known law and
   the equivalent forms of that law that also count as correct;
