@@ -55,13 +55,18 @@ def _run_record(req, *, hosted=False):
     from support.discovery_lab.lab_settings import validate_public_search
     if "overrides" in req:
         overrides = req["overrides"] or {}
-        if not isinstance(overrides, dict) or set(overrides) - {"search"}:
-            raise ValueError("Invalid public search overrides")
-        if overrides and not isinstance(overrides.get("search"), dict):
+        expected = {"search", "pysindy"} if method == "pysindy" else {"search"}
+        if not isinstance(overrides, dict) or set(overrides) - expected:
+            raise ValueError("Invalid method-specific scientific overrides")
+        if "search" in overrides and not isinstance(overrides["search"], dict):
             raise ValueError("Search overrides must contain a mapping")
         cfg = load_config(dataset, variant, overrides=overrides)
         problem = load(dataset, **cfg.get("loader", {}))
         validate_public_search(resolve_for_problem(cfg, problem), problem.shape, override=not hosted)
+        if method == "pysindy":
+            from support.discovery_lab.sindy_settings import validate_sindy_options
+            cfg["pysindy"] = validate_sindy_options(
+                cfg.get("pysindy", {}), supplied_derivatives=problem.derivs is not None)
     else:
         overrides = None
         if method == "epde" and EFFORTS[effort] is not None:
@@ -116,6 +121,22 @@ def _run_upload(req, folder, *, hosted=False):
                 or not all(isinstance(eq, str) and "=" in eq and len(eq) < 2048 for eq in truth)):
             raise ValueError("Invalid reference law")
         problem.truth = list(truth)
+    # Each algorithm receives only its own scientific configuration.
+    # No EPDE population/epoch, Pareto or optimizer settings affect PySINDy.
+    configs = settings.get("method_configs") or {}
+    if not isinstance(configs, dict) or set(configs) - {"epde", "pysindy"}:
+        raise ValueError("Invalid per-method uploaded configuration")
+    selected = configs.get(method, {"search": settings["search"]})
+    if not isinstance(selected, dict) or not isinstance(selected.get("search"), dict):
+        raise ValueError("Missing per-method search/library config")
+    if set(selected) - ({"search", "pysindy"} if method == "pysindy" else {"search"}):
+        raise ValueError("Unrecognized method configuration fields")
+    if method == "pysindy":
+        from support.discovery_lab.sindy_settings import validate_sindy_options
+        sindy_cfg = validate_sindy_options(
+            selected.get("pysindy", {}), supplied_derivatives=problem.derivs is not None)
+    else:
+        sindy_cfg = None
     identity = custom_identity(data_path, settings, noise, seed)
     # The original custom identity assumes EPDE; distinguish SINDy and EPDE
     # even when they use identical data and differentiation settings.
@@ -137,22 +158,23 @@ def _run_upload(req, folder, *, hosted=False):
               "effort": settings.get("effort", "standard")}
     if settings.get("label"):
         record["problem"]["title"] = str(settings["label"])[:160]
-    search_cfg = resolve_for_problem({"search": settings["search"]}, problem)
+    search_cfg = resolve_for_problem({"search": selected["search"]}, problem)
     from support.discovery_lab.lab_settings import validate_public_search
     validate_public_search(search_cfg, problem.shape, override=not hosted)
     if hosted and method in ("epde", "pysindy"):
         from support.discovery_lab.execution_policy import require_hosted_epde
         require_hosted_epde(None, problem.shape, len(problem.variables), search_cfg)
     record["search_config"] = search_cfg
+    if sindy_cfg is not None:
+        record["config"]["pysindy"] = sindy_cfg
     data = problem.noisy(noise, seed)
     start = time.perf_counter()
     try:
         if method == "epde":
             _, front, objectives, seconds = discover(problem, search_cfg, data)
         else:
-            cfg = {"search": settings["search"], "method": "pysindy",
-                   "pysindy": {"differentiation": "epde", "threshold": "auto",
-                               "max_terms_product": 2}}
+            cfg = {"search": selected["search"], "method": "pysindy",
+                   "pysindy": sindy_cfg}
             front, objectives, seconds, info = run_pysindy(problem, data, cfg, seed)
             record["baseline"] = info
         record.update(status="ok", fit_seconds=seconds, front=front, objectives=objectives)
