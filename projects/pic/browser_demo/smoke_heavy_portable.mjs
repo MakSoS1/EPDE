@@ -52,7 +52,9 @@ try{
   await pop.press("Tab");
   await f.getByRole("button",{name:/Next: review configuration/i}).click();
   await f.getByText(/Complete effective scientific configuration/).waitFor({timeout:45000});
-  await f.getByRole("checkbox",{name:/I have checked the input/i}).check();
+  await f.getByText(/I have checked the input/i).first().click();
+  if(!(await f.getByRole("checkbox",{name:/I have checked the input/i}).isChecked()))
+    throw Error("Experiment confirmation checkbox did not toggle");
   await f.getByText("This equation runs on your computer").waitFor({timeout:30000});
   const downloadButton=f.getByRole("button",{name:/Download experiment.zip/i});
   await downloadButton.waitFor({timeout:30000});
