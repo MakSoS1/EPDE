@@ -41,11 +41,7 @@ with st.container(border=True):
                  label="Open Compare",icon=":material/compare_arrows:")
 
 st.subheader("Explore how each method works")
-choice = st.segmented_control('Detailed guide', ['Overview','EPDE', 'PySINDy'], default='Overview')
-if choice == 'Overview':
-    st.caption("Select a method above to open its complete original technical guide, "
-               "interactive architecture and runnable educational demonstrations.")
-    st.stop()
+choice = st.segmented_control('Detailed guide', ['EPDE', 'PySINDy'], default='EPDE')
 if choice == 'PySINDy':
     from support.sindy_guide import render_sindy_guide
     render_sindy_guide()
