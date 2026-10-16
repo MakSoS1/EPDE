@@ -42,26 +42,210 @@ LIGHT = """
 """
 DARK = """
 <style>
-:root {--epde-border:#30425a;--epde-muted:#a6b7cc;--epde-surface:#192538;
---epde-heading:#e8f2ff;--epde-step-bg:#233e67;--epde-step-text:#9fc4ff;--epde-accent:#7eb2ff}
-.stApp,[data-testid="stAppViewContainer"],[data-testid="stMain"] {background:#101a29!important;color:#e8f0fa!important}
-[data-testid="stSidebar"],[data-testid="stSidebarContent"] {background:#152235!important;border-right:1px solid #30425a}
-.stApp .stMarkdown,.stApp [data-testid="stMarkdownContainer"],.stApp p,.stApp label,
-.stApp h1,.stApp h2,.stApp h3,.stApp h4,.stApp .stCaptionContainer,
-.stApp [data-testid="stText"],.stApp [data-testid="stWidgetLabel"] {color:#e8f0fa!important}
-.stApp [data-testid="stCaptionContainer"] p {color:#a6b7cc!important}
-[data-testid="stVerticalBlockBorderWrapper"] {background:transparent}
-[data-testid="stVerticalBlockBorderWrapper"] > div {border-color:#30425a!important}
-[data-testid="stExpander"],[data-testid="stMetric"] {background:#192538!important;border-color:#30425a!important}
-.stApp [data-baseweb="input"],.stApp [data-baseweb="select"],.stApp [data-baseweb="textarea"],
-.stApp [data-baseweb="base-input"],.stApp [data-baseweb="popover"] {background:#1c2c43!important;color:#f2f6ff!important}
-.stApp input,.stApp textarea,.stApp [role="combobox"] {color:#f2f6ff!important}
-.stApp .stButton button[kind="secondary"],.stApp .stDownloadButton button[kind="secondary"],
-.stApp .stLinkButton a {background:#20324b!important;color:#e9f3ff!important;border-color:#425777!important}
-.stApp [data-testid="stDataFrame"] {color:#e9f3ff}
+/*
+ * Streamlit runs with a light native theme on Cloud. Changing the page
+ * background alone leaves light BaseWeb buttons and selection widgets.
+ * The following complete control palette applies ONLY when Dark is selected
+ * in the EPDE Explorer sidebar; Light retains the genuine Streamlit theme.
+ */
+:root {
+  --epde-border:#364a64;--epde-muted:#aec0d6;--epde-surface:#1b293d;
+  --epde-heading:#edf5ff;--epde-step-bg:#29466b;--epde-step-text:#b5d5ff;
+  --epde-accent:#83b8ff;
+  --epde-dark-bg:#101a29;--epde-dark-sidebar:#152235;
+  --epde-dark-control:#213249;--epde-dark-hover:#2c4362;
+  --epde-dark-selected:#254d80;--epde-dark-stroke:#49607b;
+  --epde-dark-text:#edf5ff;--epde-dark-subtext:#b5c5db;
+}
+html, body, .stApp,
+[data-testid="stAppViewContainer"],[data-testid="stMain"],
+[data-testid="stMainBlockContainer"] {
+  background-color:var(--epde-dark-bg)!important;
+  color:var(--epde-dark-text)!important;
+}
+[data-testid="stSidebar"],[data-testid="stSidebarContent"],
+[data-testid="stSidebarUserContent"] {
+  background-color:var(--epde-dark-sidebar)!important;
+  color:var(--epde-dark-text)!important;
+  border-color:var(--epde-border)!important;
+}
+/* The bright top toolbar in a light Streamlit deployment was a major
+   contrast break on the user's screenshot. */
+[data-testid="stHeader"],header[data-testid="stHeader"],
+[data-testid="stToolbar"],[data-testid="stToolbarActions"],
+[data-testid="stAppDeployButton"] {
+  background-color:var(--epde-dark-bg)!important;
+  color:var(--epde-dark-text)!important;
+}
+[data-testid="stHeader"] button,[data-testid="stToolbar"] button {
+  color:var(--epde-dark-text)!important;
+}
+[data-testid="stHeader"] svg,[data-testid="stToolbar"] svg {
+  fill:currentColor;
+  color:var(--epde-dark-text)!important;
+}
+/* General content and cards */
+.stApp [data-testid="stMarkdownContainer"],
+.stApp [data-testid="stMarkdownContainer"] p,
+.stApp [data-testid="stMarkdownContainer"] li,
+.stApp [data-testid="stText"],.stApp label,
+.stApp h1,.stApp h2,.stApp h3,.stApp h4,.stApp h5 {
+  color:var(--epde-dark-text)!important;
+}
+.stApp [data-testid="stCaptionContainer"],
+.stApp [data-testid="stCaptionContainer"] p,
+.stApp .epde-subtitle,.stApp .epde-stageitem,
+.stApp .epde-muted {color:var(--epde-dark-subtext)!important}
+.stApp .epde-stageitem.active {color:var(--epde-dark-text)!important}
+.stApp [data-testid="stVerticalBlockBorderWrapper"] > div,
+.stApp [data-testid="stExpander"],
+.stApp [data-testid="stMetric"] {
+  border-color:var(--epde-border)!important;
+}
+.stApp [data-testid="stExpander"],
+.stApp [data-testid="stMetric"] {
+  background:var(--epde-surface)!important;
+}
+.stApp [data-testid="stAlert"] {background:#203049!important}
+.stApp [data-testid="stTabs"] [role="tab"] {
+  color:var(--epde-dark-subtext)!important;
+}
+.stApp [data-testid="stTabs"] [role="tab"][aria-selected="true"] {
+  color:var(--epde-dark-text)!important;
+  border-bottom-color:var(--epde-accent)!important;
+}
+/* All buttons used by st.pills and st.segmented_control. Streamlit's actual
+   BaseButton kind/testid matters more than the outer widget class. */
+.stApp button[kind="pills"],
+.stApp button[kind="segmented_control"],
+.stApp [data-testid="stBaseButton-pills"],
+.stApp [data-testid="stBaseButton-segmented_control"] {
+  background:var(--epde-dark-control)!important;
+  color:var(--epde-dark-text)!important;
+  border:1px solid var(--epde-dark-stroke)!important;
+  box-shadow:none!important;
+}
+.stApp button[kind="pillsActive"],
+.stApp button[kind="segmented_controlActive"],
+.stApp [data-testid="stBaseButton-pillsActive"],
+.stApp [data-testid="stBaseButton-segmented_controlActive"],
+.stApp [data-testid="stButtonGroup"] button[aria-pressed="true"] {
+  background:var(--epde-dark-selected)!important;
+  color:#ffffff!important;
+  border:1px solid #7db4ff!important;
+  box-shadow:inset 0 0 0 1px #4e86d4!important;
+}
+.stApp button[kind^="pills"]:not(:disabled):hover,
+.stApp button[kind^="segmented_control"]:not(:disabled):hover {
+  filter:brightness(1.17);
+}
+.stApp button[kind^="pills"] *,
+.stApp button[kind^="segmented_control"] * {
+  color:inherit!important;
+}
+/* Standard action buttons, links, nav and sidebar selection. */
+.stApp [data-testid="stBaseButton-secondary"],
+.stApp .stButton button[kind="secondary"],
+.stApp .stDownloadButton button[kind="secondary"],
+.stApp .stLinkButton a {
+  background:var(--epde-dark-control)!important;
+  color:var(--epde-dark-text)!important;
+  border:1px solid var(--epde-dark-stroke)!important;
+}
+.stApp [data-testid="stBaseButton-primary"],
+.stApp .stButton button[kind="primary"],
+.stApp .stDownloadButton button[kind="primary"] {
+  background:#397ce0!important;color:#ffffff!important;
+  border-color:#397ce0!important;
+}
+.stApp button:disabled {
+  opacity:.60!important;
+  cursor:not-allowed!important;
+}
+.stApp [data-testid="stSidebarNav"] a {
+  color:var(--epde-dark-text)!important;
+}
+.stApp [data-testid="stSidebarNav"] a[aria-current="page"],
+.stApp [data-testid="stSidebarNav"] a[aria-selected="true"] {
+  background:#2d486d!important;color:#ffffff!important;
+}
+/* Input controls (BaseWeb): div is the painted surface, not the input.
+   Covers selectbox, multiselect, numeric/text inputs and text areas. */
+.stApp [data-testid="stSelectbox"] [data-baseweb="select"] > div,
+.stApp [data-testid="stMultiSelect"] [data-baseweb="select"] > div,
+.stApp [data-baseweb="select"] > div,
+.stApp [data-baseweb="base-input"],
+.stApp [data-baseweb="input"] > div,
+.stApp [data-baseweb="textarea"] > div,
+.stApp [data-testid="stNumberInput"] > div,
+.stApp [data-testid="stTextInput"] > div {
+  background:var(--epde-dark-control)!important;
+  border-color:var(--epde-dark-stroke)!important;
+  color:var(--epde-dark-text)!important;
+}
+.stApp input,.stApp textarea,
+.stApp [role="combobox"],.stApp [data-baseweb="select"] span,
+.stApp [data-baseweb="select"] svg,
+.stApp [data-baseweb="input"] svg,
+.stApp [data-testid="stNumberInput"] button {
+  color:var(--epde-dark-text)!important;
+  caret-color:#ffffff!important;
+}
+.stApp input::placeholder,.stApp textarea::placeholder {
+  color:#afbed2!important;opacity:1!important;
+}
+.stApp [data-testid="stNumberInput"] button,
+.stApp [data-testid="stFileUploader"] section,
+.stApp [data-testid="stFileUploader"] button {
+  background:var(--epde-dark-control)!important;
+  color:var(--epde-dark-text)!important;
+  border-color:var(--epde-dark-stroke)!important;
+}
+.stApp [data-baseweb="tag"] {
+  background:#315276!important;color:#ffffff!important;
+}
+/* Select popovers are rendered into a body portal, outside .stApp. */
+body [data-baseweb="popover"],
+body [data-baseweb="menu"],body [role="listbox"],
+body [role="listbox"] ul {
+  background:var(--epde-dark-control)!important;
+  color:var(--epde-dark-text)!important;
+  border-color:var(--epde-dark-stroke)!important;
+}
+body [role="option"],body [role="listbox"] li,
+body [data-baseweb="menu"] li {
+  background:var(--epde-dark-control)!important;
+  color:var(--epde-dark-text)!important;
+}
+body [role="option"]:hover,body [role="option"][aria-selected="true"],
+body [role="listbox"] li:hover,
+body [data-baseweb="menu"] li:hover {
+  background:var(--epde-dark-selected)!important;
+  color:#ffffff!important;
+}
+/* Code, markdown tables and DataFrame containers */
+.stApp [data-testid="stCodeBlock"] pre,
+.stApp pre,
+.stApp code:not([class*="language-"]) {
+  background-color:#1b2b40!important;
+  border-color:var(--epde-dark-stroke)!important;
+}
+.stApp [data-testid="stDataFrame"],
+.stApp [data-testid="stTable"] {
+  background:var(--epde-surface)!important;
+  color:var(--epde-dark-text)!important;
+}
+.stApp [data-testid="stToggle"] label,
+.stApp [data-testid="stCheckbox"] label {
+  color:var(--epde-dark-text)!important;
+}
+/* Visible keyboard focus in both themes; do not sacrifice accessibility. */
+.stApp :is(button,input,textarea,[role="combobox"]):focus-visible {
+  outline:2px solid #92c2ff!important;
+  outline-offset:2px;
+}
 </style>
 """
-
 def apply_ui():
     theme = st.session_state.get("epde_appearance", "Light")
     st.markdown(BASE + (DARK if theme == "Dark" else LIGHT),
