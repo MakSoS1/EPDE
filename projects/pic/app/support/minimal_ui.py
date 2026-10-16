@@ -190,6 +190,12 @@ html, body, .stApp,
 .stApp [data-testid="stSidebarNav"] a {
   color:var(--epde-dark-text)!important;
 }
+.stApp [data-testid="stSidebarNav"] svg,
+.stApp [data-testid="stSidebar"] svg,
+.stApp [data-testid="stSidebar"] [data-testid="stBaseButton-headerNoPadding"],
+.stApp [data-testid="stBaseButton-elementToolbar"] {
+  color:var(--epde-dark-subtext)!important;
+}
 .stApp [data-testid="stSidebarNav"] a[aria-current="page"],
 .stApp [data-testid="stSidebarNav"] a[aria-selected="true"] {
   background:#2d486d!important;color:#ffffff!important;
@@ -203,7 +209,11 @@ html, body, .stApp,
 .stApp [data-baseweb="input"] > div,
 .stApp [data-baseweb="textarea"] > div,
 .stApp [data-testid="stNumberInput"] > div,
-.stApp [data-testid="stTextInput"] > div {
+.stApp [data-testid="stTextInput"] > div,
+.stApp [data-testid="stNumberInput"] div:has(> input),
+.stApp [data-testid="stTextInput"] div:has(> input),
+.stApp [data-testid="stNumberInput"] input,
+.stApp [data-testid="stTextInput"] input {
   background:var(--epde-dark-control)!important;
   border-color:var(--epde-dark-stroke)!important;
   color:var(--epde-dark-text)!important;
