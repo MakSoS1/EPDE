@@ -47,6 +47,15 @@ try{
   await page.getByRole("button",{name:/Next: configure methods/i}).waitFor({timeout:55000});
   await page.waitForTimeout(900);
   const p=await getPalette();
+  const interactiveDom=await page.evaluate(()=>[...document.querySelectorAll(
+    'button,[role="button"],[role="combobox"],[data-testid*="Pills"],[data-testid*="Segmented"],[data-testid*="Selectbox"],[data-testid*="ButtonGroup"]'
+  )].filter(x=>x.getBoundingClientRect().width>0).slice(0,110).map(x=>({
+    tag:x.tagName,kind:x.getAttribute('kind'),testid:x.getAttribute('data-testid'),
+    role:x.getAttribute('role'),cls:String(x.className).slice(0,140),
+    text:x.textContent?.trim().slice(0,55),
+    bg:getComputedStyle(x).backgroundColor,fg:getComputedStyle(x).color
+  })));
+  console.log("DARK_INTERACTIVE_REAL_DOM "+JSON.stringify(interactiveDom));
   console.log("DARK_COMPONENT_PALETTE "+JSON.stringify(p));
   const buttons=[...p.pills,...p.segmented].filter(x=>!x.disabled);
   if(buttons.length<4)
