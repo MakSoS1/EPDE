@@ -8,10 +8,10 @@ const base=process.env.STREAMLIT_URL||"http://127.0.0.1:8501";
 const getPalette=async()=>page.evaluate(()=>{
   const selectors={
     toolbar:'[data-testid="stHeader"]',
-    pills:'button[kind="pills"],button[kind="pillsActive"],[data-testid^="stBaseButton-pills"]',
-    segmented:'button[kind^="segmented_control"],[data-testid^="stBaseButton-segmented_control"]',
-    selects:'[data-baseweb="select"] > div',
-    inputs:'[data-baseweb="base-input"]',
+    pills:'[data-testid="stButtonGroup"] button[aria-pressed],button[kind^="pills"],[data-testid^="stBaseButton-pills"]',
+    segmented:'[data-testid="stButtonGroup"] button[role="radio"],button[kind^="segmented_control"],[data-testid^="stBaseButton-segmented_control"]',
+    selects:'[data-testid="stSelectbox"] div:has(> input[role="combobox"]),[data-baseweb="select"] > div',
+    inputs:'[data-testid="stSelectbox"] input[role="combobox"],[data-testid="stNumberInput"] input',
   };
   const toData=el=>{
     const s=getComputedStyle(el);
