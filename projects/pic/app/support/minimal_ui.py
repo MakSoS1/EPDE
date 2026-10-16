@@ -143,6 +143,31 @@ html, body, .stApp,
 .stApp button[kind^="segmented_control"] * {
   color:inherit!important;
 }
+/* Streamlit >=1.5x renders pills/segmented controls as radio buttons
+   inside stButtonGroup, without BaseButton kind or data-testid on each option.
+   The old selectors above intentionally remain as compatibility fallbacks. */
+.stApp [data-testid="stButtonGroup"] button[role="radio"],
+.stApp [data-testid="stButtonGroup"] button[aria-pressed="false"] {
+  background:var(--epde-dark-control)!important;
+  color:var(--epde-dark-text)!important;
+  border:1px solid var(--epde-dark-stroke)!important;
+  box-shadow:none!important;
+}
+.stApp [data-testid="stButtonGroup"] button[role="radio"][aria-checked="true"],
+.stApp [data-testid="stButtonGroup"] button[aria-pressed="true"] {
+  background:var(--epde-dark-selected)!important;
+  color:#ffffff!important;
+  border-color:#7db4ff!important;
+  box-shadow:inset 0 0 0 1px #4e86d4!important;
+}
+.stApp [data-testid="stButtonGroup"] button[role="radio"]:not(:disabled):hover,
+.stApp [data-testid="stButtonGroup"] button[aria-pressed]:not(:disabled):hover {
+  filter:brightness(1.17);
+}
+.stApp [data-testid="stButtonGroup"] button[role="radio"] *,
+.stApp [data-testid="stButtonGroup"] button[aria-pressed] * {
+  color:inherit!important;
+}
 /* Standard action buttons, links, nav and sidebar selection. */
 .stApp [data-testid="stBaseButton-secondary"],
 .stApp .stButton button[kind="secondary"],
@@ -193,6 +218,20 @@ html, body, .stApp,
 }
 .stApp input::placeholder,.stApp textarea::placeholder {
   color:#afbed2!important;opacity:1!important;
+}
+/* Newer Selectbox is an input[role=combobox] rather than BaseWeb select.
+   Color the input AND each painted direct wrapper to remove the white field. */
+.stApp [data-testid="stSelectbox"] input[role="combobox"],
+.stApp [data-testid="stSelectbox"] div:has(> input[role="combobox"]),
+.stApp [data-testid="stSelectbox"] div:has(> div > input[role="combobox"]),
+.stApp [data-testid="stSelectbox"] div:has(> div > div > input[role="combobox"]) {
+  background-color:var(--epde-dark-control)!important;
+  color:var(--epde-dark-text)!important;
+  border-color:var(--epde-dark-stroke)!important;
+}
+.stApp [data-testid="stSelectbox"] button,
+.stApp [data-testid="stSelectbox"] button svg {
+  color:var(--epde-dark-text)!important;
 }
 .stApp [data-testid="stNumberInput"] button,
 .stApp [data-testid="stFileUploader"] section,
