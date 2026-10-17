@@ -35,9 +35,13 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(rec['front'], self.GOOD['front'])
 
     def test_single_pysindy_candidate_is_not_invented_pareto_front(self):
-        rec = normalize(self.GOOD, 'pysindy')
+        rec = normalize(dict(self.GOOD, objectives=[None]), 'pdecomp')
         self.assertEqual(len(rec['front']), 1)
-        self.assertIn('active terms', rec['criterion_labels'][1])
+        self.assertIn('not reported', rec['criterion_labels'][1])
+
+    def test_earlier_pysindy_baseline_is_not_an_app_method(self):
+        with self.assertRaises(ValueError):
+            normalize(self.GOOD, 'pysindy')
 
     def test_wrong_index_and_objective_are_rejected(self):
         for mutation in ({'metrics':{'selected_index':2}}, {'objectives':[[float('nan'), 2]]},
@@ -124,7 +128,7 @@ class QueueTests(unittest.TestCase):
 
     def test_pending_limit_and_cancellation(self):
         a = self.queue.new_owner()
-        req = {'method':'pysindy', 'source':'record', 'dataset':'ode', 'variant':'pysindy'}
+        req = {'method':'pdecomp', 'source':'record', 'dataset':'ode', 'variant':'pysindy_pdecomp_fixed'}
         with patch.object(self.queue, 'ensure_manager', return_value=None):
             ids = [self.queue.submit(a, req) for _ in range(self.queue.MAX_OWNER_PENDING)]
             with self.assertRaisesRegex(ValueError, 'waiting or running'):
@@ -190,7 +194,8 @@ class WorkerAndPage(unittest.TestCase):
         with patch.object(job_queue, 'ensure_manager', return_value=None):
             for name in ('ode', 'nir1_h11_biharmonic'):
                 cls.ids[name] = job_queue.submit(cls.owner, {
-                    'method': 'pysindy', 'source': 'record', 'dataset': name, 'variant': 'pysindy',
+                    'method': 'pdecomp', 'source': 'record', 'dataset': name,
+                    'variant': 'pysindy_pdecomp_fixed' if name == 'ode' else 'pysindy_pdecomp_native',
                     'noise': 0.0, 'seed': 0, 'display': {'label': name, 'input_key': name}})
             from support.discovery_lab.ode import generate, reference_law
             from epde_bench.config import read_yaml
@@ -203,7 +208,7 @@ class WorkerAndPage(unittest.TestCase):
                         'reference_truth': [reference_law('u - u**3')[0]], 'label': 'generated'}
             data, config = job_queue.save_upload(cls.owner, generate('u - u**3', 10, 0.1, 301), settings)
             cls.ids['generated'] = job_queue.submit(cls.owner, {
-                'method': 'pysindy', 'source': 'upload', 'dataset': 'custom', 'data_path': str(data),
+                'method': 'pdecomp', 'source': 'upload', 'dataset': 'custom', 'data_path': str(data),
                 'config_path': str(config), 'display': {'label': 'generated', 'input_key': 'gen'}})
         for jid in cls.ids.values():
             folder = job_queue.job_path(cls.owner, jid)

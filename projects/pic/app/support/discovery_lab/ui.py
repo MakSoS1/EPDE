@@ -12,8 +12,35 @@ import streamlit as st
 from ..common import show_figure
 from ..equations import system_latex, term_plain
 
-METHOD_NAMES = {"epde": "EPDE", "pysindy": "PySINDy", "llm": "LLM agent"}
-METHOD_COLORS = {"epde": "#4c78a8", "pysindy": "#f58518", "llm": "#54a24b"}
+METHOD_NAMES = {"epde": "EPDE", "pdecomp": "PySINDy", "llm": "LLM agent"}
+METHOD_COLORS = {"epde": "#4c78a8", "pdecomp": "#f58518", "llm": "#54a24b"}
+#: What each method is, in one line, for captions.
+PROTOCOL_NOTES = {
+    "epde": "EPDE with the stored settings of the record.",
+    "pdecomp": "PySINDy exactly as the PDEComp benchmark runs it: its own code at a pinned commit; "
+               "on PDEComp's datasets with PDEComp's settings for them, elsewhere with the native "
+               "protocol and PDEComp's default settings.",
+}
+
+
+def job_method_label(job):
+    """Method label of a queued or finished job, from its stored variant."""
+    variant = job.get("variant") or ""
+    if job.get("method") == "pdecomp" and variant.startswith("pysindy_pdecomp_"):
+        return f"{METHOD_NAMES['pdecomp']} · {variant.rsplit('_', 1)[-1]} protocol"
+    return METHOD_NAMES.get(job.get("method"), job.get("method"))
+
+
+def method_label(record):
+    """Method name with its protocol, e.g. ``PySINDy · PDEComp fixed``."""
+    method = record.get("method")
+    label = METHOD_NAMES.get(method, method)
+    if method == "pdecomp":
+        protocol = (record.get("baseline") or {}).get("protocol") or \
+            ((record.get("config") or {}).get("pdecomp") or {}).get("protocol")
+        if protocol:
+            label += f" · {protocol} protocol"
+    return label
 EFFORT_NAMES = {"quick": "quick", "standard": "standard", "thorough": "thorough"}
 
 
@@ -71,19 +98,46 @@ def summary_row(job, record):
     m = record.get("metrics") or {}
     truth = (record.get("problem") or {}).get("truth")
     scores = solution_scores(record)
-    row = {"method": METHOD_NAMES.get(record.get("method"), record.get("method")),
+    library = (record.get("baseline") or {}).get("library_size")
+    row = {"method": method_label(record),
            "search budget": EFFORT_NAMES.get(record.get("effort") or job.get("effort"), "standard"),
            "found equation": " ; ".join(plain_equation(eq, axes_of(record))
                                         for eq in (record.get("selected") or [])),
            "known law found": (("yes" if m.get("success_selected") else
                                 "on the front" if m.get("success_front") else "no") if truth else "law unknown"),
            "coefficient error": m.get("coef_error") if truth and m.get("success_selected") else None,
+           "HD": m.get("hamming_selected") if truth else None,
+           "RE (sum)": m.get("re_sum") if truth else None,
            "solution R² (worst variable)": min((s[0] for s in scores.values() if s[0] is not None),
                                                default=None),
            "equation balance R²": balance_score(record),
            "candidates": len(record.get("front") or []),
+           "library size": (sum(library.values()) if isinstance(library, dict)
+                            else int(library) if isinstance(library, (int, float)) else None),
            "search time, s": record.get("fit_seconds")}
     return row
+
+
+METRIC_HELP = {
+    "HD": "Hamming distance between the selected equation and the known law: missing plus "
+          "extra terms (0 = exact structure), as in PDEComp.",
+    "RE (sum)": "PDEComp's relative error: the sum over the true terms of |found − true| / |true|, "
+                "coefficients scaled to the target; a missing true term adds 1.",
+    "library size": "Candidate terms offered to sparse regression (all equations together).",
+}
+
+
+def metric_columns():
+    """Column formats shared by the result tables."""
+    return {
+        "coefficient error": st.column_config.NumberColumn(format="percent"),
+        "HD": st.column_config.NumberColumn(format="%d", help=METRIC_HELP["HD"]),
+        "RE (sum)": st.column_config.NumberColumn(format="%.4g", help=METRIC_HELP["RE (sum)"]),
+        "library size": st.column_config.NumberColumn(format="%d", help=METRIC_HELP["library size"]),
+        "solution R² (worst variable)": st.column_config.NumberColumn(format="%.4f"),
+        "equation balance R²": st.column_config.NumberColumn(format="%.4f"),
+        "search time, s": st.column_config.NumberColumn(format="%.2f"),
+    }
 
 
 def plain_equation(eq, axes):
@@ -197,6 +251,24 @@ def solution_plots(records):
         axes[-1, 0].set_xlabel(axes_of(solved[0][1])[0])
         fig.tight_layout()
         show_figure(fig)
+        # The error of each solution over time, on its own scale.
+        fig, axes = plt.subplots(len(variables), 1, figsize=(10, 1.9 * len(variables)),
+                                 squeeze=False, sharex=True)
+        for ax, var in zip(axes[:, 0], variables):
+            data = _series(reference["observed"][var])
+            for title, record in solved:
+                sol = record["evaluation"]["solution"]
+                if var in sol.get("simulated", {}) and len(sol["simulated"][var]) == len(data):
+                    ax.plot(_series(sol["t"]), _series(sol["simulated"][var]) - data, lw=1.1,
+                            color=METHOD_COLORS.get(record.get("method")), label=title)
+            ax.axhline(0, color="black", lw=.6)
+            ax.set_ylabel(f"error, {var}")
+            ax.legend(fontsize=8, loc="upper right")
+            ax.grid(alpha=.25)
+        axes[-1, 0].set_xlabel(axes_of(solved[0][1])[0])
+        axes[0, 0].set_title("solution − data", fontsize=9)
+        fig.tight_layout()
+        show_figure(fig)
         return
     # 1-D PDE: data, each solution and its difference on one colour scale per variable
     for var in variables:
@@ -225,3 +297,51 @@ def solution_plots(records):
                 ax.set_ylabel("x")
         fig.tight_layout()
         show_figure(fig)
+
+
+def balance_plots(records):
+    """The equation against the data it was found on, without integrating it: the
+    target computed from the data next to the value of the right-hand side.
+
+    ODEs: both over time and their difference; PDEs: one against the other.
+    ``records`` is a list of (title, record)."""
+    import matplotlib.pyplot as plt
+    shown = [(title, r) for title, r in records
+             if ((r.get("evaluation") or {}).get("balance_series"))]
+    if not shown:
+        st.info("The equation balance could not be computed for these results.")
+        return
+    for title, record in shown:
+        axes_names = axes_of(record)
+        for target, series in record["evaluation"]["balance_series"].items():
+            observed, predicted = _series(series["observed"]), _series(series["predicted"])
+            color = METHOD_COLORS.get(record.get("method"), "C0")
+            label = term_plain(target, axes_names)
+            if "t" in series:
+                t = _series(series["t"])
+                fig, (top, bottom) = plt.subplots(2, 1, figsize=(10, 3.6), sharex=True,
+                                                  gridspec_kw={"height_ratios": [2, 1]})
+                top.plot(t, observed, color="black", lw=1.4, label=f"{label} from the data")
+                top.plot(t, predicted, "--", color=color, lw=1.2, label="right-hand side")
+                top.legend(fontsize=8, loc="upper right")
+                top.grid(alpha=.25)
+                top.set_title(f"{title}: {label}", fontsize=9)
+                bottom.plot(t, predicted - observed, color=color, lw=1.0)
+                bottom.axhline(0, color="black", lw=.6)
+                bottom.set_ylabel("residual")
+                bottom.set_xlabel(axes_names[0])
+                bottom.grid(alpha=.25)
+            else:
+                fig, ax = plt.subplots(figsize=(4.6, 4.0))
+                ax.scatter(observed, predicted, s=5, alpha=.35, color=color)
+                finite = np.isfinite(observed) & np.isfinite(predicted)
+                if finite.any():
+                    lo = float(min(observed[finite].min(), predicted[finite].min()))
+                    hi = float(max(observed[finite].max(), predicted[finite].max()))
+                    ax.plot([lo, hi], [lo, hi], color="black", lw=.8)
+                ax.set_xlabel(f"{label} from the data")
+                ax.set_ylabel("right-hand side")
+                ax.set_title(f"{title}: {label}", fontsize=9)
+                ax.grid(alpha=.25)
+            fig.tight_layout()
+            show_figure(fig)

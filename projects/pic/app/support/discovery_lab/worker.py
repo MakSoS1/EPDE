@@ -34,7 +34,7 @@ def _run_record(req, *, hosted=False):
     from epde_bench.datasets import REGISTRY
     method = req["method"]
     dataset, variant = req["dataset"], req["variant"]
-    if hosted and method in ("epde", "pysindy"):
+    if hosted and method in ("epde", "pdecomp"):
         from support.discovery_lab.execution_policy import is_local_only
         if is_local_only(dataset):
             raise ValueError("Hosted EPDE refused: heavy datasets must run locally.")
@@ -55,25 +55,23 @@ def _run_record(req, *, hosted=False):
     from support.discovery_lab.lab_settings import validate_public_search
     if "overrides" in req:
         overrides = req["overrides"] or {}
-        expected = {"search", "pysindy"} if method == "pysindy" else {"search"}
+        expected = set() if method == "pdecomp" else {"search"}
         if not isinstance(overrides, dict) or set(overrides) - expected:
             raise ValueError("Invalid method-specific scientific overrides")
         if "search" in overrides and not isinstance(overrides["search"], dict):
             raise ValueError("Search overrides must contain a mapping")
         cfg = load_config(dataset, variant, overrides=overrides)
         problem = load(dataset, **cfg.get("loader", {}))
-        validate_public_search(resolve_for_problem(cfg, problem), problem.shape, override=not hosted)
-        if method == "pysindy":
-            from support.discovery_lab.sindy_settings import validate_sindy_options
-            cfg["pysindy"] = validate_sindy_options(
-                cfg.get("pysindy", {}), supplied_derivatives=problem.derivs is not None)
+        # PDEComp's PySINDy ignores the EPDE search budget; one sparse regression is cheap.
+        if method != "pdecomp":
+            validate_public_search(resolve_for_problem(cfg, problem), problem.shape, override=not hosted)
     else:
         overrides = None
         if method == "epde" and EFFORTS[effort] is not None:
             population, epochs = EFFORTS[effort]
             overrides = {"search": {"evolution": {"population_size": population,
                                                   "training_epochs": epochs}}}
-    if hosted and method in ("epde", "pysindy"):
+    if hosted and method == "epde":
         from support.discovery_lab.execution_policy import require_hosted_epde
         # The complete effective settings are re-evaluated independently of
         # the frontend. Legacy requests without overrides are gated too.
@@ -90,7 +88,7 @@ def _run_upload(req, folder, *, hosted=False):
     import yaml
     import numpy as np
     from epde_bench import env, metrics
-    from epde_bench.baselines import run_pysindy, UnsupportedProblem
+    from epde_bench.baselines import UnsupportedProblem
     from epde_bench.config import resolve_for_problem
     from support.custom_run import problem_from_npz, custom_identity
     from epde_bench.runner import discover
@@ -124,19 +122,24 @@ def _run_upload(req, folder, *, hosted=False):
     # Each algorithm receives only its own scientific configuration.
     # No EPDE population/epoch, Pareto or optimizer settings affect PySINDy.
     configs = settings.get("method_configs") or {}
-    if not isinstance(configs, dict) or set(configs) - {"epde", "pysindy"}:
+    if not isinstance(configs, dict) or set(configs) - {"epde", "pdecomp"}:
         raise ValueError("Invalid per-method uploaded configuration")
-    selected = configs.get(method, {"search": settings["search"]})
+    if method == "pdecomp":
+        # PDEComp's PySINDy: native protocol, its defaults; only the target is chosen.
+        sindy_cfg = configs.get("pdecomp") or {"protocol": "native", "target_orders": {}}
+        orders = sindy_cfg.get("target_orders") or {}
+        if (sindy_cfg.get("protocol") != "native" or set(sindy_cfg) - {"protocol", "target_orders"}
+                or not isinstance(orders, dict) or set(orders) - set(problem.variables)
+                or any(k not in (1, 2) for k in orders.values())):
+            raise ValueError("Invalid PySINDy settings")
+        selected = {"search": settings["search"]}   # only to check the result on the data
+    else:
+        selected = configs.get(method, {"search": settings["search"]})
+        sindy_cfg = None
     if not isinstance(selected, dict) or not isinstance(selected.get("search"), dict):
         raise ValueError("Missing per-method search/library config")
-    if set(selected) - ({"search", "pysindy"} if method == "pysindy" else {"search"}):
+    if set(selected) - {"search"}:
         raise ValueError("Unrecognized method configuration fields")
-    if method == "pysindy":
-        from support.discovery_lab.sindy_settings import validate_sindy_options
-        sindy_cfg = validate_sindy_options(
-            selected.get("pysindy", {}), supplied_derivatives=problem.derivs is not None)
-    else:
-        sindy_cfg = None
     identity = custom_identity(data_path, settings, noise, seed)
     # The original custom identity assumes EPDE; distinguish SINDy and EPDE
     # even when they use identical data and differentiation settings.
@@ -160,23 +163,31 @@ def _run_upload(req, folder, *, hosted=False):
         record["problem"]["title"] = str(settings["label"])[:160]
     search_cfg = resolve_for_problem({"search": selected["search"]}, problem)
     from support.discovery_lab.lab_settings import validate_public_search
-    validate_public_search(search_cfg, problem.shape, override=not hosted)
-    if hosted and method in ("epde", "pysindy"):
+    if method == "epde":
+        validate_public_search(search_cfg, problem.shape, override=not hosted)
+    if hosted and method == "epde":
         from support.discovery_lab.execution_policy import require_hosted_epde
         require_hosted_epde(None, problem.shape, len(problem.variables), search_cfg)
     record["search_config"] = search_cfg
     if sindy_cfg is not None:
-        record["config"]["pysindy"] = sindy_cfg
+        record["config"]["pdecomp"] = sindy_cfg
     data = problem.noisy(noise, seed)
     start = time.perf_counter()
     try:
         if method == "epde":
             _, front, objectives, seconds = discover(problem, search_cfg, data)
         else:
-            cfg = {"search": selected["search"], "method": "pysindy",
-                   "pysindy": sindy_cfg}
-            front, objectives, seconds, info = run_pysindy(problem, data, cfg, seed)
-            record["baseline"] = info
+            from epde_bench import pdecomp
+            reason = pdecomp.unsupported_reason(problem.kind, len(problem.variables))
+            if reason:
+                raise UnsupportedProblem(problem, reason)
+            raw, own, seconds = pdecomp.run(problem, data, "native", seed,
+                                            orders=sindy_cfg.get("target_orders") or None)
+            front, objectives = [pdecomp.to_epde_texts(problem, raw)], [None]
+            record["baseline"] = {"protocol": "native", "pdecomp_settings": "native defaults",
+                                  "source": f"{pdecomp.PDECOMP_REPO}@{pdecomp.PDECOMP_REV}",
+                                  "library_size": dict(zip(raw["targets"], pdecomp.library_size(raw))),
+                                  "result": raw, "pdecomp_metrics": own}
         record.update(status="ok", fit_seconds=seconds, front=front, objectives=objectives)
         record["metrics"] = metrics.score_run(front, objectives,
                                               [truth] if truth else [])
@@ -346,10 +357,18 @@ def evaluate(record):
         search["_reconstruction_differentiation"] = differentiation
     out = {"kind": problem.kind, "variables": list(problem.variables),
            "axis_names": list(problem.axis_names), "balance": {}, "solution": None}
+    out["balance_series"] = {}
     for eq in system:
         try:
             observed, predicted = rc.equation_fields(problem, eq, search, data)
             out["balance"][eq.split("=", 1)[1].strip()] = rc.r2_score(observed, predicted)
+            # Thinned series for the balance plot: data-side target against the equation.
+            series = {"observed": _clean(_thin(np.ravel(observed), 1500)),
+                      "predicted": _clean(_thin(np.ravel(predicted), 1500))}
+            if problem.dim == 0:
+                from epde_bench.library import _interior
+                series["t"] = _clean(_thin(np.ravel(np.asarray(problem.grids[0])[_interior(problem, search)]), 1500))
+            out["balance_series"][eq.split("=", 1)[1].strip()] = series
         except Exception as exc:                       # noqa: BLE001
             out["balance"][eq.split("=", 1)[1].strip()] = None
             out.setdefault("notes", []).append(f"balance: {type(exc).__name__}")

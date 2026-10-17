@@ -1,0 +1,5 @@
+# Settings of the lv record, applied to its PDEComp window (first 150 samples):
+# first derivatives suffice, and a coupled system needs more weight vectors.
+search:
+  preprocessing: {max_deriv_order: [1]}
+  evolution: {population_size: 32}

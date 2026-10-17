@@ -25,7 +25,7 @@ with tab_start:
         datasets = st.multiselect('records', dataset_names(with_truth=True), default=['ode', 'vdp', 'burgers'],
                                   format_func=dataset_label)
         c1, c2 = st.columns(2)
-        var = c1.multiselect('methods', variants(), default=['default', 'pysindy'], format_func=variant_label)
+        var = c1.multiselect('methods', variants(), default=['default', 'pysindy_pdecomp_fixed'], format_func=variant_label)
         noise = c2.multiselect('noise, %', [0, 0.5, 1, 2, 5, 10], default=[0, 1])
         with st.expander('More options'):
             name = st.text_input('name', f"campaign_{time.strftime('%m%d_%H%M')}")

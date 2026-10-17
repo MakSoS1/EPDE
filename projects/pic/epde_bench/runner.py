@@ -112,6 +112,24 @@ def run_one(dataset: str, variant: str = 'default', noise: float = 0.0, seed: in
             from .baselines import run_pysindy
             texts, objectives, fit_seconds, info = run_pysindy(problem, data, cfg, seed)
             record['baseline'] = info
+        elif cfg['method'] == 'pdecomp':
+            from . import pdecomp
+            options = cfg.get('pdecomp') or {}
+            protocol = options.get('protocol', 'fixed')
+            if not pdecomp.supported(dataset):
+                reason = pdecomp.unsupported_reason(problem.kind, len(problem.variables))
+                if reason or protocol != 'native':
+                    raise UnsupportedProblem(dataset, reason or 'The fixed protocol has PDEComp settings '
+                                             'only for its own data sets; use the native protocol.')
+            raw, pdecomp_metrics, fit_seconds = pdecomp.run(problem, data, protocol, seed,
+                                                            orders=options.get('target_orders'))
+            texts, objectives = [pdecomp.to_epde_texts(problem, raw)], [None]
+            record['baseline'] = {'protocol': protocol, 'source': f'{pdecomp.PDECOMP_REPO}@{pdecomp.PDECOMP_REV}',
+                                  'pdecomp_file': pdecomp.PDECOMP_FILES.get(dataset),
+                                  'pdecomp_settings': 'per data set' if pdecomp.supported(dataset)
+                                                      else 'native defaults',
+                                  'library_size': dict(zip(raw['targets'], pdecomp.library_size(raw))),
+                                  'result': raw, 'pdecomp_metrics': pdecomp_metrics}
         else:
             raise ValueError(f"unknown method {cfg['method']!r}")
         record.update(status='ok', fit_seconds=fit_seconds, front=texts, objectives=objectives)

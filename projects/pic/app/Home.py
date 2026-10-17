@@ -50,7 +50,6 @@ if (os.environ.get("EPDE_SHOW_RESEARCH_PAGES") == "1"
         st.Page("views/2_Signal_check.py", title="Signal check", icon="🔍"),
         st.Page("views/3_Derivatives.py", title="Derivatives", icon="📈"),
         st.Page("views/5_Run_search.py", title="Run a search (legacy)", icon="🚀"),
-        st.Page("views/4_SINDy.py", title="SINDy baseline (legacy)", icon="🧩"),
         st.Page("views/6_Your_data.py", title="Your data (legacy)", icon="📤"),
         st.Page("views/7_Results.py", title="Results (legacy)", icon="🗃️"),
         st.Page("views/8_Benchmark.py", title="Benchmark (legacy)", icon="🏁"),

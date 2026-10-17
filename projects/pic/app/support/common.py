@@ -67,7 +67,9 @@ VARIANT_LABELS = {
     'knee': 'EPDE, sparsity at the knee of the error curve',
     'instab_cv': 'EPDE, instability by cross-validation',
     'trig_native': "EPDE, library's sine and cosine on a narrow frequency interval",
-    'pysindy': 'sparse regression (PySINDy)',
+    'pysindy': "PySINDy, the project's earlier baseline (not PDEComp)",
+    'pysindy_pdecomp_fixed': 'PySINDy, PDEComp fixed protocol',
+    'pysindy_pdecomp_native': 'PySINDy, PDEComp native protocol',
     'custom': 'EPDE, settings from the upload page',
 }
 

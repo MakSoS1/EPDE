@@ -1,0 +1,5 @@
+# Settings of the lorenz record, applied to its PDEComp window (first 1000 samples).
+search:
+  domain: {boundary_width: 10}
+  preprocessing: {max_deriv_order: [1]}
+  evolution: {population_size: 48}

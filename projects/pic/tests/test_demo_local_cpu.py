@@ -86,7 +86,7 @@ class LocalCpuTests(unittest.TestCase):
 
     def test_lab_unifies_methods_without_execution_location_controls(self):
         lab = (APP / "views/10_Discovery_lab.py").read_text(encoding="utf-8")
-        self.assertIn('st.session_state.setdefault("lab_discovery_methods", ["epde", "pysindy"])', lab)
+        self.assertIn('st.session_state.setdefault("lab_discovery_methods", ["epde", "pdecomp"])', lab)
         self.assertIn('"method": m', lab)
         self.assertIn('"input_key": key', lab)
         self.assertIn("queue.submit(owner, req)", lab)

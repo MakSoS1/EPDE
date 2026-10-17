@@ -1,0 +1,9 @@
+# u_t = 0.25 u_xx - u_x / x on PDEComp's time axis. The 1/x coordinate token
+# lets the law be written as PDEComp writes it; the coordinate token x of the
+# base pool still allows the form multiplied by x.
+search:
+  search_space:
+    tokens:
+      - {family: grid, labels: [x], max_power: 2}
+      - {family: fixed_trigonometric, freq: 2.0}
+      - {family: inverse_space_coordinate}

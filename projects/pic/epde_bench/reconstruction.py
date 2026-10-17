@@ -57,6 +57,32 @@ def parse_equation(eq_text):
     return terms, constant, target, target_coef
 
 
+def _elementary_factor(problem, data, factor, arrays):
+    """A factor outside the search's evaluated pool, when it is elementary: a
+    coordinate, 1/x, sine or cosine of a coordinate, a given field, or a power
+    of a variable or of a derivative the pool holds. ``None`` otherwise.
+
+    Equations from other methods (another library, another protocol) may use
+    such factors although the record's EPDE pool does not list them."""
+    name, pairs = factor
+    params = dict(pairs)
+    power = float(params.get('power', 1.0))
+    grids = [np.asarray(g, dtype=float) for g in problem.grids]
+    dim = int(params.get('dim', 1 if problem.dim else 0))
+    if name == '1/x' and problem.dim:
+        return (1.0 / grids[min(max(dim, 1), problem.dim)]) ** power
+    if name == 'x' or re.match(r'^x_\d+$', name):
+        return grids[dim] ** power if dim < len(grids) else None
+    if name in ('sin', 'cos') and dim < len(grids):
+        return getattr(np, name)(float(params.get('freq', 1.0)) * grids[dim]) ** power
+    if name in (problem.extra_arrays or {}):
+        return np.asarray(problem.extra_arrays[name][0], dtype=float) ** power
+    if name in data:
+        return np.asarray(data[name], dtype=float) ** power
+    base = arrays.get((name, frozenset({('power', 1.0)})))
+    return None if base is None else base ** power
+
+
 def equation_fields(problem, eq_text, search, data=None):
     """Observed left-hand side and the value the equation predicts for it,
     both on the interior used by the search. Returns ``(observed, predicted)``
@@ -71,6 +97,11 @@ def equation_fields(problem, eq_text, search, data=None):
         arrays = {_parse_factor(name): array for name, array, *_ in blocks}
     inner = _interior(problem, search)
     terms, constant, target, target_coef = parse_equation(eq_text)
+    for factor in {f for _, factors in terms for f in factors} | set(target):
+        if factor not in arrays:
+            value = _elementary_factor(problem, data, factor, arrays)
+            if value is not None:
+                arrays[factor] = value
     observed = target_coef * _term_array(target, arrays)
     predicted = np.full(problem.shape, constant, dtype=float)
     for coef, factors in terms:
@@ -265,6 +296,9 @@ def simulate_pde(problem, system, search, data=None):
         raise ValueError('PDE coordinates must be strictly increasing')
     variables = problem.variables
     initial = {v: np.asarray(data[v])[0].copy() for v in variables}
+    extras = {label: np.asarray(array, dtype=float)
+              for label, (array, _) in (problem.extra_arrays or {}).items()
+              if np.shape(array) == problem.shape}
     n = len(x) - 2
 
     def rhs(time, state):
@@ -301,6 +335,13 @@ def simulate_pde(problem, system, search, data=None):
                     elif name in ('sin', 'cos'):
                         coordinate = time if params.get('dim', 1) == 0 else x
                         factor = getattr(np, name)(params.get('freq', 1) * coordinate)
+                    elif name == '1/x':
+                        factor = 1.0 / x
+                    elif name in extras:
+                        # a given field of (t, x): linear in time between stored rows
+                        k = int(np.clip(np.searchsorted(t, time) - 1, 0, len(t) - 2))
+                        w = (time - t[k]) / (t[k + 1] - t[k])
+                        factor = (1 - w) * extras[name][k] + w * extras[name][k + 1]
                     else:
                         raise KeyError(name)
                     product *= factor ** params.get('power', 1)

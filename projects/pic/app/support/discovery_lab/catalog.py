@@ -23,7 +23,10 @@ SUITE_LABELS = {
     "extended": "Extended benchmark",
     "real": "Measured data",
     "other": "Other data",
+    "pdecomp": "PDEComp windows",
 }
+#: All records whose arrays are PDEComp's datasets (shared ones and PDEComp windows).
+PDECOMP_GROUP = "PDEComp benchmark"
 
 
 def full_catalog():
@@ -55,8 +58,10 @@ def grouped_catalog():
             groups[label] = subset
     for suite, label in SUITE_LABELS.items():
         subset = [row["id"] for row in rows if row["suite"] == suite]
-        if subset:
+        if subset and suite != "pdecomp":
             groups[label] = subset
+    from epde_bench.pdecomp import PDECOMP_FILES
+    groups[PDECOMP_GROUP] = [name for name in PDECOMP_FILES if name in REGISTRY]
     return groups
 
 

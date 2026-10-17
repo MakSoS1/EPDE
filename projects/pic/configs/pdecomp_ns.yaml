@@ -1,0 +1,6 @@
+# Settings of the ns record, applied to the PDEComp window (first 50 time levels,
+# full spatial grid). First derivative in t, second in space.
+search:
+  domain: {boundary_width: [2, 2, 7]}
+  preprocessing: {max_deriv_order: [1, 2, 2]}
+  evolution: {population_size: 48}

@@ -52,3 +52,16 @@ pysindy:
     differentiation: epde                # same native preprocessing as EPDE; alternatives are explicit
     threshold: auto                      # chosen on a held-out tail of the record
     max_terms_product: 2
+
+# PySINDy as the PDEComp benchmark runs it (its own code at a pinned commit),
+# only on the records whose arrays are PDEComp's data sets. "fixed": shared
+# NumPy derivatives and candidate library with a tuned optimizer per data set;
+# "native": PySINDy's own differentiation and libraries. The search section is
+# not used by these runs; it only describes how the result is checked on the data.
+pysindy_pdecomp_fixed:
+  method: pdecomp
+  pdecomp: {protocol: fixed}
+
+pysindy_pdecomp_native:
+  method: pdecomp
+  pdecomp: {protocol: native}

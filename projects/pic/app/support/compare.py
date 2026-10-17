@@ -32,8 +32,21 @@ def term_label(key, axes):
     return term_plain(key_text(key), axes) if key else 'constant'
 
 
+def _free_coefficient(eq_text):
+    """The constant term on the summed side of ``sum = target`` (0 when absent)."""
+    from epde_bench.metrics import _split_sum, _strip_system_prefix
+    total = 0.0
+    for piece in _split_sum(_strip_system_prefix(eq_text).split('=', 1)[0]):
+        try:
+            total += float(piece.strip())
+        except ValueError:
+            continue
+    return total
+
+
 def _shown_coefs(eq_text, anchor=None):
-    """Coefficients of ``target = Σ a_i t_i`` scaled to the anchor term, or ``None``."""
+    """Coefficients of ``target = Σ a_i t_i`` scaled to the anchor term, or ``None``.
+    A nonzero free coefficient appears under the empty key (the constant term)."""
     parsed = _equation_term_coefs(eq_text)
     if parsed is None:
         return None, None
@@ -42,7 +55,11 @@ def _shown_coefs(eq_text, anchor=None):
     scale = coefs.get(anchor, 0.0)
     if abs(scale) < 1e-12:
         return None, anchor
-    return {k: -v / scale for k, v in coefs.items() if k != anchor and abs(v) > 0}, anchor
+    shown = {k: -v / scale for k, v in coefs.items() if k != anchor and abs(v) > 0}
+    constant = _free_coefficient(eq_text)
+    if abs(constant) > 1e-12:
+        shown[frozenset()] = -constant / scale
+    return shown, anchor
 
 
 def match_equations(found, truth):

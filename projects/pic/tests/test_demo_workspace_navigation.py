@@ -75,7 +75,7 @@ class DemoNavigationTests(unittest.TestCase):
     def test_sindy_guide_uses_likec4_and_real_baseline_terms(self):
         guide = (APP / 'support/sindy_guide.py').read_text(encoding='utf-8')
         for term in ('benchView', 'picView', 'diagrams.likec4_view',
-                     'STLSQ', '20%', 'run_pysindy', 'st.graphviz_chart'):
+                     'STLSQ', 'FROLS', 'PDECOMP_REPO', 'st.graphviz_chart'):
             with self.subTest(term=term):
                 self.assertIn(term, guide)
         self.assertNotIn('queue.submit(', guide)

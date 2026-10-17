@@ -116,11 +116,25 @@ def _canonical_equation(eq_text: str):
     left, right = _strip_system_prefix(eq_text).split('=', 1)
     target_term = _parse_term(right)
     rhs_terms = []
+    constant = 0.0
     for term_text in _split_sum(left):
         term = _parse_term(term_text)
         if term is not None:
             rhs_terms.append(term)
+        else:
+            try:
+                constant += float(term_text.strip())
+            except ValueError:
+                pass
+    # A nonzero free coefficient is a term of the equation, as in PDEComp's
+    # Hamming distance (its library holds the constant "1"). EPDE prints 0.0.
+    if abs(constant) > 1e-12:
+        rhs_terms.append(CONSTANT_TERM)
     return (target_term, frozenset(rhs_terms))
+
+
+#: The free coefficient of an equation, as a canonical term.
+CONSTANT_TERM = frozenset({('1', frozenset())})
 
 
 def canonical_tokens(eq_texts: Sequence[str]) -> tuple:
@@ -509,6 +523,8 @@ def score_run(front: Sequence[Sequence[str]], objectives: Sequence, truth_system
     selected = select_compromise(objectives) if front else None
     if selected is not None and selected >= len(front):
         selected = None
+    if selected is None and len(front) == 1 and all(o is None for o in objectives or [None]):
+        selected = 0          # one equation and no scores: the method has selected it
     out = {'front_size': len(front), 'selected_index': selected}
     if not truth_systems:
         return out
@@ -526,4 +542,57 @@ def score_run(front: Sequence[Sequence[str]], objectives: Sequence, truth_system
                hamming_selected=hammings[selected] if selected is not None else None,
                best_index=best,
                coef_error=None if coef is None or coef != coef else coef)
+    if selected is not None:
+        out['re_sum'] = relative_error_sum(front[selected], truth_systems)
     return out
+
+
+def _scaled_coefs(eq_text: str, anchor):
+    """``{term: coefficient}`` of ``anchor = sum``, the anchor scaled to 1; None if absent."""
+    parsed = _equation_term_coefs(eq_text)
+    if parsed is None:
+        return None
+    coefs, _ = parsed
+    scale = coefs.get(anchor, 0.0)
+    if abs(scale) < 1e-12:
+        return None
+    return {k: -v / scale for k, v in coefs.items() if k != anchor}
+
+
+def relative_error_sum(found: Sequence[str], truth_systems) -> float | None:
+    """PDEComp's RE: the sum over the true terms of |found - true| / |true|.
+
+    Each true equation is written as ``target = sum`` and paired with a found
+    equation that contains its target; coefficients are scaled to that target.
+    A true term the found equation lacks contributes 1, extra terms contribute
+    nothing (they are counted by the Hamming distance). Equations are summed for
+    a system; the best accepted alternative is used. None when unparseable.
+    """
+    best = None
+    for truth in truth_systems or []:
+        total = 0.0
+        used = set()
+        for t_eq in truth:
+            parsed = _equation_term_coefs(t_eq)
+            if parsed is None:
+                return None
+            anchor = parsed[1]
+            true = _scaled_coefs(t_eq, anchor) or {}
+            match = None
+            for i, f_eq in enumerate(found):
+                if i in used:
+                    continue
+                coefs = _scaled_coefs(f_eq, anchor)
+                if coefs is not None:
+                    match = (i, coefs)
+                    if (_equation_term_coefs(f_eq) or (None, None))[1] == anchor:
+                        break
+            if match is not None:
+                used.add(match[0])
+            got = match[1] if match else {}
+            for key, value in true.items():
+                if abs(value) > 1e-12:
+                    total += abs(got.get(key, 0.0) - value) / abs(value)
+        if best is None or total < best:
+            best = total
+    return best

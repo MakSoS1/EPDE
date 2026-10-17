@@ -51,7 +51,9 @@ from support.discovery_lab.execution_policy import is_local_only
 EFFORTS = {"quick": "Quick (population 8, 3 epochs)",
            "standard": "Standard (population 16, 5 epochs)",
            "thorough": "Thorough (population 24, 8 epochs)"}
-METHOD_LABELS = {"epde": "EPDE", "pysindy": "PySINDy (sparse regression)", "llm": "LLM agent"}
+METHOD_LABELS = {"epde": "EPDE", "pdecomp": "PySINDy", "llm": "LLM agent"}
+#: Series limits on the shared server: all runs of one submission, and EPDE runs among them.
+MAX_SERIES_RUNS, MAX_SERIES_EPDE_RUNS = 12, 6
 RESERVED = {"x", "t", "sin", "cos", "tanh"}
 
 
@@ -185,16 +187,20 @@ main_col, summary_col = st.columns([3.0, 1.25], gap="medium")
 with main_col:
     if wizard_stage == 1:
         step(1, "Choose method and equation")
-        options = ["epde", "pysindy"] + (["llm"] if LLM_READY else [])
-        st.session_state.setdefault("lab_discovery_methods", ["epde", "pysindy"])
+        options = ["epde", "pdecomp"] + (["llm"] if LLM_READY else [])
+        st.session_state.setdefault("lab_discovery_methods", ["epde", "pdecomp"])
+        if any(m not in options for m in st.session_state["lab_discovery_methods"]):
+            st.session_state["lab_discovery_methods"] = [
+                m for m in st.session_state["lab_discovery_methods"] if m in options]
         methods = st.pills(
             "Discovery methods", options,
             key="lab_discovery_methods",
             selection_mode="multi", format_func=METHOD_LABELS.get,
             help="Choose one or both. Each method receives identical input data, "
-                 "noise and seed; their optimizers and scoring criteria remain distinct."
+                 "noise and seed; their optimizers and scoring criteria remain distinct. "
+                 "PySINDy is the PDEComp benchmark's own PySINDy code and settings."
         )
-        if len(methods) == 2 and set(methods) == {"epde", "pysindy"}:
+        if len(methods) == 2 and set(methods) == {"epde", "pdecomp"}:
             st.caption("Both algorithms will be saved as separate experiments in one "
                        "comparison group.")
         if "llm" in methods:
@@ -211,6 +217,7 @@ with main_col:
                                "no known law: the result is checked against the data only.")
         arrays, record_name, label, reference, origin = None, None, None, None, None
         noise, seed = 0.0, 0
+        series_seeds, series_noise = 1, []
         space = {}
         is_heavy = False
 
@@ -233,6 +240,7 @@ with main_col:
                 "Extended benchmark": "Extended",
                 "Measured data": "Measured",
                 "Other data": "Other",
+                "PDEComp benchmark": "PDEComp",
             }
             # Persist Catalog -> Lab selection across Streamlit widget reruns.
             # Without stable keys the first rerun resets the chosen heavy PDE
@@ -261,9 +269,9 @@ with main_col:
             if is_heavy:
                 # The original PySINDy adapter cannot represent every PDE.
                 # One click removes only unsupported methods; no fake solver fallback.
-                from epde_bench.baselines import unsupported_reason
-                incompatibility = unsupported_reason(record_name)
-                if incompatibility and "pysindy" in methods and "epde" in methods:
+                from support.discovery_lab.pysindy_method import unsupported as sindy_unsupported
+                incompatibility = sindy_unsupported(record_name)
+                if incompatibility and "pdecomp" in methods and "epde" in methods:
                     st.caption("PySINDy is not supported for this equation: " + incompatibility)
                     st.button(
                         "Use EPDE only for this equation",
@@ -323,6 +331,24 @@ with main_col:
                                           help="Fixes the noise and the search."))
                 st.caption(f"{problem.kind.replace('_', ' ')}, grid {' × '.join(map(str, problem.shape))}. "
                            "Derivatives, tokens and boundary are the stored settings of this record.")
+                with st.expander("Series: repeat over seeds and noise levels"):
+                    st.caption("Runs every selected method with consecutive seeds and at every chosen "
+                               "noise level; Compare then shows success rates and the noise limit "
+                               f"(3 of 5 runs, as in PDEComp). Up to {MAX_SERIES_RUNS} runs per "
+                               f"submission, of them up to {MAX_SERIES_EPDE_RUNS} EPDE runs.")
+                    c, d = st.columns(2)
+                    series_seeds = int(c.number_input("Seeds", 1, 5, 1, key="lab_series_seeds_" + record_name,
+                                                      help="Seeds start at the seed above."))
+                    series_noise = d.multiselect("Also at noise, %", [0.0, 0.5, 1.0, 2.0, 5.0, 10.0],
+                                                 key="lab_series_noise_" + record_name)
+        from support.discovery_lab.pysindy_method import shape_of_arrays, unsupported as sindy_unsupported
+        sindy_reason = None
+        if "pdecomp" in methods and (record_name or arrays is not None):
+            sindy_reason = (sindy_unsupported(record_name) if record_name
+                            else sindy_unsupported(None, *shape_of_arrays(arrays)))
+            if sindy_reason and not is_heavy:
+                st.warning("PySINDy cannot run on these data: " + sindy_reason +
+                           ". Deselect PySINDy or choose other data.")
         elif source == "Generate an ODE":
             st.caption("Type the right-hand side of du/dt = f(t, u). Allowed: t, u, numbers, + − * / **, "
                        "sin, cos, tanh. The expression is parsed, never executed as code.")
@@ -396,6 +422,18 @@ with main_col:
 
 
         input_ready = bool(methods) and (record_name is not None or arrays is not None)
+        if "pdecomp" in methods and sindy_reason and not is_heavy:
+            input_ready = False
+        noise_levels = sorted({float(noise), *map(float, series_noise)})
+        run_count = len(noise_levels) * series_seeds
+        if run_count > 1 and methods:
+            per_method = {m: run_count for m in methods}
+            total = sum(per_method.values())
+            st.caption(f"Series: {run_count} run(s) per method, {total} in all.")
+            if total > MAX_SERIES_RUNS or per_method.get("epde", 0) > MAX_SERIES_EPDE_RUNS:
+                st.warning(f"Too many runs for the shared server: at most {MAX_SERIES_RUNS} in all "
+                           f"and {MAX_SERIES_EPDE_RUNS} EPDE runs. Use fewer seeds or noise levels.")
+                input_ready = False
         if st.button("Next: configure methods →", key="lab_next_data",
                      type="primary", disabled=not input_ready,
                      use_container_width=True):
@@ -404,6 +442,7 @@ with main_col:
                 record_name=record_name, label=label, reference=reference,
                 origin=origin, noise=float(noise), seed=int(seed),
                 space=space, is_heavy=is_heavy,
+                series_seeds=int(series_seeds), noise_levels=noise_levels,
             )
             st.session_state.pop("lab_started_jobs", None)
             st.session_state.pop("lab_draft_config", None)
@@ -426,6 +465,8 @@ with main_col:
         seed = draft["seed"]
         space = draft["space"]
         is_heavy = draft["is_heavy"]
+        series_seeds = draft.get("series_seeds", 1)
+        noise_levels = draft.get("noise_levels") or [noise]
         if record_name and not is_heavy:
             from epde_bench.config import load_config
             original_profile = load_config(record_name, "default")
@@ -435,7 +476,7 @@ with main_col:
             step(2, "Configure method settings")
             st.caption("Start with the recommended profile. Each method keeps its own scientific settings.")
             from support.discovery_lab.lab_settings import render_settings
-            from support.discovery_lab.sindy_settings import render_sindy_settings
+            from support.discovery_lab import pysindy_method
 
             variant, overrides, settings, selected_budget = "default", {}, None, "Preset"
             sindy_settings = None
@@ -456,16 +497,15 @@ with main_col:
 
 
             def sindy_editor():
-                return render_sindy_settings(
+                return pysindy_method.render_settings(
                     record_name=record_name, problem=problem if record_name else None,
-                    arrays=arrays, space=space, source=source,
-                )
+                    arrays=arrays, source=source)
 
 
             try:
                 if is_heavy:
-                    from support.discovery_lab.heavy_settings import render_heavy_epde, render_heavy_sindy
-                    if "epde" in methods and "pysindy" in methods:
+                    from support.discovery_lab.heavy_settings import render_heavy_epde, render_heavy_pysindy as render_heavy_sindy
+                    if "epde" in methods and "pdecomp" in methods:
                         epde_tab, sindy_tab = st.tabs(
                             ["🧬 EPDE · Evolution", "📐 PySINDy · Sparse regression"])
                         with epde_tab:
@@ -478,7 +518,7 @@ with main_col:
                                 settings_valid = False
                     elif "epde" in methods:
                         heavy_methods.append(render_heavy_epde(record_name))
-                    elif "pysindy" in methods:
+                    elif "pdecomp" in methods:
                         candidate = render_heavy_sindy(record_name)
                         if candidate is not None:
                             heavy_methods.append(candidate)
@@ -486,19 +526,18 @@ with main_col:
                             settings_valid = False
                     else:
                         st.info("Select EPDE and/or PySINDy to configure the native experiment.")
-                elif "epde" in methods and "pysindy" in methods:
-                    epde_tab, sindy_tab = st.tabs(
-                        ["🧬 EPDE · Evolution", "📐 PySINDy · Sparse regression"])
-                    with epde_tab:
-                        variant, overrides, settings, selected_budget = epde_editor()
-                    with sindy_tab:
-                        sindy_settings = sindy_editor()
-                elif "epde" in methods:
-                    with st.container(border=True):
-                        variant, overrides, settings, selected_budget = epde_editor()
-                elif "pysindy" in methods:
-                    with st.container(border=True):
-                        sindy_settings = sindy_editor()
+                elif any(m in methods for m in ("epde", "pdecomp")):
+                    editors = [(m, title) for m, title in (
+                        ("epde", "🧬 EPDE · Evolution"),
+                        ("pdecomp", "📐 PySINDy · Sparse regression")) if m in methods]
+                    panels = (st.tabs([title for _, title in editors]) if len(editors) > 1
+                              else [st.container(border=True)])
+                    for (m, _), panel in zip(editors, panels):
+                        with panel:
+                            if m == "epde":
+                                variant, overrides, settings, selected_budget = epde_editor()
+                            else:
+                                sindy_settings = sindy_editor()
                 elif "llm" in methods:
                     st.caption("The LLM adapter uses the common input shown above.")
                 else:
@@ -527,7 +566,7 @@ with main_col:
                                  or (is_heavy and len(heavy_methods) != len(methods))
                                  or (not is_heavy and
                                      ("epde" in methods and settings is None and record_name is None
-                                      or "pysindy" in methods and sindy_settings is None))):
+                                      or "pdecomp" in methods and sindy_settings is None))):
                     st.session_state["lab_draft_config"] = dict(
                         variant=variant, overrides=overrides, settings=settings,
                         selected_budget=selected_budget, sindy_settings=sindy_settings,
@@ -555,7 +594,11 @@ with main_col:
             st.markdown("**Selected input and execution**")
             st.write("**Dataset:**", label or record_name or source)
             st.write("**Methods:**", ", ".join(METHOD_LABELS.get(m,m) for m in methods))
-            st.write("**Noise:**", f"{noise:g} %", " · **Seed:**", seed)
+            if len(noise_levels) * series_seeds > 1:
+                st.write("**Series:**", f"noise {', '.join(f'{n:g}' for n in noise_levels)} %",
+                         f" · seeds {seed}–{seed + series_seeds - 1}")
+            else:
+                st.write("**Noise:**", f"{noise:g} %", " · **Seed:**", seed)
             st.caption("Heavy PDE: configuration/export only. Computation runs via the separate native launcher."
                        if is_heavy else "Hosted search: calculations execute on the Streamlit server.")
 
@@ -574,12 +617,9 @@ with main_col:
                         load_config(record_name, variant, overrides=overrides)
                         if record_name else settings
                     )
-                if "pysindy" in methods:
-                    review["pysindy"] = (
-                        load_config(record_name, "pysindy",
-                                    overrides=sindy_settings or {})
-                        if record_name else sindy_settings
-                    )
+                if "pdecomp" in methods:
+                    from support.discovery_lab.pysindy_method import review as sindy_review
+                    review["pdecomp"] = sindy_review(record_name, sindy_settings or {})
             available = [m for m in methods if m in review]
             panels = (st.tabs([METHOD_LABELS.get(m, m) for m in available])
                       if len(available) > 1 else
@@ -590,7 +630,7 @@ with main_col:
                     st.code(yaml.safe_dump(review[method], sort_keys=False,
                                            allow_unicode=True), language="yaml")
             st.caption("The full configuration above is used for the run/export. "
-                       "EPDE and PySINDy have separate, independent optimizer settings.")
+                       "Each method has separate, independent settings.")
             confirmed = st.checkbox(
                 "I have checked the input, the methods and the scientific configuration.",
                 key="lab_confirm_science",
@@ -602,7 +642,7 @@ with main_col:
             step(3, "Review and run")
             ready = confirmed and settings_valid and bool(methods) and (record_name is not None or arrays is not None)
             ready = ready and ("epde" not in methods or (settings is not None or record_name is not None))
-            ready = ready and ("pysindy" not in methods or sindy_settings is not None or is_heavy)
+            ready = ready and ("pdecomp" not in methods or sindy_settings is not None or is_heavy)
             if is_heavy:
                 ready = confirmed and settings_valid and bool(methods) and len(heavy_methods) == len(methods)
             if ready and not is_heavy:
@@ -614,9 +654,7 @@ with main_col:
                         configurations.append(
                             load_config(record_name, variant, overrides=overrides)["search"]
                             if record_name else settings["search"])
-                    if "pysindy" in methods:
-                        configurations.append(sindy_settings["search"])
-                    if not configurations:
+                    if not configurations and set(methods) - {"pdecomp"}:
                         configurations.append(
                             load_config(record_name, "default")["search"] if record_name
                             else settings["search"])
@@ -675,29 +713,34 @@ with main_col:
                     st.caption("The first run installs pinned dependencies. Internet access is required.")
                 st.caption("When finished, upload **experiment-results.zip** on the Results page.")
                 st.page_link("views/11_Discovery_results.py", label="Upload or view results", icon=":material/upload_file:")
-            elif st.button("Start search: " + " & ".join(METHOD_LABELS[m] for m in methods)
+            elif st.button("Start search: " + " & ".join(METHOD_LABELS.get(m, m) for m in methods)
                          if methods else "Choose a method",
                          type="primary", disabled=not ready or bool(st.session_state.get("lab_started_jobs")), key="lab_start"):
                 try:
                     if record_name:
                         key = f"record|{record_name}|{noise:g}|{seed}"
+                        series_id = (f"{record_name}|{time.time():.0f}"
+                                     if len(noise_levels) * series_seeds > 1 else "")
                         requests = []
                         for m in methods:
                             if m == "epde":
-                                method_overrides = overrides
-                            elif m == "pysindy":
-                                method_overrides = sindy_settings
+                                runs = [(variant, overrides)]
+                            elif m == "pdecomp":
+                                runs = [(f"pysindy_pdecomp_{p}", {}) for p in sindy_settings["protocols"]]
                             else:
-                                method_overrides = {}
-                            requests.append({
-                                "method": m, "source": "record", "dataset": record_name,
-                                "variant": "pysindy" if m == "pysindy" else
-                                           variant if m == "epde" else "default",
-                                "overrides": method_overrides,
-                                "noise": float(noise), "seed": seed,
-                                "effort": budget_code if m == "epde" else "standard",
-                                "display": {"label": label, "input_key": key},
-                            })
+                                runs = [("default", {})]
+                            for run_variant, method_overrides in runs:
+                                for level in noise_levels:
+                                    for run_seed in range(seed, seed + series_seeds):
+                                        requests.append({
+                                            "method": m, "source": "record", "dataset": record_name,
+                                            "variant": run_variant,
+                                            "overrides": method_overrides,
+                                            "noise": float(level), "seed": run_seed,
+                                            "effort": budget_code if m == "epde" else "standard",
+                                            "display": {"label": label, "series": series_id,
+                                                        "input_key": f"record|{record_name}|{level:g}|{run_seed}"},
+                                        })
                     else:
                         key = f"upload|{arrays_digest(arrays)}|{noise:g}|{seed}"
                         from support.discovery_lab.lab_settings import _custom_base
@@ -705,7 +748,7 @@ with main_col:
                             k for k in arrays if k.startswith("axis_") and k != "axis_names"
                         ]) - 1, generated=source == "Generate an ODE")
                         shared_settings = dict(settings or {
-                            "search": sindy_settings["search"] if sindy_settings else fallback,
+                            "search": fallback,
                             "seed": int(seed), "noise": float(noise),
                             "label": label, "origin": origin,
                         })
@@ -713,8 +756,10 @@ with main_col:
                         if settings is not None and "epde" in methods:
                             shared_settings["method_configs"]["epde"] = {
                                 "search": settings["search"]}
-                        if sindy_settings is not None and "pysindy" in methods:
-                            shared_settings["method_configs"]["pysindy"] = sindy_settings
+                        if sindy_settings is not None and "pdecomp" in methods:
+                            shared_settings["method_configs"]["pdecomp"] = {
+                                "protocol": "native",
+                                "target_orders": sindy_settings.get("target_orders") or {}}
                         if reference:
                             shared_settings["reference_truth"] = reference
                         data_path, config_path = queue.save_upload(owner, arrays, shared_settings)
@@ -727,7 +772,7 @@ with main_col:
                         } for m in methods]
                     # A joint capacity check avoids partially submitting paired runs.
                     for m in methods:
-                        queue.check_capacity(owner, m, count=len(methods))
+                        queue.check_capacity(owner, m, count=len(requests))
                     ids = [queue.submit(owner, req) for req in requests]
                     st.session_state["discovery_selected_job"] = ids[0]
                     st.session_state["discovery_compare_key"] = key
@@ -784,9 +829,9 @@ with summary_col:
         else:
             st.markdown("**Runs on shared server**")
             st.caption("Compute EPDE and PySINDy on the hosted server within its safety limits.")
-        if record_name and "pysindy" in methods:
-            from epde_bench.baselines import unsupported_reason
-            reason = unsupported_reason(record_name)
+        if record_name and "pdecomp" in methods:
+            from support.discovery_lab.pysindy_method import unsupported as sindy_unsupported
+            reason = sindy_unsupported(record_name)
             if reason:
                 st.caption("PySINDy unavailable for this equation: " + reason)
     st.page_link("views/14_Data_catalog.py", label="Browse all datasets", icon=":material/database:")

@@ -67,15 +67,15 @@ def make_manifest(dataset, noise, seed, methods):
         raise ValueError("Choose one or two methods")
     items = []
     for entry in methods:
-        if not isinstance(entry, dict) or entry.get("method") not in ("epde", "pysindy"):
+        if not isinstance(entry, dict) or entry.get("method") not in ("epde", "pdecomp"):
             raise ValueError("Unsupported portable algorithm")
         method = entry["method"]
         if method in [x["method"] for x in items]:
             raise ValueError("Duplicate method")
-        variant = entry.get("variant") or ("pysindy" if method == "pysindy" else "default")
+        variant = entry.get("variant") or ("pysindy_pdecomp_fixed" if method == "pdecomp" else "default")
         overrides = entry.get("overrides") or {}
         if not isinstance(overrides, dict) or (set(overrides) -
-                ({"search", "pysindy"} if method == "pysindy" else {"search"})):
+                ({"pdecomp"} if method == "pdecomp" else {"search"})):
             raise ValueError("Invalid scientific settings")
         cfg = load_config(dataset, variant, overrides=overrides)
         if cfg["method"] != method:
@@ -146,7 +146,7 @@ def read_results(raw):
         records = []
         for item in files:
             record = json.loads(z.read(item))
-            if not isinstance(record, dict) or record.get("method") not in ("epde", "pysindy"):
+            if not isinstance(record, dict) or record.get("method") not in ("epde", "pdecomp"):
                 raise ValueError("Unknown result method")
             if record.get("execution_location") != "user_computer" or record.get("portable_schema") != SCHEMA:
                 raise ValueError("Not a portable native result")

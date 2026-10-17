@@ -1,6 +1,6 @@
 """End-to-end scientific regression of the public Run a search paired experiment.
 
-Execute ORIGINAL EPDE and ORIGINAL PySINDy adapters against the exact same
+Execute ORIGINAL EPDE and PDEComp's own PySINDy against the exact same
 scientific arrays (not a browser-only imitation). Retain and compare records
 using one session capability and input_key as the Streamlit UI does.
 """
@@ -18,7 +18,7 @@ from support.discovery_lab import worker
 
 
 class PairedRunTests(unittest.TestCase):
-    def test_original_epde_and_pysindy_both_saved_in_one_comparison_group(self):
+    def test_original_epde_and_pdecomp_pysindy_both_saved_in_one_comparison_group(self):
         with tempfile.TemporaryDirectory() as tmp:
             previous_root, previous_lock = queue.ROOT, queue.MANAGER_LOCK
             queue.ROOT = Path(tmp)
@@ -31,12 +31,12 @@ class PairedRunTests(unittest.TestCase):
                 key = "record|ode|0|0"
                 ids = []
                 with patch.object(queue, "ensure_manager", return_value=None):
-                    for method, variant in (("epde", "default"), ("pysindy", "pysindy")):
+                    for method, variant in (("epde", "default"), ("pdecomp", "pysindy_pdecomp_fixed")):
                         ids.append(queue.submit(owner, {
                             "method": method, "variant": variant,
                             "source": "record", "dataset": "ode",
                             "noise": 0.0, "seed": 0, "effort": "custom",
-                            "overrides": {"search": copy.deepcopy(search)},
+                            "overrides": {"search": copy.deepcopy(search)} if method == "epde" else {},
                             "display": {"label": "Forced oscillator", "input_key": key},
                         }))
                 self.assertEqual(len(ids), 2)
@@ -49,7 +49,7 @@ class PairedRunTests(unittest.TestCase):
                 rows = queue.list_jobs(owner)
                 self.assertEqual(len(rows), 2)
                 self.assertEqual({row["input_key"] for row in rows}, {key})
-                self.assertEqual({row["method"] for row in rows}, {"epde", "pysindy"})
+                self.assertEqual({row["method"] for row in rows}, {"epde", "pdecomp"})
                 results = [queue.result(owner, job_id) for job_id in ids]
                 for record in results:
                     self.assertEqual(record["status"], "ok")
@@ -63,7 +63,7 @@ class PairedRunTests(unittest.TestCase):
                 self.assertEqual(
                     {row["method"]: record["method"] for row, record in zip(
                         [queue.get_job(owner, job_id) for job_id in ids], results)},
-                    {"epde":"epde", "pysindy":"pysindy"})
+                    {"epde":"epde", "pdecomp":"pdecomp"})
             finally:
                 queue.ROOT, queue.MANAGER_LOCK = previous_root, previous_lock
 

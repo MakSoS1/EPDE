@@ -55,12 +55,12 @@ class HandoffTests(unittest.TestCase):
             self.assertEqual(read_manifest(path), manifest)
 
     def test_fingerprint_is_method_neutral(self):
-        a, b = mock_record("epde"), mock_record("pysindy")
+        a, b = mock_record("epde"), mock_record("pdecomp")
         self.assertEqual(input_key(a), input_key(b))
         self.assertEqual(len(read_results(archive([a, b]))), 2)
 
     def test_different_data_not_comparable(self):
-        a, b = mock_record("epde"), mock_record("pysindy", "d" * 64)
+        a, b = mock_record("epde"), mock_record("pdecomp", "d" * 64)
         self.assertNotEqual(input_key(a), input_key(b))
         with self.assertRaisesRegex(ValueError, "identical numerical input"):
             read_results(archive([a, b]))

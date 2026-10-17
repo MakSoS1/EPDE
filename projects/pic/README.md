@@ -72,16 +72,21 @@ Compare only groups runs with an identical fingerprint of the input data,
 scientific source, loader parameters, noise, seed and noise protocol. It
 does not equate datasets by name alone. Imported results have internally
 validated metadata but are NOT independently recomputed on the Streamlit
-host. EPDE Pareto objectives are not numerically comparable with PySINDy
-STLSQ optimization criteria. In-sample solution R2 is not held-out forecast
-accuracy. Claims about framework quality require multiple seeds and
-matched scientific experiments.
+host. PySINDy reports no Pareto scores, so its result is not placed on
+EPDE's front. Both methods are checked the same way: against the known law
+(Hamming distance and the summed relative coefficient error, as defined by
+the PDEComp benchmark) and against the data. In-sample solution R2 is not
+held-out forecast accuracy. Claims about framework quality require series
+over seeds and noise levels; the app summarises them as success rates with
+95 % intervals and a noise limit by PDEComp's rule of 3 successes in 5 runs.
 
-The website's PySINDy adapter is an EPDE-compatible sparse-regression
-baseline; it is NOT the exact original PDEComp/native PySINDy wrapper.
-DeepMoD, DISCOVER and EDL from PDEComp/native are not silently emulated
-by this baseline. Scientific limitations and unsupported equations remain
-method-specific.
+PySINDy on the website is the PDEComp benchmark's own PySINDy, run unchanged
+from a pinned commit of PDEComp. On PDEComp's datasets (the same files,
+windows and grids) it uses PDEComp's settings for them, under the fixed or
+the native protocol; on any other data it uses the native protocol with
+PDEComp's default settings and is given only the target time derivative.
+It covers ODEs, systems of ODEs and scalar PDEs in one space dimension.
+DeepMoD, DISCOVER and EDL from PDEComp are not part of the website.
 
 Repository ZIP: https://github.com/MakSoS1/EPDE/archive/refs/heads/demo/streamlit-community-cloud.zip
 
@@ -202,14 +207,16 @@ before every search.
 
 ## Comparing methods
 
-Besides EPDE, a sparse-regression baseline (PySINDy) runs on a library built from the
-same fields, derivatives and extra tokens. Problems it cannot represent (a coefficient
-in front of the time derivative, the continuity equation of Navier–Stokes) are reported
-as unsupported, not as failures.
+Besides EPDE, PySINDy runs exactly as the PDEComp benchmark runs it (variants
+for its fixed and native protocols). The project also keeps its earlier
+sparse-regression baseline (PySINDy on a library built from the same fields,
+derivatives and extra tokens) for the published campaigns; the website does not
+offer it. Problems a method cannot represent are reported as unsupported, not as
+failures.
 
 ```bash
 python projects/pic/bench.py campaign --datasets ode,lorenz \
-    --variants default,pysindy --noise 0,1 --seeds 0-2 --workers 2 --name comparison
+    --variants default,pysindy_pdecomp_fixed --noise 0,1 --seeds 0-2 --workers 2 --name comparison
 python projects/pic/bench.py report projects/pic/results/comparison
 ```
 

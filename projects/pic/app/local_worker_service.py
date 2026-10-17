@@ -47,7 +47,7 @@ def _execute(request, folder):
     from epde_bench.config import load_config, resolve_for_problem
     from epde_bench.datasets import load
 
-    if request.get("method") not in ("epde", "pysindy"):
+    if request.get("method") not in ("epde", "pdecomp"):
         raise ValueError("Local worker supports EPDE and PySINDy only")
     if request.get("source") == "record":
         dataset = request.get("dataset")
@@ -171,7 +171,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path != "/health" or not self._authorized():
             return self._reply(403, {"error": "Forbidden"})
-        return self._reply(200, {"ok": True, "methods": ["epde", "pysindy"],
+        return self._reply(200, {"ok": True, "methods": ["epde", "pdecomp"],
                                  "execution_location": "user_computer",
                                  "protocol": "discovery-local/1.0"})
 
@@ -191,7 +191,7 @@ class Handler(BaseHTTPRequestHandler):
                 request = json.loads(self.rfile.read(length))
             except (ValueError, UnicodeError):
                 return self._reply(400, {"error": "Invalid JSON"})
-            if not isinstance(request, dict) or request.get("method") not in ("epde", "pysindy"):
+            if not isinstance(request, dict) or request.get("method") not in ("epde", "pdecomp"):
                 return self._reply(400, {"error": "Unsupported local method"})
             if request.get("source") not in ("record", "upload"):
                 return self._reply(400, {"error": "Invalid data source"})

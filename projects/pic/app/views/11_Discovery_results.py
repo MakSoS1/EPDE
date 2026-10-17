@@ -61,10 +61,11 @@ STATE_TEXT = {"queued": "⏳ waiting", "running": "⚙️ running", "finished": 
 def job_table(rows):
     return pd.DataFrame([{
         "Experiment": r.get("label") or r.get("dataset"),
-        "Method": ui.METHOD_NAMES.get(r.get("method"), r.get("method")),
+        "Method": ui.job_method_label(r),
         "Status": STATE_TEXT.get(r.get("state"), r.get("state")),
         "Time (s)": (round((r.get("ended") or time.time()) - r["started"])
                      if r.get("started") else None),
+        "Noise, %": float(r.get("noise", 0) or 0),
         "Seed": r.get("seed", 0),
     } for r in rows])
 
@@ -108,7 +109,8 @@ else:
     st.dataframe(job_table(filtered),hide_index=True,width="stretch")
     ids=[r["id"] for r in filtered]
     names={r["id"]:f"{r.get('label') or r.get('dataset')} · "+
-           f"{ui.METHOD_NAMES.get(r.get('method'),r.get('method'))} · "+
+           f"{ui.job_method_label(r)} · "+
+           (f"seed {r.get('seed', 0)} · noise {float(r.get('noise', 0)):g} % · " if r.get('series') else "")+
            f"{STATE_TEXT.get(r.get('state'),r.get('state'))}" for r in filtered}
     current=st.session_state.get("discovery_selected_job")
     chosen=st.selectbox("Inspect result",ids,
@@ -137,13 +139,13 @@ else:
                 st.markdown("**Known law**")
                 ui.latex(truth, axes)
             with right:
-                st.markdown(f"**Found by {ui.METHOD_NAMES.get(record.get('method'))}**")
+                st.markdown(f"**Found by {ui.method_label(record)}**")
                 ui.latex(found, axes)
             kind, text = ui.verdict(record)
             getattr(st, kind)(text)
             ui.term_table(record)
         else:
-            st.markdown(f"**Found by {ui.METHOD_NAMES.get(record.get('method'))}**")
+            st.markdown(f"**Found by {ui.method_label(record)}**")
             ui.latex(found, axes)
             st.caption("No known law for these data: judge the equation by how its solution "
                        "matches the data below.")
@@ -159,6 +161,17 @@ else:
                 f"derivatives: {opts.get('differentiation', 'epde')} · "
                 f"max non-zero terms: {pool.get('equation_terms_max_number', 10)} · "
                 f"holdout: {float(opts.get('validation_fraction', 0.20)):.0%}")
+
+        elif record.get("method") == "pdecomp":
+            base = record.get("baseline") or {}
+            own = base.get("pdecomp_metrics") or {}
+            st.caption(f"PDEComp {base.get('protocol', '')} protocol · dataset "
+                       f"{base.get('pdecomp_file', '')} · source {base.get('source', '')}")
+            if own.get("hd") is not None:
+                st.caption(f"PDEComp's own scoring against its reference coefficients: "
+                           f"HD = {own['hd']}, RE (sum) = {own['re']:.4g}. It can differ from the "
+                           "columns above where PDEComp writes the law differently (for example a "
+                           "compound term counted once, or a tiny term left out).")
 
         elif record.get("method") == "epde":
             evo = search.get("evolution") or {}
@@ -179,12 +192,26 @@ else:
                             help="Left-hand side computed from the data against the right-hand "
                                  "side, with the derivatives used by the search.")
         cols[offset + 1].metric("candidates", len(record.get("front") or []))
-        cols[offset + 2].metric("search time", ui._fmt(record.get("fit_seconds"), "{:.1f} s"))
-        fit_tab, candidates_tab, settings_tab = st.tabs(
-            ["Solution fit", "Equation candidates", "Scientific settings"])
+        cols[offset + 2].metric("search time", ui._fmt(record.get("fit_seconds"), "{:.2f} s"))
+        if truth:
+            m = record.get("metrics") or {}
+            library = (record.get("baseline") or {}).get("library_size")
+            a, b, c = st.columns(3)
+            a.metric("HD", ui._fmt(m.get("hamming_selected"), "{:d}") if isinstance(
+                m.get("hamming_selected"), int) else "—", help=ui.METRIC_HELP["HD"])
+            b.metric("RE (sum)", ui._fmt(m.get("re_sum"), "{:.4g}"), help=ui.METRIC_HELP["RE (sum)"])
+            c.metric("library size", sum(library.values()) if isinstance(library, dict) else "—",
+                     help=ui.METRIC_HELP["library size"])
+        st.caption(ui.PROTOCOL_NOTES.get(record.get("method"), ""))
+        fit_tab, balance_tab, candidates_tab, settings_tab = st.tabs(
+            ["Solution fit", "Equation balance", "Equation candidates", "Scientific settings"])
         with fit_tab:
             st.caption("In-sample reconstruction against the original data, not a forecast.")
-            ui.solution_plots([(ui.METHOD_NAMES.get(record.get("method")), record)])
+            ui.solution_plots([(ui.method_label(record), record)])
+        with balance_tab:
+            st.caption("The target computed from the data against the right-hand side of the "
+                       "equation, with the derivatives of the record's settings.")
+            ui.balance_plots([(ui.method_label(record), record)])
         with candidates_tab:
             st.caption("Original recovered candidates; selected terms are marked explicitly.")
             ui.pareto(record)

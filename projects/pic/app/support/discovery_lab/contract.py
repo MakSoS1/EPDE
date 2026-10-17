@@ -1,4 +1,4 @@
-"""Versioned interoperability contract for EPDE, PySINDy and an external LLM.
+"""Versioned interoperability contract for EPDE, PySINDy (as run by PDEComp) and an external LLM.
 
 Native EPDE records are kept intact and augmented with explicit criterion metadata.
 Different methods do NOT share a numerical Pareto objective unless their
@@ -10,7 +10,7 @@ import math
 from typing import Any
 
 SCHEMA_VERSION = "discovery-demo/1.0"
-METHODS = ("epde", "pysindy", "llm")
+METHODS = ("epde", "pdecomp", "llm")
 MAX_CANDIDATES = 512  # full native Pareto front; transport remains size-limited
 
 
@@ -20,8 +20,8 @@ def criterion_labels(method: str, record: dict) -> tuple[str, str]:
         obj = cfg.get("objectives") or {}
         return (str(obj.get("discrepancy_metric", "discrepancy")),
                 str(obj.get("second_objective", "EPDE second objective")))
-    if method == "pysindy":
-        return ("validation MSE / target variance", "active terms")
+    if method == "pdecomp":
+        return ("not reported by PDEComp", "not reported by PDEComp")
     return ("LLM criterion 1 (provider-defined)", "LLM criterion 2 (provider-defined)")
 
 

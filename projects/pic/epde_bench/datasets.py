@@ -320,7 +320,11 @@ def load_pde_divide():
         {'u': np.load(data_path('pde_divide', 'PDE_divide.npy'))}, ('t', 'x'),
         truth=['-2.0 * du/dx1{power: 1.0} + 0.5 * d^2u/dx1^2{power: 1.0} * x{power: 1.0, dim: 1.0}'
                ' = du/dx0{power: 1.0} * x{power: 1.0, dim: 1.0}'],
-        notes='x u_t = -2 u_x + 0.5 x u_xx, i.e. u_t = -2 u_x / x + 0.5 u_xx (needs the x token).')
+        truth_alternatives=[[
+            '0.5 * d^2u/dx1^2{power: 1.0} + -2.0 * 1/x{power: 1.0} * du/dx1{power: 1.0}'
+            ' = du/dx0{power: 1.0}']],
+        notes='x u_t = -2 u_x + 0.5 x u_xx, i.e. u_t = -2 u_x / x + 0.5 u_xx (needs the x token, or '
+              'the 1/x token for the second form).')
 
 
 # =========================================================================
@@ -1067,3 +1071,93 @@ def load_nir1_h14_hyperdiffusion_growth():
                            ' + -0.012 * d^4u/dx1^4{power: 1.0}'
                            ' = du/dx0{power: 1.0}'],
                     notes='Genuine fourth order physically indispensable, plus linear growth.')
+
+
+# =========================================================================
+# PDEComp windows: the same files as above, cut and gridded exactly as the
+# PDEComp benchmark loads them, so that its published numbers and its PySINDy
+# runner apply unchanged. Records whose arrays already coincide with PDEComp's
+# (ode, vdp, burgers, burgers_inviscid, ac, kdv, kdv_cossin, wave, pde_compound,
+# ks) are not duplicated.
+# =========================================================================
+
+@dataset('pdecomp_lv', 'Lotka-Volterra, PDEComp window (first 150 samples)', 'ode_system',
+         'synthetic', 'pdecomp', 'lv/t_20.npy, lv/data_20.npy')
+def load_pdecomp_lv():
+    t = np.load(data_path('lv', 't_20.npy')).astype(np.float64)[:150]
+    x = np.load(data_path('lv', 'data_20.npy')).astype(np.float64)[:150]
+    return _problem(
+        'pdecomp_lv', mesh(t), {'u': x[:, 0], 'v': x[:, 1]}, ('t',),
+        truth=['20.0 * u{power: 1.0} + -20.0 * u{power: 1.0} * v{power: 1.0} = du/dx0{power: 1.0}',
+               '20.0 * u{power: 1.0} * v{power: 1.0} + -20.0 * v{power: 1.0} = dv/dx0{power: 1.0}'],
+        notes='The record of the lv data set restricted to its first 150 samples, as PDEComp loads it.')
+
+
+@dataset('pdecomp_lorenz', 'Lorenz-63, PDEComp window (first 1000 samples)', 'ode_system',
+         'synthetic', 'pdecomp', 'lorenz/t.npy, lorenz/lorenz.npy')
+def load_pdecomp_lorenz():
+    t = np.load(data_path('lorenz', 't.npy'))[:1000]
+    x = np.load(data_path('lorenz', 'lorenz.npy'))[:1000]
+    return _problem(
+        'pdecomp_lorenz', mesh(t), {'u': x[:, 0], 'v': x[:, 1], 'w': x[:, 2]}, ('t',),
+        truth=['10.0 * v{power: 1.0} + -10.0 * u{power: 1.0} = du/dx0{power: 1.0}',
+               '28.0 * u{power: 1.0} + -1.0 * u{power: 1.0} * w{power: 1.0} + -1.0 * v{power: 1.0}'
+               ' = dv/dx0{power: 1.0}',
+               '1.0 * u{power: 1.0} * v{power: 1.0} + -2.6666666666666665 * w{power: 1.0}'
+               ' = dw/dx0{power: 1.0}'],
+        notes='The beginning of the stored run (initial transient included), as PDEComp loads it; '
+              'the lorenz record uses a later window on the attractor.')
+
+
+@dataset('pdecomp_pde_divide', 'PDE with a 1/x coefficient, PDEComp time axis', 'pde_1d',
+         'synthetic', 'pdecomp', 'pde_divide/PDE_divide.npy')
+def load_pdecomp_pde_divide():
+    grids = mesh(np.linspace(0, 1, 251), np.linspace(1, 2, 100))
+    return _problem(
+        'pdecomp_pde_divide', grids,
+        {'u': np.load(data_path('pde_divide', 'PDE_divide.npy'))}, ('t', 'x'),
+        truth=['0.25 * d^2u/dx1^2{power: 1.0} + -1.0 * 1/x{power: 1.0} * du/dx1{power: 1.0}'
+               ' = du/dx0{power: 1.0}'],
+        truth_alternatives=[[
+            '-1.0 * du/dx1{power: 1.0} + 0.25 * d^2u/dx1^2{power: 1.0} * x{power: 1.0, dim: 1.0}'
+            ' = du/dx0{power: 1.0} * x{power: 1.0, dim: 1.0}']],
+        notes='The array of pde_divide with time on [0, 1] as in PDEComp, hence u_t = 0.25 u_xx - u_x / x; '
+              'the pde_divide record puts time on [0, 0.5] and has twice these coefficients.')
+
+
+@dataset('pdecomp_ns', 'Navier-Stokes cylinder wake, PDEComp window', 'pde_2d', 'synthetic',
+         'pdecomp', 'ns/cylinder_nektar_wake.mat')
+def load_pdecomp_ns():
+    m = _loadmat('ns', 'cylinder_nektar_wake.mat')
+    t = np.ravel(m['t'])
+    x, y = np.unique(m['X_star'][:, 0]), np.unique(m['X_star'][:, 1])
+
+    def field(a):
+        return np.ascontiguousarray(a.T.reshape(len(t), len(y), len(x))[:50])
+
+    data = {'u': field(m['U_star'][:, 0, :]), 'v': field(m['U_star'][:, 1, :]), 'p': field(m['p_star'])}
+    return _problem(
+        'pdecomp_ns', mesh(t[:50], y, x), data, ('t', 'y', 'x'),
+        truth=['-1.0 * u{power: 1.0} * du/dx2{power: 1.0} + -1.0 * v{power: 1.0} * du/dx1{power: 1.0}'
+               ' + -1.0 * dp/dx2{power: 1.0} + 0.01 * d^2u/dx2^2{power: 1.0}'
+               ' + 0.01 * d^2u/dx1^2{power: 1.0} = du/dx0{power: 1.0}',
+               '-1.0 * u{power: 1.0} * dv/dx2{power: 1.0} + -1.0 * v{power: 1.0} * dv/dx1{power: 1.0}'
+               ' + -1.0 * dp/dx1{power: 1.0} + 0.01 * d^2v/dx2^2{power: 1.0}'
+               ' + 0.01 * d^2v/dx1^2{power: 1.0} = dv/dx0{power: 1.0}',
+               '-1.0 * dv/dx1{power: 1.0} = du/dx2{power: 1.0}'],
+        notes='First 50 time levels on the full spatial grid, as PDEComp loads it.')
+
+
+@dataset('pdecomp_ode_simple', 'Simple harmonic signal, PDEComp', 'ode', 'synthetic', 'pdecomp',
+         'generated')
+def load_pdecomp_ode_simple():
+    t = np.linspace(0, 4 * np.pi, 200)
+    return _problem(
+        'pdecomp_ode_simple', mesh(t), {'u': np.sin(t) + 1.3 * np.cos(t)}, ('t',),
+        truth=['1.0 * cos{power: 1.0, freq: 1.0, dim: 0.0} + -1.3 * sin{power: 1.0, freq: 1.0, dim: 0.0}'
+               ' = du/dx0{power: 1.0}'],
+        truth_alternatives=[[
+            '0.7692307692307692 * u{power: 1.0} + -2.0692307692307694 * sin{power: 1.0, freq: 1.0, dim: 0.0}'
+            ' = du/dx0{power: 1.0}']],
+        notes='u = sin t + 1.3 cos t on [0, 4 pi], 200 samples (PDEComp ODE_simple_discovery). '
+              'u_t = cos t - 1.3 sin t; the form through u is accepted as well.')

@@ -64,7 +64,7 @@ if runs:
     st.subheader("Recent experiments")
     st.dataframe([{
         "Experiment": r.get("label") or r.get("dataset"),
-        "Method": {"epde":"EPDE","pysindy":"PySINDy"}.get(r.get("method"),r.get("method")),
+        "Method": {"epde":"EPDE","pdecomp":"PySINDy"}.get(r.get("method"),r.get("method")),
         "Status":r.get("state","unknown"),
     } for r in runs[:5]],hide_index=True,use_container_width=True)
     if st.button("See all results",key="home_see_all"):

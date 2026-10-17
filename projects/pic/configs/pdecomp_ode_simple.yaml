@@ -1,0 +1,8 @@
+# u_t = cos t - 1.3 sin t: a first-order law forced at frequency 1, so the
+# pool holds sine and cosine of frequency 1 instead of the base frequency 2.
+search:
+  preprocessing: {max_deriv_order: [1]}
+  search_space:
+    tokens:
+      - {family: grid, labels: [x], max_power: 2}
+      - {family: fixed_trigonometric, freq: 1.0}

@@ -158,29 +158,24 @@ restarts may erase it. Download valuable JSON results.
 
 ## Scientific principles
 
-A benchmark-quality comparison needs the same input arrays, grids, noise realization, boundary cropping, differentiation strategy and declared budgets. EPDE returns multiple candidates and configurable multiobjective scores; the current PySINDy baseline returns a single selected candidate and objectives (held-out normalized MSE and active term count). **Do not combine their scores into one Pareto front or publish a cross-framework ranking based on these unrelated numbers.**
+A benchmark-quality comparison needs the same input arrays, grids, noise realization and declared budgets. EPDE returns multiple candidates and configurable multiobjective scores; PySINDy returns one equation per target and no scores. **Their internal scores are not combined into one Pareto front and the methods are not ranked.** Both are checked the same way: Hamming distance to the known law (a nonzero free coefficient counts as a term, as in PDEComp), the summed relative coefficient error of PDEComp, the equation balance and the solution against the data.
 
-The UI provides a descriptive pair of EPDE/default and PySINDy/pysindy runs on the same dataset/seed/noise or uploaded dataset with shared EPDE differentiation settings. This is an exploratory smoke test, **not** a complete multi-seed benchmarking campaign. The existing `projects/pic/bench.py` campaign engine remains available for Vlad's controlled benchmarks.
+PySINDy is the PDEComp benchmark's own PySINDy, run unchanged from a pinned commit. On PDEComp's datasets (shared records whose arrays equal PDEComp's, plus records with PDEComp's windows) it uses PDEComp's settings for that dataset under the fixed (default) or native protocol; elsewhere the native protocol with PDEComp's defaults, given only the target time derivative. On PDEComp's datasets its Hamming distance and coefficient error equal PDEComp's own numbers; PDEComp's scoring is shown next to the app's.
+
+Series over seeds and noise levels (Run a search, step 1) give success rates with 95 % intervals and the noise limit by PDEComp's rule (at least 3 of 5 runs). The command-line campaign engine remains available for controlled benchmarks.
 
 The **Run a search** page separates a common data input from independent
 method-specific configurations. With both algorithms selected there are two
 tabs: **EPDE · Evolution** (equation-specific EPDE variant, population,
 epochs, derivative estimator, evolutionary objectives, candidate pool) and
-**PySINDy · Sparse regression** (its own derivative estimator, maximum terms,
-variable/derivative powers, pairwise interactions, STLSQ threshold strategy,
-column normalization and time-tail validation fraction). Selecting only one
-method shows only its relevant controls. All short choices use pills/buttons.
-
-For PySINDy the original `auto` defaults are unchanged: 49 STLSQ thresholds,
-both normalizations and 20% held-out tail; new non-defaults alter the **real
-native** `epde_bench.baselines.run_pysindy` implementation, not just the
-frontend. A fixed threshold, normalization mode, one-vs-two-factor library,
-and holdout fraction are validated independently. Population/epochs and EPDE
-Pareto objectives never get propagated to the PySINDy optimizer. Likewise,
-changing PySINDy STLSQ settings cannot affect the EPDE evolutionary run.
+**PySINDy · Sparse regression** (the PDEComp protocol on PDEComp's datasets;
+the target time derivative for uploaded data without a known law). Selecting
+only one method shows only its relevant controls. All short choices use
+pills/buttons. EPDE settings never reach PySINDy and PDEComp's settings are
+not edited in the app.
 
 Built-in scientific requests store their selected variant and independent
-`search` plus `pysindy` overrides. Generated/uploaded data retain one common
+`search` overrides (EPDE) or the PDEComp protocol (PySINDy). Generated/uploaded data retain one common
 numerical .npz, with separately validated method configurations in the job
 manifest. Results and Compare retain the same common input identity and show
 the settings actually used for each method.

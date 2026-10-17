@@ -105,7 +105,7 @@ except ImportError:
 @unittest.skipIf(AppTest is None, "Streamlit not installed")
 class BrowserSmoke(unittest.TestCase):
     def test_new_sindy_screen_and_search(self):
-        for p in ("4_SINDy.py", "5_Run_search.py",
+        for p in ("5_Run_search.py",
                   "2_Signal_check.py", "3_Derivatives.py", "6_Your_data.py"):
             with self.subTest(p=p):
                 app = AppTest.from_file(str(APP / "views" / p), default_timeout=120)

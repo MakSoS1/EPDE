@@ -19,9 +19,9 @@ ROOT = RESULTS_DIR / "app" / "discovery_lab"
 MANAGER_LOCK = ROOT / "manager.lock"
 OWNER_RE = re.compile(r"^[0-9a-f]{48}$")
 JOB_RE = re.compile(r"^[0-9a-f]{32}$")
-MAX_OWNER_JOBS = 40
-MAX_OWNER_PENDING = 6
-MAX_TOTAL_QUEUED = 30
+MAX_OWNER_JOBS = 80
+MAX_OWNER_PENDING = 12
+MAX_TOTAL_QUEUED = 40
 MAX_OWNER_UPLOAD_BYTES = 24 * 1024 * 1024
 MAX_LLM_DAILY_JOBS = 50
 
@@ -133,7 +133,7 @@ def check_capacity(owner: str, method: str, count: int = 1):
 
 def submit(owner: str, request: dict):
     """Create an immutable input manifest and a queued job; never accept a shell command."""
-    if request.get("method") not in ("epde", "pysindy", "llm"):
+    if request.get("method") not in ("epde", "pdecomp", "llm"):
         raise ValueError("Unknown algorithm")
     if request.get("source") not in ("record", "upload"):
         raise ValueError("Unknown data source")
@@ -155,7 +155,9 @@ def submit(owner: str, request: dict):
                                 "input_key": str(display.get("input_key", ""))[:200],
                                 "noise": float(request.get("noise", 0) or 0),
                                 "seed": int(request.get("seed", 0) or 0),
-                                "effort": str(request.get("effort", "standard"))[:20]})
+                                "effort": str(request.get("effort", "standard"))[:20],
+                                "variant": str(request.get("variant", ""))[:40],
+                                "series": str(display.get("series", ""))[:200]})
     ensure_manager()
     return job_id
 
@@ -261,7 +263,7 @@ def save_client_result(owner: str, request: dict, record: dict):
     if not isinstance(request, dict) or not isinstance(record, dict):
         raise ValueError("Invalid local result")
     method = request.get("method")
-    if method not in ("epde", "pysindy"):
+    if method not in ("epde", "pdecomp"):
         raise ValueError("Invalid local method")
     if record.get("execution_location") != "user_computer":
         raise ValueError("Result was not marked as a local run")

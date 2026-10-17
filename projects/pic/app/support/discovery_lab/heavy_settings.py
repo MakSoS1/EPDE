@@ -9,7 +9,6 @@ import copy
 import streamlit as st
 
 from epde_bench.config import load_config
-from support.discovery_lab.sindy_settings import validate_sindy_options
 
 
 def render_heavy_epde(name):
@@ -35,43 +34,26 @@ def render_heavy_epde(name):
     return {"method": "epde", "variant": "default", "overrides": {"search": search}}
 
 
-def render_heavy_sindy(name):
-    from epde_bench.baselines import unsupported_reason
-    reason = unsupported_reason(name)
+def render_heavy_pysindy(name):
+    """PySINDy as the PDEComp benchmark runs it, for a record computed locally."""
+    from epde_bench import pdecomp
+    from epde_bench.datasets import REGISTRY
+    spec = REGISTRY[name]
+    reason = None if pdecomp.supported(name) else pdecomp.unsupported_reason(spec.kind, len(_variables(name)))
     if reason:
-        st.error("PySINDy's current scientific adapter cannot represent this equation: " + reason + ". Deselect PySINDy in step 1 to export EPDE alone.")
+        st.error("PySINDy cannot represent this equation: " + reason +
+                 ". Deselect PySINDy in step 1 to export EPDE alone.")
         return None
-    cfg = load_config(name, "pysindy")
-    search = copy.deepcopy(cfg["search"])
-    options = copy.deepcopy(cfg.get("pysindy", {}))
-    st.caption("PySINDy sparse regression; no EPDE population/epoch settings are applied.")
-    mode = st.pills("Differentiation", ["epde", "finite_difference", "smoothed_finite_difference"],
-                    default=options.get("differentiation", "epde"),
-                    selection_mode="single", key="portable_sindy_diff_" + name)
-    normalization = st.pills("Feature normalization", ["auto", "on", "off"],
-                             default=options.get("normalize_columns", "auto"),
-                             selection_mode="single", key="portable_sindy_normalize_" + name)
-    threshold_mode = st.pills("STLSQ threshold", ["auto", "manual"], default="auto",
-                              selection_mode="single", key="portable_sindy_mode_" + name)
-    if threshold_mode == "manual":
-        threshold = st.number_input("Fixed STLSQ threshold", min_value=1e-6,
-                                     max_value=100.0, value=0.01, format="%.6f",
-                                     key="portable_sindy_threshold_" + name)
-    else:
-        threshold = "auto"
-    a, b = st.columns(2)
-    factors = int(a.number_input("Maximum feature factors", min_value=1, max_value=2,
-                                 value=int(options.get("max_terms_product", 2)),
-                                 key="portable_sindy_factors_" + name))
-    holdout = b.pills("Held-out time fraction", [0.10, 0.20, 0.30],
-                      default=0.20, selection_mode="single",
-                      key="portable_sindy_holdout_" + name,
-                      format_func=lambda n: f"{n:.0%}")
-    options.update(differentiation=mode or "epde",
-                   normalize_columns=normalization or "auto",
-                   threshold=threshold, max_terms_product=factors,
-                   validation_fraction=holdout or 0.20)
-    options = validate_sindy_options(options)
-    st.caption("The full PySINDy scientific configuration is shown on the review screen.")
-    return {"method": "pysindy", "variant": "pysindy",
-            "overrides": {"search": search, "pysindy": options}}
+    protocols = pdecomp.protocols_for(name)
+    protocol = st.pills("PDEComp protocol", list(protocols), default=protocols[0],
+                        selection_mode="single", key="portable_pdecomp_protocol_" + name) or protocols[0]
+    st.caption("PDEComp's own PySINDy code and settings, unchanged"
+               + (" (its settings for this dataset)." if pdecomp.supported(name)
+                  else " (native protocol, PDEComp's default settings)."))
+    return {"method": "pdecomp", "variant": f"pysindy_pdecomp_{protocol}", "overrides": {}}
+
+
+def _variables(name):
+    """Variable names declared by the record's loader, without loading its data."""
+    from support.discovery_lab.catalog import declared_equations
+    return declared_equations(name) or ["u"]

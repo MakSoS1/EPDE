@@ -54,7 +54,7 @@ export default function (component) {
       }
       const record = body.record;
       if (record.execution_location !== "user_computer" ||
-          !["epde", "pysindy"].includes(record.method)) {
+          !["epde", "pdecomp"].includes(record.method)) {
         throw new Error("Invalid scientific result returned by the worker.");
       }
       const size = JSON.stringify(record).length;
