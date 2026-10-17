@@ -35,7 +35,7 @@ try{
   await f.getByText(/Configure method settings/).waitFor({timeout:45000});
   await f.getByRole("tab", {name:/EPDE.*Evolution/i}).waitFor({timeout:30000});
   await f.getByRole("tab", {name:/PySINDy.*Sparse regression/i}).click();
-  await f.getByText("STLSQ sparsity threshold").first().waitFor({timeout:30000});
+  await f.getByText(/sparse regression as in the PDEComp benchmark/).first().waitFor({timeout:30000});
   await f.getByRole("tab", {name:/EPDE.*Evolution/i}).click();
   await f.getByRole("tab",{name:/EPDE.*Evolution/i}).waitFor();
   await f.getByRole("tab",{name:/PySINDy.*Sparse regression/i}).waitFor();
