@@ -33,7 +33,7 @@ try {
   await page.screenshot({path:"public-minimal-run-search.png",fullPage:true});
   console.log("PUBLIC_MINIMAL_RUN_SEARCH_PASS");
   await f.getByRole("link",{name:/Data catalog|All datasets/i}).first().click();
-  await f.getByText(/Showing 59 of 59 registered scientific datasets/).waitFor({timeout:60000});
+  await f.getByText(/Showing 64 of 64 registered scientific datasets/).waitFor({timeout:60000});
   await page.screenshot({path:"public-minimal-catalog.png",fullPage:true});
   console.log("PUBLIC_MINIMAL_CATALOG_PASS");
   await f.getByRole("link",{name:/Results/i}).first().click();

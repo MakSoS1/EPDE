@@ -1,5 +1,5 @@
 /* Actual Streamlit user journey: single Run a search, both native scientific
- * methods on identical input, history grouped by input, full 59-entry catalog.
+ * methods on identical input, history grouped by input, full 64-entry catalog.
  * No separate browser-SINDy or execution-location tab is allowed.
  */
 import {chromium} from "playwright";
@@ -78,8 +78,8 @@ try{
 
   await f.getByRole("link",{name:/Data catalog/i}).first().click();
   await f.getByText("Data catalog",{exact:true}).first().waitFor({timeout:45000});
-  await f.getByText(/Showing 59 of 59 registered scientific datasets/).waitFor({timeout:30000});
-  console.log("FULL_CATALOG_PASS 59/59");
+  await f.getByText(/Showing 64 of 64 registered scientific datasets/).waitFor({timeout:30000});
+  console.log("FULL_CATALOG_PASS 64/64");
 
   await page.reload({waitUntil:"domcontentloaded"});
   const fresh=await appFrame();

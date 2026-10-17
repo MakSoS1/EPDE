@@ -63,7 +63,7 @@ Then visit `http://127.0.0.1:8501`. The Compose port is bound only to localhost.
 
 ## Using the Lab
 
-1. **Run a search (landing page).** Choose EPDE, PySINDy or both, then choose data: one of 59 registered datasets (ODEs, systems, PDEs,
+1. **Run a search (landing page).** Choose EPDE, PySINDy or both, then choose data: one of 64 registered datasets (ODEs, systems, PDEs,
    the NIR-1 test set) with a known law; a generated ODE `du/dt = f(t, u)` whose law is
    converted to EPDE form so the result can be checked; or an uploaded CSV/NPZ/NPY file
    (examples can be downloaded on the page). Pick one or several methods: they run on
@@ -141,7 +141,7 @@ searchable.
 The free public instance enforces a conservative scientific budget (8000 field
 cells, at most two variables, 24 candidates, eight epochs and
 cells × candidates × epochs <=250000). Full expensive 2D/3D PDEs such as
-Navier–Stokes remain in the 59-record catalogue but are not run on the free
+Navier–Stokes remain in the 64-record catalogue but are not run on the free
 shared VM. The same Streamlit code runs with full local scientific resources
 using the root `run-epde.sh` / `run-epde.cmd`, or in private GitHub Codespaces;
 these deployment details are in the main README rather than a public mode
