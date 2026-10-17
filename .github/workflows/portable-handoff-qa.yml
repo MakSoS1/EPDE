@@ -44,7 +44,7 @@ jobs:
           projects/pic/.venv/bin/python - <<'PY'
           from pathlib import Path
           from support.discovery_lab.portable import make_manifest, bundle_bytes
-          m=make_manifest("ode",0.0,0,[{"method":"epde","variant":"default","overrides":{"search":{"evolution":{"population_size":4,"training_epochs":1}}}},{"method":"pysindy","variant":"pysindy","overrides":{}}])
+          m=make_manifest("ode",0.0,0,[{"method":"epde","variant":"default","overrides":{"search":{"evolution":{"population_size":4,"training_epochs":1}}}},{"method":"pdecomp","variant":"pysindy_pdecomp_fixed","overrides":{}}])
           Path("experiment.zip").write_bytes(bundle_bytes(m))
           PY
           uv run --project projects/pic --python 3.12 --locked --extra cpu --extra app python projects/pic/portable_experiment.py --bundle experiment.zip
@@ -53,7 +53,7 @@ jobs:
           from support.discovery_lab.portable import read_results
           records=read_results(Path("experiment-results.zip").read_bytes())
           assert len(records)==2
-          assert {r["method"] for r in records}=={"epde","pysindy"}
+          assert {r["method"] for r in records}=={"epde","pdecomp"}
           assert all(r["status"]=="ok" for r in records), records
           assert len({r["comparison_input_sha256"] for r in records})==1
           print("NATIVE_PAIRED_IMPORT_COMPARE_ROUNDTRIP_OK")

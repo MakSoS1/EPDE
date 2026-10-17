@@ -19,7 +19,7 @@ on:
       - 'projects/pic/tests/test_demo_local_cpu.py'
       - 'projects/pic/tests/test_demo_execution_routing.py'
       - 'projects/pic/tests/test_paired_lab_runs.py'
-      - 'projects/pic/tests/test_pysindy_method_settings.py'
+      - 'projects/pic/tests/test_pdecomp_protocol.py'
       - 'projects/pic/epde_bench/baselines.py'
       - 'projects/pic/app/support/discovery_lab/sindy_settings.py'
       - 'projects/pic/tests/test_full_catalog.py'
@@ -135,12 +135,12 @@ jobs:
           from pathlib import Path
           sys.path.insert(0, "projects/pic/app")
           from local_worker_service import _execute
-          req = {"method": "pysindy", "source": "record", "dataset": "ode",
-                 "variant": "pysindy", "overrides": {}, "noise": 0.0,
+          req = {"method": "pdecomp", "source": "record", "dataset": "ode",
+                 "variant": "pysindy_pdecomp_fixed", "overrides": {}, "noise": 0.0,
                  "seed": 0, "effort": "standard"}
           with tempfile.TemporaryDirectory() as temp:
               record = _execute(req, Path(temp))
-          assert record["method"] == "pysindy", record
+          assert record["method"] == "pdecomp", record
           assert record["status"] in ("ok", "unsupported"), record
           assert record["execution_location"] == "user_computer"
           PY
@@ -151,10 +151,10 @@ jobs:
         timeout-minutes: 10
         run: |
           projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_paired_lab_runs.py' -v
-      - name: Verify native PySINDy-specific settings and per-method input isolation
+      - name: Verify PySINDy as run by PDEComp, its metrics and series summaries
         timeout-minutes: 12
         run: |
-          projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_pysindy_method_settings.py' -v
+          projects/pic/.venv/bin/python -m unittest discover -s projects/pic/tests -p 'test_pdecomp_protocol.py' -v
       - name: Check local browser bridge ES module syntax
         run: node --input-type=module --check < projects/pic/app/support/discovery_lab/local_browser_assets/local_bridge.js
   report:

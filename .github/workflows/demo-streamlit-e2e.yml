@@ -71,7 +71,7 @@ jobs:
               {"method": "epde", "variant": "default",
                "overrides": {"search": {"evolution": {"population_size": 4,
                                                       "training_epochs": 1}}}},
-              {"method": "pysindy", "variant": "pysindy", "overrides": {}},
+              {"method": "pdecomp", "variant": "pysindy_pdecomp_fixed", "overrides": {}},
           ]
           Path("experiment.zip").write_bytes(bundle_bytes(make_manifest("ode", 0.0, 0, runs)))
           PY
