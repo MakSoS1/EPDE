@@ -96,8 +96,8 @@ else:
                          column_config=ui.metric_columns())
             st.caption("Only matching input fingerprints are grouped. HD and RE follow the "
                        "PDEComp benchmark and are computed here in the same way for every method, "
-                       "against the known law of this record. The methods' own objectives and "
-                       "derivative estimators differ and are not compared. Solution R² is "
+                       "against the known law of this record. The methods' objectives and derivative "
+                       "estimators differ; internal scores are not interchangeable. Solution R² is "
                        "in-sample, not a forecast.")
             for method in sorted(methods_in_view, key=str):
                 st.caption("**"+ui.METHOD_NAMES.get(method, method)+"**: "+ui.PROTOCOL_NOTES.get(method, ""))
