@@ -46,8 +46,11 @@ def pdecomp_settings(record_name, protocol):
     return pdecomp.describe(key, protocol)
 
 
-def settings_editor(record_name, protocol, key):
+def settings_editor(record_name, protocol, key, kind=None):
     """Editable PDEComp settings, prefilled with PDEComp's own; returns only the changes."""
+    if kind is None and record_name:
+        from epde_bench.datasets import REGISTRY
+        kind = REGISTRY[record_name].kind
     base = pdecomp_settings(record_name, protocol)
     opt = dict(base.get("optimizer") or {})
     prefix = f"lab_pdecomp_{protocol}_{key}_"
@@ -93,34 +96,78 @@ def settings_editor(record_name, protocol, key):
     a, b, c = st.columns(3)
     if protocol == "fixed":
         library = base.get("library") or {}
-        degree_default = int(library.get("data_fun_pow", (base.get("common") or {}).get("data_fun_pow", 3)))
+        common = base.get("common") or {}
         crop = int(a.number_input("Boundary crop, points", 0, 50, int(base.get("crop", 0)),
                                   key=prefix + "crop"))
-        degree = int(b.number_input("Polynomial degree of the library", 1, 4, degree_default,
-                                    key=prefix + "degree"))
         if crop != int(base.get("crop", 0)):
             changes["crop"] = crop
-        if degree != degree_default:
-            changes["library"] = {"data_fun_pow": degree}
-        tokens = library.get("custom_tokens")
-        if tokens:
-            st.caption("Extra library terms of this dataset in PDEComp: " + ", ".join(map(str, tokens)))
+        if library.get("type") == "navier_stokes":
+            st.caption("The Navier–Stokes library of PDEComp is specialised; only the optimizer "
+                       "and the crop can be changed.")
+        else:
+            lib_changes = {}
+            degree_default = int(library.get("data_fun_pow", common.get("data_fun_pow", 3)))
+            degree = int(b.number_input("Polynomial degree of the library", 1, 4, degree_default,
+                                        key=prefix + "degree"))
+            factors_default = int(library.get("equation_factors_max_number",
+                                              common.get("equation_factors_max_number", 2)))
+            factors = c.pills("Feature interactions", [1, 2], selection_mode="single",
+                              default=factors_default, key=prefix + "factors",
+                              format_func=lambda v: "Individual features" if v == 1
+                              else "Features + pairwise products") or factors_default
+            a, b, c = st.columns(3)
+            bias_default = bool(library.get("include_bias", common.get("include_bias", True)))
+            bias = a.toggle("Free coefficient (constant term)", bias_default, key=prefix + "bias")
+            orders_default = list(library.get("max_deriv_order", common.get("max_deriv_order", [2, 4])))
+            time_order = int(b.number_input("Highest time derivative", 1, 2, int(orders_default[0]),
+                                            key=prefix + "time_order"))
+            orders = [time_order]
+            if kind == "pde_1d" and len(orders_default) > 1:
+                orders.append(int(c.number_input("Highest space derivative", 1, 4,
+                                                  int(orders_default[1]), key=prefix + "space_order")))
+            vocabulary = list(pdecomp.CUSTOM_TOKENS.get(kind, ()))
+            tokens_default = [t for t in library.get("custom_tokens", []) if t in vocabulary]
+            tokens = st.multiselect("Extra library terms", vocabulary, default=tokens_default,
+                                    key=prefix + "tokens",
+                                    help="PDEComp's own extra terms; the defaults are PDEComp's choice "
+                                         "for this dataset.")
+            if degree != degree_default:
+                lib_changes["data_fun_pow"] = degree
+            if int(factors) != factors_default:
+                lib_changes["equation_factors_max_number"] = int(factors)
+            if bias != bias_default:
+                lib_changes["include_bias"] = bias
+            if orders != [int(o) for o in orders_default[:len(orders)]]:
+                lib_changes["max_deriv_order"] = orders
+            if tokens != tokens_default:
+                lib_changes["custom_tokens"] = tokens
+            if lib_changes:
+                changes["library"] = lib_changes
     else:
         degree = int(a.number_input("Polynomial degree", 1, 4, int(base.get("polynomial_degree", 3)),
                                     key=prefix + "degree"))
         trim = int(b.number_input("Boundary trim, points", 0, 50, int(base.get("boundary_trim", 0)),
                                   key=prefix + "trim"))
-        order_default = int((base.get("differentiation") or {}).get("order", 4))
+        diff = base.get("differentiation") or {}
+        order_default = int(diff.get("order", 4))
         order = c.pills("Finite-difference order", [2, 4], selection_mode="single",
                         default=order_default if order_default in (2, 4) else 4,
                         key=prefix + "diff_order") or order_default
+        periodic_default = bool(diff.get("periodic", False))
+        periodic = st.toggle("Periodic in space", periodic_default, key=prefix + "periodic",
+                             help="Finite differences wrap around the space axis (periodic data).")
         if degree != int(base.get("polynomial_degree", 3)):
             changes["polynomial_degree"] = degree
         if trim != int(base.get("boundary_trim", 0)):
             changes["boundary_trim"] = trim
+        diff_changes = {}
         if int(order) != order_default:
-            changes["differentiation"] = {"order": int(order)}
-    changes = pdecomp.validate_overrides(changes, protocol)
+            diff_changes["order"] = int(order)
+        if periodic != periodic_default:
+            diff_changes["periodic"] = periodic
+        if diff_changes:
+            changes["differentiation"] = diff_changes
+    changes = pdecomp.validate_overrides(changes, protocol, kind)
     st.caption("Changed from PDEComp's settings: " + ", ".join(
         f"{k}={v}" for k, v in changes.items()) if changes else "PDEComp's own settings, unchanged.")
     return changes
@@ -164,7 +211,8 @@ def render_settings(*, record_name, problem, arrays, source):
         st.caption("Target: the first time derivative of every variable.")
         target_orders = {v: 1 for v in variables}
     with st.container(border=True):
-        overrides["native"] = settings_editor(record_name, "native", record_name or "data")
+        kind = problem.kind if problem is not None else shape_of_arrays(arrays)[0]
+        overrides["native"] = settings_editor(record_name, "native", record_name or "data", kind)
     return {"protocols": ["native"], "target_orders": target_orders, "overrides": overrides}
 
 

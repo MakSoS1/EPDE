@@ -121,7 +121,7 @@ def run_one(dataset: str, variant: str = 'default', noise: float = 0.0, seed: in
                 if reason or protocol != 'native':
                     raise UnsupportedProblem(dataset, reason or 'The fixed protocol has PDEComp settings '
                                              'only for its own data sets; use the native protocol.')
-            overrides = pdecomp.validate_overrides(options.get('overrides'), protocol)
+            overrides = pdecomp.validate_overrides(options.get('overrides'), protocol, problem.kind)
             raw, pdecomp_metrics, fit_seconds, settings = pdecomp.run(
                 problem, data, protocol, seed, orders=options.get('target_orders'), overrides=overrides)
             texts, objectives = [pdecomp.to_epde_texts(problem, raw)], [None]

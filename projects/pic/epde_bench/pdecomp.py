@@ -190,10 +190,18 @@ def _layout(problem, data):
 #: Settings of PDEComp's PySINDy that the app lets the user change, per protocol.
 OPTIMIZER_KEYS = {'type', 'threshold', 'alpha', 'max_iter', 'normalize_columns',
                   'coefficient_tol', 'coefficient_relative_tol'}
-OPTIMIZERS = ('STLSQ', 'FROLS')
+OPTIMIZERS = ('STLSQ', 'FROLS')     # PDEComp's SR3 branch does not run with PySINDy 2.1
+#: Extra library terms PDEComp's fixed protocol can build, by the kind of data.
+TIME_TOKENS = ('t', 't^2', 'sin(t)', 'cos(t)', 'sin(2 t)', 'cos(2 t)')
+CUSTOM_TOKENS = {
+    'ode': TIME_TOKENS + ('u_t sin(2 t)',),
+    'ode_system': TIME_TOKENS,
+    'pde_1d': TIME_TOKENS + ('x', 'u_t sin(2 t)', 'sin(x)', 'sin(x) cos(t)', 'cos(x) sin(t)',
+                             '(1/x) u', '(1/x) u_x', 'd_x(u u_x)'),
+}
 
 
-def validate_overrides(overrides, protocol):
+def validate_overrides(overrides, protocol, kind=None):
     """Check user changes to PDEComp's settings; returns a clean copy or raises."""
     if overrides in (None, {}):
         return {}
@@ -235,19 +243,52 @@ def validate_overrides(overrides, protocol):
         out['crop'] = number(overrides['crop'], 0, 50, 'crop', True)
     if 'library' in overrides:
         library = overrides['library'] or {}
-        if not isinstance(library, dict) or set(library) - {'data_fun_pow'}:
-            raise ValueError('Only the polynomial degree of the library can be changed')
-        if library:
-            out['library'] = {'data_fun_pow': number(library['data_fun_pow'], 1, 4, 'polynomial degree', True)}
+        keys = {'data_fun_pow', 'equation_factors_max_number', 'include_bias', 'max_deriv_order', 'custom_tokens'}
+        if not isinstance(library, dict) or set(library) - keys:
+            raise ValueError('Unknown library setting: ' + ', '.join(sorted(set(library) - keys)))
+        clean = {}
+        if 'data_fun_pow' in library:
+            clean['data_fun_pow'] = number(library['data_fun_pow'], 1, 4, 'polynomial degree', True)
+        if 'equation_factors_max_number' in library:
+            clean['equation_factors_max_number'] = number(library['equation_factors_max_number'], 1, 2,
+                                                          'factors per term', True)
+        if 'include_bias' in library:
+            if not isinstance(library['include_bias'], bool):
+                raise ValueError('include_bias must be true or false')
+            clean['include_bias'] = library['include_bias']
+        if 'max_deriv_order' in library:
+            orders = library['max_deriv_order']
+            if not isinstance(orders, (list, tuple)) or not 1 <= len(orders) <= 2:
+                raise ValueError('max_deriv_order is (time, space)')
+            clean['max_deriv_order'] = [number(orders[0], 1, 2, 'time derivative order', True)] + \
+                [number(o, 1, 4, 'space derivative order', True) for o in orders[1:]]
+        if 'custom_tokens' in library:
+            tokens = library['custom_tokens']
+            vocabulary = set().union(*CUSTOM_TOKENS.values()) if kind is None else set(CUSTOM_TOKENS.get(kind, ()))
+            if not isinstance(tokens, (list, tuple)) or any(t not in vocabulary for t in tokens):
+                raise ValueError('Unknown extra library term for these data')
+            clean['custom_tokens'] = list(dict.fromkeys(tokens))
+        if clean:
+            out['library'] = clean
     if 'polynomial_degree' in overrides:
         out['polynomial_degree'] = number(overrides['polynomial_degree'], 1, 4, 'polynomial degree', True)
     if 'boundary_trim' in overrides:
         out['boundary_trim'] = number(overrides['boundary_trim'], 0, 50, 'boundary trim', True)
     if 'differentiation' in overrides:
         diff = overrides['differentiation'] or {}
-        if not isinstance(diff, dict) or set(diff) - {'order'} or diff.get('order') not in (2, 4):
-            raise ValueError('The finite-difference order must be 2 or 4')
-        out['differentiation'] = {'order': int(diff['order'])}
+        if not isinstance(diff, dict) or set(diff) - {'order', 'periodic'}:
+            raise ValueError('Unknown differentiation setting')
+        clean = {}
+        if 'order' in diff:
+            if diff['order'] not in (2, 4):
+                raise ValueError('The finite-difference order must be 2 or 4')
+            clean['order'] = int(diff['order'])
+        if 'periodic' in diff:
+            if not isinstance(diff['periodic'], bool):
+                raise ValueError('periodic must be true or false')
+            clean['periodic'] = diff['periodic']
+        if clean:
+            out['differentiation'] = clean
     return out
 
 
@@ -289,7 +330,7 @@ def run(problem, data, protocol: str = 'fixed', seed: int = 0, timeout: float = 
     :func:`validate_overrides`)."""
     if protocol not in PROTOCOLS:
         raise ValueError(f'unknown PDEComp protocol {protocol!r}')
-    overrides = validate_overrides(overrides, protocol)
+    overrides = validate_overrides(overrides, protocol, problem.kind)
     filename = PDECOMP_FILES.get(problem.name)
     params = None
     if filename is None:

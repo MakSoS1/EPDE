@@ -98,7 +98,10 @@ class SettingsChanges(unittest.TestCase):
                               ({'polynomial_degree': 3}, 'fixed'),
                               ({'optimizer': {'threshold': -1}}, 'fixed'),
                               ({'differentiation': {'order': 3}}, 'native'),
-                              ({'library': {'custom_tokens': []}}, 'fixed')):
+                              ({'library': {'custom_tokens': ['exp(u)']}}, 'fixed'),
+                              ({'library': {'equation_factors_max_number': 3}}, 'fixed'),
+                              ({'library': {'max_deriv_order': [3, 4]}}, 'fixed'),
+                              ({'differentiation': {'periodic': 'yes'}}, 'native')):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 pdecomp.validate_overrides(bad, protocol)
 
@@ -171,6 +174,18 @@ class Parity(unittest.TestCase):
         native = pdecomp.describe(None, 'native', {'polynomial_degree': 2})
         self.assertEqual(native['polynomial_degree'], 2)
         self.assertEqual(pdecomp.describe('ode', 'fixed')['optimizer']['threshold'], 1e-06)
+
+    def test_library_settings_reach_pdecomp(self):
+        from epde_bench.runner import run_one
+        sizes = {}
+        for name, change in (('base', None), ('single', {'equation_factors_max_number': 1}),
+                             ('no_bias', {'include_bias': False})):
+            record = run_one('ode', 'pysindy_pdecomp_fixed', 0.0, 0,
+                             overrides={'pdecomp': {'overrides': {'library': change}}} if change else None)
+            sizes[name] = sum(record['baseline']['library_size'].values())
+        self.assertEqual(sizes, {'base': 12, 'single': 9, 'no_bias': 11})
+        with self.assertRaises(ValueError):
+            pdecomp.validate_overrides({'library': {'custom_tokens': ['sin(x)']}}, 'fixed', 'ode')
 
     def test_unsupported_record(self):
         from epde_bench.runner import run_one
