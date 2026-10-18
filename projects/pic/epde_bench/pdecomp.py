@@ -300,8 +300,10 @@ def _bridge(request, timeout):
     proc = subprocess.run([sys.executable, str(BRIDGE), json.dumps(request)],
                           capture_output=True, text=True, timeout=timeout, env=env, cwd=str(root))
     if proc.returncode != 0:
-        tail = (proc.stderr or proc.stdout or '').strip().splitlines()[-5:]
-        raise RuntimeError('PDEComp PySINDy failed: ' + ' | '.join(tail))
+        lines = (proc.stderr or proc.stdout or '').strip().splitlines()
+        if lines and lines[-1].startswith('ValueError: '):
+            raise ValueError('PySINDy settings: ' + lines[-1][len('ValueError: '):])
+        raise RuntimeError('PDEComp PySINDy failed: ' + ' | '.join(lines[-5:]))
     return json.loads(Path(request['output']).read_text(encoding='utf-8'))
 
 

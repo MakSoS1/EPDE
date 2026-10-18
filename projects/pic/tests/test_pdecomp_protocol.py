@@ -187,6 +187,13 @@ class Parity(unittest.TestCase):
         with self.assertRaises(ValueError):
             pdecomp.validate_overrides({'library': {'custom_tokens': ['sin(x)']}}, 'fixed', 'ode')
 
+    def test_library_must_reach_the_target_order(self):
+        from epde_bench.runner import run_one
+        record = run_one('ode', 'pysindy_pdecomp_fixed', 0.0, 0,
+                         overrides={'pdecomp': {'overrides': {'library': {'max_deriv_order': [1]}}}})
+        self.assertEqual(record['status'], 'error')
+        self.assertIn('below the order of the target u_tt', record['error'])
+
     def test_unsupported_record(self):
         from epde_bench.runner import run_one
         record = run_one('duffing', 'pysindy_pdecomp_fixed', 0.0, 0)

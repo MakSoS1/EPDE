@@ -119,8 +119,14 @@ def settings_editor(record_name, protocol, key, kind=None):
             bias_default = bool(library.get("include_bias", common.get("include_bias", True)))
             bias = a.toggle("Free coefficient (constant term)", bias_default, key=prefix + "bias")
             orders_default = list(library.get("max_deriv_order", common.get("max_deriv_order", [2, 4])))
-            time_order = int(b.number_input("Highest time derivative", 1, 2, int(orders_default[0]),
-                                            key=prefix + "time_order"))
+            # The target (e.g. u_tt) comes from the same derivatives: the library must reach its order.
+            target_time = max([int(t.get("order", 1)) for t in base.get("targets", [])
+                               if t.get("axis", "t") == "t"] or [1])
+            time_order = int(b.number_input("Highest time derivative", target_time, 2,
+                                            max(target_time, int(orders_default[0])),
+                                            key=prefix + "time_order",
+                                            help=f"At least {target_time}: the order of the target "
+                                                 "time derivative."))
             orders = [time_order]
             if kind == "pde_1d" and len(orders_default) > 1:
                 orders.append(int(c.number_input("Highest space derivative", 1, 4,

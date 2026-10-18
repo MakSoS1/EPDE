@@ -37,6 +37,17 @@ def _effective(config, filename, protocol, overrides):
             params['crop'] = overrides['crop']
         if overrides.get('library'):
             params['library'] = {**params.get('library', {}), **overrides['library']}
+        orders = params.get('library', {}).get('max_deriv_order')
+        if orders:
+            # The target derivative is taken from the same derivative bundle as the library,
+            # so the library must reach the target's order on every axis.
+            axes = ['t', 'x', 'y', 'z']
+            for target in params.get('targets', []):
+                axis = axes.index(target.get('axis', 't')) if target.get('axis', 't') in axes else 0
+                if axis < len(orders) and int(target.get('order', 1)) > int(orders[axis]):
+                    raise ValueError(f"the highest derivative along {target.get('axis', 't')} ({orders[axis]}) "
+                                     f"is below the order of the target {target.get('name')} "
+                                     f"({target.get('order', 1)})")
         return params
     dataset = config.NATIVE_PYSINDY_DATASET_OVERRIDES.get(filename, {})
     native = {**config.NATIVE_PYSINDY_DEFAULTS, **copy.deepcopy(dataset)}
