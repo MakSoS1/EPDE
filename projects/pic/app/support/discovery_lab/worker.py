@@ -55,9 +55,13 @@ def _run_record(req, *, hosted=False):
     from support.discovery_lab.lab_settings import validate_public_search
     if "overrides" in req:
         overrides = req["overrides"] or {}
-        expected = set() if method == "pdecomp" else {"search"}
+        expected = {"pdecomp"} if method == "pdecomp" else {"search"}
         if not isinstance(overrides, dict) or set(overrides) - expected:
             raise ValueError("Invalid method-specific scientific overrides")
+        if method == "pdecomp" and overrides:
+            # Only PDEComp settings may change, never the protocol chosen by the variant.
+            if not isinstance(overrides["pdecomp"], dict) or set(overrides["pdecomp"]) - {"overrides"}:
+                raise ValueError("Invalid PySINDy settings")
         if "search" in overrides and not isinstance(overrides["search"], dict):
             raise ValueError("Search overrides must contain a mapping")
         cfg = load_config(dataset, variant, overrides=overrides)
@@ -128,7 +132,7 @@ def _run_upload(req, folder, *, hosted=False):
         # PDEComp's PySINDy: native protocol, its defaults; only the target is chosen.
         sindy_cfg = configs.get("pdecomp") or {"protocol": "native", "target_orders": {}}
         orders = sindy_cfg.get("target_orders") or {}
-        if (sindy_cfg.get("protocol") != "native" or set(sindy_cfg) - {"protocol", "target_orders"}
+        if (sindy_cfg.get("protocol") != "native" or set(sindy_cfg) - {"protocol", "target_orders", "overrides"}
                 or not isinstance(orders, dict) or set(orders) - set(problem.variables)
                 or any(k not in (1, 2) for k in orders.values())):
             raise ValueError("Invalid PySINDy settings")
@@ -181,10 +185,14 @@ def _run_upload(req, folder, *, hosted=False):
             reason = pdecomp.unsupported_reason(problem.kind, len(problem.variables))
             if reason:
                 raise UnsupportedProblem(problem, reason)
-            raw, own, seconds = pdecomp.run(problem, data, "native", seed,
-                                            orders=sindy_cfg.get("target_orders") or None)
+            overrides = pdecomp.validate_overrides(sindy_cfg.get("overrides"), "native")
+            raw, own, seconds, effective = pdecomp.run(problem, data, "native", seed,
+                                                       orders=sindy_cfg.get("target_orders") or None,
+                                                       overrides=overrides)
             front, objectives = [pdecomp.to_epde_texts(problem, raw)], [None]
-            record["baseline"] = {"protocol": "native", "pdecomp_settings": "native defaults",
+            record["baseline"] = {"protocol": "native", "overrides": overrides, "settings": effective,
+                                  "pdecomp_settings": "native defaults"
+                                                      + (", changed by the user" if overrides else ""),
                                   "source": f"{pdecomp.PDECOMP_REPO}@{pdecomp.PDECOMP_REV}",
                                   "library_size": dict(zip(raw["targets"], pdecomp.library_size(raw))),
                                   "result": raw, "pdecomp_metrics": own}

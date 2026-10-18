@@ -44,13 +44,16 @@ def render_heavy_pysindy(name):
         st.error("PySINDy cannot represent this equation: " + reason +
                  ". Deselect PySINDy in step 1 to export EPDE alone.")
         return None
+    from support.discovery_lab.pysindy_method import settings_editor
     protocols = pdecomp.protocols_for(name)
     protocol = st.pills("PDEComp protocol", list(protocols), default=protocols[0],
                         selection_mode="single", key="portable_pdecomp_protocol_" + name) or protocols[0]
-    st.caption("PDEComp's own PySINDy code and settings, unchanged"
-               + (" (its settings for this dataset)." if pdecomp.supported(name)
-                  else " (native protocol, PDEComp's default settings)."))
-    return {"method": "pdecomp", "variant": f"pysindy_pdecomp_{protocol}", "overrides": {}}
+    st.caption("PDEComp's own PySINDy code; the settings start from "
+               + ("PDEComp's settings for this dataset." if pdecomp.supported(name)
+                  else "PDEComp's native defaults."))
+    changes = settings_editor(name, protocol, "heavy_" + name)
+    return {"method": "pdecomp", "variant": f"pysindy_pdecomp_{protocol}",
+            "overrides": {"pdecomp": {"overrides": changes}} if changes else {}}
 
 
 def _variables(name):

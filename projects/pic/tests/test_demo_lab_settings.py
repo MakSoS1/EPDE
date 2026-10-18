@@ -82,7 +82,7 @@ class LabScientificPresets(unittest.TestCase):
         ast.parse(lab)
         ast.parse(worker)
         self.assertIn('"overrides": method_overrides', lab)
-        self.assertIn('runs = [(f"pysindy_pdecomp_{p}", {}) for p in sindy_settings["protocols"]]', lab)
+        self.assertIn('{"pdecomp": {"overrides": changes[p]}} if changes.get(p) else {}', lab)
         self.assertIn('"method_configs"', lab)
         self.assertIn('if "overrides" in req:', worker)
         self.assertIn("validate_public_search(resolve_for_problem(cfg, problem), problem.shape, override=not hosted)", worker)

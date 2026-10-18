@@ -89,6 +89,20 @@ class RelativeErrorSum(unittest.TestCase):
         self.assertAlmostEqual(out['re_sum'], 0.0)
 
 
+class SettingsChanges(unittest.TestCase):
+    def test_validation(self):
+        ok = pdecomp.validate_overrides({'optimizer': {'type': 'FROLS', 'max_iter': 3}, 'crop': 5}, 'fixed')
+        self.assertEqual(ok, {'optimizer': {'type': 'FROLS', 'max_iter': 3}, 'crop': 5})
+        for bad, protocol in (({'optimizer': {'type': 'SR3'}}, 'fixed'),
+                              ({'crop': 5}, 'native'),
+                              ({'polynomial_degree': 3}, 'fixed'),
+                              ({'optimizer': {'threshold': -1}}, 'fixed'),
+                              ({'differentiation': {'order': 3}}, 'native'),
+                              ({'library': {'custom_tokens': []}}, 'fixed')):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                pdecomp.validate_overrides(bad, protocol)
+
+
 class Series(unittest.TestCase):
     def _record(self, noise, ok):
         return {'status': 'ok', 'noise': noise, 'fit_seconds': 1.0, 'problem': {'truth': ['x']},
@@ -145,6 +159,18 @@ class Parity(unittest.TestCase):
                     self.assertEqual(record['metrics']['hamming_selected'], own['hd'])
                     self.assertAlmostEqual(record['metrics']['re_sum'], own['re'], places=6)
                     self.assertTrue(record['metrics']['success_selected'])
+
+    def test_changed_settings_reach_pdecomp(self):
+        from epde_bench.runner import run_one
+        base = run_one('ode', 'pysindy_pdecomp_fixed', 0.0, 0)
+        self.assertEqual(base['baseline']['overrides'], {})
+        changed = run_one('ode', 'pysindy_pdecomp_fixed', 0.0, 0,
+                          overrides={'pdecomp': {'overrides': {'optimizer': {'type': 'FROLS', 'max_iter': 3}}}})
+        self.assertEqual(changed['baseline']['settings']['optimizer']['type'], 'FROLS')
+        self.assertIn('changed by the user', changed['baseline']['pdecomp_settings'])
+        native = pdecomp.describe(None, 'native', {'polynomial_degree': 2})
+        self.assertEqual(native['polynomial_degree'], 2)
+        self.assertEqual(pdecomp.describe('ode', 'fixed')['optimizer']['threshold'], 1e-06)
 
     def test_unsupported_record(self):
         from epde_bench.runner import run_one

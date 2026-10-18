@@ -187,14 +187,109 @@ def _layout(problem, data):
     return (fields[0] if scalar else fields), axis('x'), axis('y'), axis('z'), axis('t')
 
 
-def run(problem, data, protocol: str = 'fixed', seed: int = 0, timeout: float = 600.0,
-        orders=None):
-    """Run PDEComp's PySINDy once; returns ``(raw_result, pdecomp_metrics, seconds)``.
+#: Settings of PDEComp's PySINDy that the app lets the user change, per protocol.
+OPTIMIZER_KEYS = {'type', 'threshold', 'alpha', 'max_iter', 'normalize_columns',
+                  'coefficient_tol', 'coefficient_relative_tol'}
+OPTIMIZERS = ('STLSQ', 'FROLS')
 
+
+def validate_overrides(overrides, protocol):
+    """Check user changes to PDEComp's settings; returns a clean copy or raises."""
+    if overrides in (None, {}):
+        return {}
+    if not isinstance(overrides, dict):
+        raise ValueError('PySINDy settings must be a mapping')
+    allowed = {'optimizer'} | ({'crop', 'library'} if protocol == 'fixed'
+                               else {'polynomial_degree', 'boundary_trim', 'differentiation'})
+    if set(overrides) - allowed:
+        raise ValueError('Unknown PySINDy setting: ' + ', '.join(sorted(set(overrides) - allowed)))
+    out = {}
+
+    def number(value, low, high, name, integer=False):
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not low <= value <= high:
+            raise ValueError(f'{name} must be between {low:g} and {high:g}')
+        if integer and int(value) != value:
+            raise ValueError(f'{name} must be an integer')
+        return int(value) if integer else float(value)
+
+    opt = overrides.get('optimizer') or {}
+    if not isinstance(opt, dict) or set(opt) - OPTIMIZER_KEYS:
+        raise ValueError('Unknown optimizer setting')
+    clean = {}
+    if 'type' in opt:
+        if opt['type'] not in OPTIMIZERS:
+            raise ValueError('The optimizer must be STLSQ or FROLS')
+        clean['type'] = opt['type']
+    for key, low, high, integer in (('threshold', 0.0, 1e4, False), ('alpha', 0.0, 1e4, False),
+                                    ('max_iter', 1, 200, True), ('coefficient_tol', 0.0, 1e4, False),
+                                    ('coefficient_relative_tol', 0.0, 1.0, False)):
+        if key in opt:
+            clean[key] = number(opt[key], low, high, key, integer)
+    if 'normalize_columns' in opt:
+        if not isinstance(opt['normalize_columns'], bool):
+            raise ValueError('normalize_columns must be true or false')
+        clean['normalize_columns'] = opt['normalize_columns']
+    if clean:
+        out['optimizer'] = clean
+    if 'crop' in overrides:
+        out['crop'] = number(overrides['crop'], 0, 50, 'crop', True)
+    if 'library' in overrides:
+        library = overrides['library'] or {}
+        if not isinstance(library, dict) or set(library) - {'data_fun_pow'}:
+            raise ValueError('Only the polynomial degree of the library can be changed')
+        if library:
+            out['library'] = {'data_fun_pow': number(library['data_fun_pow'], 1, 4, 'polynomial degree', True)}
+    if 'polynomial_degree' in overrides:
+        out['polynomial_degree'] = number(overrides['polynomial_degree'], 1, 4, 'polynomial degree', True)
+    if 'boundary_trim' in overrides:
+        out['boundary_trim'] = number(overrides['boundary_trim'], 0, 50, 'boundary trim', True)
+    if 'differentiation' in overrides:
+        diff = overrides['differentiation'] or {}
+        if not isinstance(diff, dict) or set(diff) - {'order'} or diff.get('order') not in (2, 4):
+            raise ValueError('The finite-difference order must be 2 or 4')
+        out['differentiation'] = {'order': int(diff['order'])}
+    return out
+
+
+def _bridge(request, timeout):
+    root = source_dir()
+    env = dict(os.environ, PYTHONIOENCODING='utf-8', MPLBACKEND='Agg')
+    env.pop('PYTHONPATH', None)
+    request = dict(request, root=str(root))
+    proc = subprocess.run([sys.executable, str(BRIDGE), json.dumps(request)],
+                          capture_output=True, text=True, timeout=timeout, env=env, cwd=str(root))
+    if proc.returncode != 0:
+        tail = (proc.stderr or proc.stdout or '').strip().splitlines()[-5:]
+        raise RuntimeError('PDEComp PySINDy failed: ' + ' | '.join(tail))
+    return json.loads(Path(request['output']).read_text(encoding='utf-8'))
+
+
+def describe(dataset, protocol, overrides=None):
+    """The settings PDEComp's PySINDy uses for a record (``None`` = data outside
+    PDEComp's data sets), with ``overrides`` applied; nothing is run."""
+    filename = PDECOMP_FILES.get(dataset)
+    if filename is None and protocol != 'native':
+        raise ValueError('the fixed protocol has settings only for PDEComp\'s data sets')
+    with tempfile.TemporaryDirectory() as tmp:
+        reply = _bridge({'describe': True, 'filename': filename or 'site:data', 'protocol': protocol,
+                         'params': None if filename else {'targets': []},
+                         'overrides': validate_overrides(overrides, protocol),
+                         'output': str(Path(tmp) / 'settings.json')}, timeout=120)
+    return reply['settings']
+
+
+def run(problem, data, protocol: str = 'fixed', seed: int = 0, timeout: float = 600.0,
+        orders=None, overrides=None):
+    """Run PDEComp's PySINDy once.
+
+    Returns ``(raw_result, pdecomp_metrics, seconds, effective_settings)``.
     ``orders`` ({variable: 1 or 2}) sets the target time derivatives of data
-    outside PDEComp's data sets; by default they come from :func:`target_orders`."""
+    outside PDEComp's data sets; by default they come from :func:`target_orders`.
+    ``overrides`` are the user's changes to PDEComp's settings (see
+    :func:`validate_overrides`)."""
     if protocol not in PROTOCOLS:
         raise ValueError(f'unknown PDEComp protocol {protocol!r}')
+    overrides = validate_overrides(overrides, protocol)
     filename = PDECOMP_FILES.get(problem.name)
     params = None
     if filename is None:
@@ -213,7 +308,6 @@ def run(problem, data, protocol: str = 'fixed', seed: int = 0, timeout: float = 
                    for n, v in zip(names, problem.variables)]
         filename = f'site:{problem.name}'
         params = {'targets': targets}
-    root = source_dir()
     fields, x, y, z, t = _layout(problem, data)
     with tempfile.TemporaryDirectory() as tmp:
         arrays = {'t': t}
@@ -225,21 +319,13 @@ def run(problem, data, protocol: str = 'fixed', seed: int = 0, timeout: float = 
         else:
             arrays['field'] = fields
         np.savez(Path(tmp) / 'input.npz', **arrays)
-        request = {'root': str(root), 'filename': filename, 'protocol': protocol, 'params': params,
-                   'seed': int(seed), 'input': str(Path(tmp) / 'input.npz'),
-                   'output': str(Path(tmp) / 'output.json')}
-        env = dict(os.environ, PYTHONIOENCODING='utf-8', MPLBACKEND='Agg')
-        env.pop('PYTHONPATH', None)
+        request = {'filename': filename, 'protocol': protocol, 'params': params,
+                   'overrides': overrides, 'seed': int(seed),
+                   'input': str(Path(tmp) / 'input.npz'), 'output': str(Path(tmp) / 'output.json')}
         t0 = time.perf_counter()
-        proc = subprocess.run([sys.executable, str(BRIDGE), json.dumps(request)],
-                              capture_output=True, text=True, timeout=timeout, env=env,
-                              cwd=str(root))
+        reply = _bridge(request, timeout)
         seconds = time.perf_counter() - t0
-        if proc.returncode != 0:
-            tail = (proc.stderr or proc.stdout or '').strip().splitlines()[-5:]
-            raise RuntimeError('PDEComp PySINDy failed: ' + ' | '.join(tail))
-        reply = json.loads((Path(tmp) / 'output.json').read_text(encoding='utf-8'))
-    return reply['result'], reply['metrics'], reply.get('fit_seconds', seconds)
+    return reply['result'], reply['metrics'], reply.get('fit_seconds', seconds), reply.get('settings')
 
 
 # ---------------------------------------------------------------------------

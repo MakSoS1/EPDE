@@ -165,8 +165,22 @@ else:
         elif record.get("method") == "pdecomp":
             base = record.get("baseline") or {}
             own = base.get("pdecomp_metrics") or {}
-            st.caption(f"PDEComp {base.get('protocol', '')} protocol · dataset "
-                       f"{base.get('pdecomp_file', '')} · source {base.get('source', '')}")
+            used = base.get("settings") or {}
+            opt = used.get("optimizer") or {}
+            knobs = [f"{opt.get('type', 'STLSQ')}"]
+            if opt.get("type", "STLSQ") == "STLSQ" and "threshold" in opt:
+                knobs.append(f"threshold {opt['threshold']:g}")
+            if opt.get("type") == "FROLS" and "max_iter" in opt:
+                knobs.append(f"max_iter {opt['max_iter']}")
+            if "alpha" in opt:
+                knobs.append(f"alpha {opt['alpha']:g}")
+            knobs.append("normalized columns" if opt.get("normalize_columns") else "raw columns")
+            st.caption(f"PySINDy · PDEComp {base.get('protocol', '')} protocol · "
+                       f"{base.get('pdecomp_file') or 'data outside PDEComp'} · "
+                       f"settings: {base.get('pdecomp_settings', '')} · " + " · ".join(knobs))
+            if base.get("overrides"):
+                st.caption("Changed from PDEComp's settings: " + ", ".join(
+                    f"{k}={v}" for k, v in base["overrides"].items()))
             if own.get("hd") is not None:
                 st.caption(f"PDEComp's own scoring against its reference coefficients: "
                            f"HD = {own['hd']}, RE (sum) = {own['re']:.4g}. It can differ from the "

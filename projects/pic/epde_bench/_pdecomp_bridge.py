@@ -22,10 +22,52 @@ def _load(name, path):
     return module
 
 
+def _effective(config, filename, protocol, overrides):
+    """PDEComp's settings for one run, with the user's changes applied.
+
+    Fixed protocol: the data set's entry of ``sindy_params`` (optimizer, crop,
+    library). Native protocol: PDEComp's native defaults, then its per-data-set
+    overrides, then the user's changes, merged exactly as its runner merges them."""
+    import copy
+    overrides = overrides or {}
+    if protocol == 'fixed':
+        params = copy.deepcopy(config.sindy_params[filename])
+        params['optimizer'] = {**params.get('optimizer', {}), **overrides.get('optimizer', {})}
+        if 'crop' in overrides:
+            params['crop'] = overrides['crop']
+        if overrides.get('library'):
+            params['library'] = {**params.get('library', {}), **overrides['library']}
+        return params
+    dataset = config.NATIVE_PYSINDY_DATASET_OVERRIDES.get(filename, {})
+    native = {**config.NATIVE_PYSINDY_DEFAULTS, **copy.deepcopy(dataset)}
+    native['optimizer'] = {**config.NATIVE_PYSINDY_DEFAULTS['optimizer'], **dataset.get('optimizer', {}),
+                           **overrides.get('optimizer', {})}
+    for key in ('polynomial_degree', 'boundary_trim'):
+        if key in overrides:
+            native[key] = overrides[key]
+    if 'differentiation' in overrides:
+        native['differentiation'] = {**native.get('differentiation', {}), **overrides['differentiation']}
+    return native
+
+
+def describe(request):
+    """The settings a run would use, without running it (for the app's form)."""
+    import data.config as config
+    filename = request['filename']
+    if request.get('params'):
+        config.sindy_params[filename] = request['params']
+    settings = _effective(config, filename, request['protocol'], request.get('overrides'))
+    if request['protocol'] == 'fixed':
+        settings = dict(settings, common=dict(config.COMMON_PARAMS))
+    Path(request['output']).write_text(json.dumps({'settings': settings}, default=str), encoding='utf-8')
+
+
 def main(request):
     root = Path(request['root'])
     # Only PDEComp's root: its "data" and "utils" packages must win over anything else.
     sys.path[:] = [str(root)] + [p for p in sys.path if p and Path(p).resolve() != Path(__file__).resolve().parent]
+    if request.get('describe'):
+        return describe(request)
     import numpy as np
     runner = _load('pdecomp_pysindy_run', root / 'pysindy' / 'run.py')
     metrics = _load('pdecomp_clean_run_metrics', root / 'clean_run_metrics.py')
@@ -43,12 +85,20 @@ def main(request):
         # else is PDEComp's native default (no per-data-set overrides exist for it).
         import data.config as config
         config.sindy_params[filename] = request['params']
+    import data.config as config
+    overrides = request.get('overrides') or {}
+    native_options = {'seed': int(request.get('seed', 0)), 'device': 'cpu', 'allow_external_llm': False}
+    if request['protocol'] == 'fixed':
+        # The runner reads this data set's entry of sindy_params; replace it with the edited one.
+        config.sindy_params[filename] = effective = _effective(config, filename, 'fixed', overrides)
+    else:
+        native = effective = _effective(config, filename, 'native', overrides)
+        native_options.update({k: native[k] for k in ('optimizer', 'polynomial_degree', 'boundary_trim',
+                                                      'differentiation') if k in native})
     seed_everything(int(request.get('seed', 0)))
     t0 = time.perf_counter()
     result = runner.run_sindy(data, arrays.get('x'), arrays.get('y'), arrays.get('z'), arrays['t'],
-                              filename, protocol=request['protocol'],
-                              native_options={'seed': int(request.get('seed', 0)), 'device': 'cpu',
-                                              'allow_external_llm': False})
+                              filename, protocol=request['protocol'], native_options=native_options)
     fit_seconds = time.perf_counter() - t0
 
     # PDEComp's own structural metrics: Hamming distance and the sum of relative
@@ -69,7 +119,8 @@ def main(request):
              'coefficients': [[float(c) for c in np.ravel(cs)] for cs in result['coefficients']],
              'protocol': result.get('protocol', request['protocol'])}
     Path(request['output']).write_text(json.dumps({'result': clean, 'metrics': summary,
-                                                   'fit_seconds': fit_seconds}),
+                                                   'fit_seconds': fit_seconds,
+                                                   'settings': effective}, default=str),
                                        encoding='utf-8')
 
 

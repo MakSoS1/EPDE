@@ -726,7 +726,10 @@ with main_col:
                             if m == "epde":
                                 runs = [(variant, overrides)]
                             elif m == "pdecomp":
-                                runs = [(f"pysindy_pdecomp_{p}", {}) for p in sindy_settings["protocols"]]
+                                changes = sindy_settings.get("overrides") or {}
+                                runs = [(f"pysindy_pdecomp_{p}",
+                                         {"pdecomp": {"overrides": changes[p]}} if changes.get(p) else {})
+                                        for p in sindy_settings["protocols"]]
                             else:
                                 runs = [("default", {})]
                             for run_variant, method_overrides in runs:
@@ -759,7 +762,8 @@ with main_col:
                         if sindy_settings is not None and "pdecomp" in methods:
                             shared_settings["method_configs"]["pdecomp"] = {
                                 "protocol": "native",
-                                "target_orders": sindy_settings.get("target_orders") or {}}
+                                "target_orders": sindy_settings.get("target_orders") or {},
+                                "overrides": (sindy_settings.get("overrides") or {}).get("native") or {}}
                         if reference:
                             shared_settings["reference_truth"] = reference
                         data_path, config_path = queue.save_upload(owner, arrays, shared_settings)
