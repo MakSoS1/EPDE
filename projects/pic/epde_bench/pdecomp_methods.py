@@ -126,22 +126,46 @@ def _bridge(request, timeout=600):
     request = dict(request, root=str(root))
     with tempfile.TemporaryDirectory() as tmp:
         request['output'] = str(Path(tmp) / 'result.json')
-        proc = subprocess.run([sys.executable, str(BRIDGE), json.dumps(request)],
-                              cwd=tmp, env=env, capture_output=True, text=True,
-                              encoding='utf-8', errors='replace', timeout=timeout)
+        proc = subprocess.Popen([sys.executable, str(BRIDGE), json.dumps(request)],
+                                cwd=tmp, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                text=True, encoding='utf-8', errors='replace')
+        try:
+            stdout, stderr = proc.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            stop_process_tree(proc)
+            proc.communicate(timeout=10)
+            raise TimeoutError(f"{LABELS[request['method']]} exceeded the {timeout:g} s time limit. "
+                               'Use Quick demo or reduce the training budget.') from None
         if proc.returncode:
-            tail = (proc.stderr or proc.stdout).strip().splitlines()[-8:]
+            tail = (stderr or stdout).strip().splitlines()[-8:]
             raise RuntimeError(f"PDEComp {LABELS[request['method']]} failed: " + ' | '.join(tail))
         return json.loads(Path(request['output']).read_text(encoding='utf-8'))
 
 
-def describe(method, dataset=None, overrides=None, protocol='native', *, kind='ode', orders=None):
+def stop_process_tree(proc):
+    """Windows venv launchers can have a second Python process below them."""
+    import psutil
+    try:
+        children = psutil.Process(proc.pid).children(recursive=True)
+        for child in reversed(children):
+            try:
+                child.kill()
+            except psutil.NoSuchProcess:
+                pass
+        proc.kill()
+        psutil.wait_procs(children, timeout=5)
+    except psutil.NoSuchProcess:
+        pass
+
+
+def describe(method, dataset=None, overrides=None, protocol='native', *, kind='ode', orders=None, seed=0):
     names = list(orders or {'u': 1})
     targets = [{'name': f"{'u' if len(names) == 1 else 'x' + str(i)}_{'t' * (orders or {}).get(v, 1)}",
                 'variable': 'u' if len(names) == 1 else f'x{i}', 'axis': 't',
                 'order': (orders or {}).get(v, 1)} for i, v in enumerate(names)]
     return _bridge({'method': method, 'filename': pdecomp.PDECOMP_FILES.get(dataset),
                     'protocol': protocol, 'describe': True,
+                    'seed': int(seed),
                     'kind': kind, 'targets': targets,
                     'overrides': validate_overrides(method, overrides, protocol)}, 120)['settings']
 
@@ -174,7 +198,8 @@ def run(problem, data, method, seed=0, orders=None, overrides=None, protocol='na
         reply = _bridge({'method': method, 'filename': pdecomp.PDECOMP_FILES.get(problem.name),
                          'protocol': protocol,
                          'input': str(path), 'seed': int(seed), 'targets': custom_targets,
-                         'kind': problem.kind, 'overrides': validate_overrides(method, overrides, protocol)})
+                         'kind': problem.kind, 'overrides': validate_overrides(method, overrides, protocol)},
+                        timeout=None if os.environ.get('EPDE_LOCAL_FULL_RUN') == '1' else 600)
     raw = reply['result']
     # Native DISCOVER may discover functions outside the EPDE token grammar.
     # Keep those equations and its original reward, without claiming that our

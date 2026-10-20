@@ -49,7 +49,7 @@ else:
                    "Their file/source hashes are self-reported and verified for "
                    "internal consistency; this website has not independently "
                    "recomputed the underlying heavy-data experiment.")
-    names = {r["id"]: f"{ui.job_method_label(r)} · {r.get('effort', 'standard')} budget"
+    names = {r["id"]: f"{ui.job_method_label(r)} · {ui.budget_label(r, results[r['id']])}"
                       f" · started {time.strftime('%H:%M:%S', time.localtime(r.get('created', 0)))}"
              for r in members}
     with st.container(border=True):
@@ -60,7 +60,7 @@ else:
         st.caption("Input fingerprint: "+key[:18]+"…" if not key.startswith("unverifiable:")
                    else "Numerical input fingerprint unavailable.")
     picked=st.multiselect("Select runs",list(names),
-                         default=list(names)[:2],max_selections=3,format_func=names.get)
+                         default=list(names)[:2],max_selections=4,format_func=names.get)
     chosen=[(names[i],results[i]) for i in picked]
     if chosen:
         first=chosen[0][1]
@@ -72,13 +72,15 @@ else:
             if truth:
                 st.markdown("**Known reference law**")
                 ui.latex(truth,axes)
-            cards=st.columns(len(chosen),gap="medium")
-            for card,(name,record) in zip(cards,chosen):
+            # Four equations remain readable in a two-column grid.
+            cards=[st.columns(min(2,len(chosen)),gap="medium") for _ in range((len(chosen)+1)//2)]
+            for i,(name,record) in enumerate(chosen):
+                card=cards[i//2][i%2]
                 with card:
                     with st.container(border=True):
                         st.markdown("**"+ui.method_label(record)+"**")
                         st.caption(name)
-                        ui.latex(record.get("selected") or [],axes)
+                        ui.latex(record.get("selected") or [],axes,record=record)
                         verdict=ui.verdict(record)
                         if verdict:
                             getattr(st,verdict[0])(verdict[1])

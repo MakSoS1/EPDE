@@ -22,6 +22,12 @@ the target derivative taken from the declared law or the upload controls.
 No reference coefficients are supplied to either method. For fixed runs on
 new data, a shared polynomial/Fourier library is built with the chosen target.
 
+Hosted forms default to an explicit **Quick demo** budget; **PDEComp profile**
+restores the full upstream training budget. The reduced iteration/sample
+settings are recorded as overrides and shown in the review. Local exports
+start from the full PDEComp profile.
+The portable local worker has no hosted 600-second training limit.
+
 Training iterations/sample counts are editable. Short budgets verify that
 the method runs; they do not establish recovery accuracy. All hosted jobs
 retain the existing queue, cancellation and wall-time limit. Heavy records

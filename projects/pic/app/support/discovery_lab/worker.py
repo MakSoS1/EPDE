@@ -211,6 +211,8 @@ def _run_upload(req, folder, *, hosted=False):
         record["selected"] = front[selected] if selected is not None and front else None
     except UnsupportedProblem as exc:
         record.update(status="unsupported", reason=exc.reason)
+    except TimeoutError as exc:
+        record.update(status="timeout", error=str(exc))
     record["total_seconds"] = time.perf_counter() - start
     return record
 

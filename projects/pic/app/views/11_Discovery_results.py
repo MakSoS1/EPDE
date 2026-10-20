@@ -140,13 +140,13 @@ else:
                 ui.latex(truth, axes)
             with right:
                 st.markdown(f"**Found by {ui.method_label(record)}**")
-                ui.latex(found, axes)
+                ui.latex(found, axes, record=record)
             kind, text = ui.verdict(record)
             getattr(st, kind)(text)
             ui.term_table(record)
         else:
             st.markdown(f"**Found by {ui.method_label(record)}**")
-            ui.latex(found, axes)
+            ui.latex(found, axes, record=record)
             st.caption("No known law for these data: judge the equation by how its solution "
                        "matches the data below.")
         # Scientific options are recorded per method. Never show EPDE
@@ -164,7 +164,7 @@ else:
 
         elif record.get("method") in ("deepmod", "discover"):
             base = record.get("baseline") or {}
-            st.caption(f"{ui.method_label(record)} ? {base.get('source', '')}")
+            st.caption(f"{ui.method_label(record)} · {base.get('source', '')}")
             with st.expander("Effective method settings"):
                 st.json(base.get("settings") or {})
         elif record.get("method") == "pdecomp":
@@ -236,7 +236,7 @@ else:
             ui.pareto(record)
             for i, candidate in enumerate(record.get("front") or []):
                 st.markdown(f"`[{i}]`" + (" — selected" if candidate == found else ""))
-                ui.latex(candidate, axes)
+                ui.latex(candidate, axes, record=record)
         with settings_tab:
             st.caption("Complete recorded configuration of this scientific run.")
             st.json(record.get("config") or record.get("search_config") or {})

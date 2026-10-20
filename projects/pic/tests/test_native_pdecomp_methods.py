@@ -32,6 +32,19 @@ def heat():
 
 
 class NativeConfiguration(unittest.TestCase):
+    def test_portable_native_worker_has_no_hosted_time_limit(self):
+        problem = heat()
+        reply = {'result': {'targets': ['u_t'], 'features': [['u_xx']], 'coefficients': [[0.17]]},
+                 'settings': {}, 'fit_seconds': 1}
+        with patch.dict(os.environ, {'EPDE_LOCAL_FULL_RUN': '1'}), patch.object(methods, '_bridge', return_value=reply) as bridge:
+            methods.run(problem, problem.data, 'deepmod')
+        self.assertIsNone(bridge.call_args.kwargs['timeout'])
+
+    def test_review_keeps_the_selected_seed(self):
+        with patch.object(methods, '_bridge', return_value={'settings': {'seed': 7}}) as bridge:
+            self.assertEqual(methods.describe('discover', 'ode', seed=7)['seed'], 7)
+        self.assertEqual(bridge.call_args.args[0]['seed'], 7)
+
     def test_nn_workers_do_not_overlap_other_searches(self):
         from support.discovery_lab.manager import may_start
         self.assertTrue(may_start('deepmod', []))
@@ -147,6 +160,13 @@ class NativeConfiguration(unittest.TestCase):
             app.run()
             app.button(key='lab_next_data').click().run()
             self.assertFalse(app.exception)
+            self.assertEqual(app.number_input(key='lab_deepmod_nir1_heat_native_learning_rate').proto.format, '%g')
+            self.assertEqual(app.number_input(key='lab_deepmod_nir1_heat_native_max_iterations').value, 250)
+            self.assertEqual(app.number_input(key='lab_deepmod_nir1_heat_native_max_samples').value, 1000)
+            next(b for b in app.get('button_group') if b.key == 'lab_deepmod_nir1_heat_native_budget').set_value('PDEComp profile').run()
+            self.assertEqual(app.number_input(key='lab_deepmod_nir1_heat_native_max_iterations').value, 5000)
+            next(b for b in app.get('button_group') if b.key == 'lab_deepmod_nir1_heat_native_budget').set_value('Quick demo').run()
+            self.assertEqual(app.number_input(key='lab_deepmod_nir1_heat_native_max_iterations').value, 250)
             app.number_input(key='lab_deepmod_nir1_heat_native_max_iterations').set_value(25).run()
             app.button(key='lab_next_settings').click().run()
             self.assertFalse(app.exception)

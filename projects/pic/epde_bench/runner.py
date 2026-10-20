@@ -152,6 +152,8 @@ def run_one(dataset: str, variant: str = 'default', noise: float = 0.0, seed: in
         record['selected'] = texts[sel] if texts and sel is not None else None
     except UnsupportedProblem as exc:
         record.update(status='unsupported', reason=exc.reason)
+    except TimeoutError as exc:
+        record.update(status='timeout', error=str(exc))
     except Exception as exc:                                   # noqa: BLE001
         record.update(status='error', error=repr(exc), traceback=traceback.format_exc())
     record['total_seconds'] = time.perf_counter() - t_start

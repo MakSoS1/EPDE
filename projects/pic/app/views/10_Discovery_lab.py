@@ -616,6 +616,12 @@ with main_col:
                     base = load_config(record_name, entry["variant"],
                                        overrides=entry.get("overrides") or {})
                     review[entry["method"]] = base
+                    if entry["method"] in ("deepmod", "discover"):
+                        from support.discovery_lab import pdecomp_methods as extra_ui
+                        method_settings = base[entry["method"]]
+                        review[entry["method"]] = dict(base, scientific_settings=extra_ui.review(
+                            entry["method"], record_name, {"protocol": method_settings["protocol"],
+                            "overrides": method_settings.get("overrides", {})}, seed=seed))
             else:
                 if "epde" in methods:
                     review["epde"] = (
@@ -627,7 +633,7 @@ with main_col:
                     review["pdecomp"] = sindy_review(record_name, sindy_settings or {})
             for m, method_settings in extra_settings.items():
                 from support.discovery_lab import pdecomp_methods as extra_ui
-                review[m] = extra_ui.review(m, record_name, method_settings)
+                review[m] = extra_ui.review(m, record_name, method_settings, seed=seed)
             available = [m for m in methods if m in review]
             panels = (st.tabs([METHOD_LABELS.get(m, m) for m in available])
                       if len(available) > 1 else

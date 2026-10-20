@@ -34,9 +34,41 @@ jobs:
         run: |
           uv run --project projects/pic --extra cpu --extra app --locked --with pytest python -m pytest -q \
             projects/pic/tests/test_native_pdecomp_methods.py \
+            projects/pic/tests/test_native_demo_review.py \
             projects/pic/tests/test_pdecomp_protocol.py \
             projects/pic/tests/test_discovery_lab.py \
             projects/pic/tests/test_portable_handoff.py \
             projects/pic/tests/test_demo_lab_settings.py \
             projects/pic/tests/test_demo_execution_routing.py \
             projects/pic/tests/test_demo_workspace_navigation.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser QA dependencies
+        working-directory: projects/pic/browser_demo
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Start the actual Streamlit app
+        run: |
+          uv run --project projects/pic --extra cpu --extra app --locked streamlit run \
+            projects/pic/app/Home.py --server.headless=true --browser.gatherUsageStats=false \
+            > /tmp/native-streamlit.log 2>&1 &
+          for attempt in $(seq 1 45); do
+            curl --fail --silent http://127.0.0.1:8501/_stcore/health && exit 0
+            sleep 2
+          done
+          cat /tmp/native-streamlit.log
+          exit 1
+      - name: Native queue, results, comparison and desktop/mobile screenshots
+        working-directory: projects/pic/browser_demo
+        env:
+          NATIVE_UI_ALL_METHODS: '1'
+        run: node smoke_native_methods.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-method-browser-qa
+          path: projects/pic/browser_demo/.cache/native-ui/
+          include-hidden-files: true
+          retention-days: 7

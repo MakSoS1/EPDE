@@ -22,8 +22,7 @@ def render_settings(method, record_name=None, problem=None, arrays=None, source=
                    'on PDEComp’s shared derivatives and candidate library.')
     else:
         st.caption('Native: DISCOVER recurrent controller searches its symbolic operators; '
-                   'no shared feature matrix is supplied. Fixed: DISCOVER searches shared theta tokens. '
-                   'The TF1 graph runs through TensorFlow’s v1 compatibility API.')
+                   'no shared feature matrix is supplied. Fixed: DISCOVER searches shared library terms.')
     if problem is not None:
         kind, count = problem.kind, len(problem.variables)
         orders = pdecomp.target_orders(problem)
@@ -48,6 +47,36 @@ def render_settings(method, record_name=None, problem=None, arrays=None, source=
         return None
     base = starting_settings(method, record_name, protocol, kind, orders)
     current = base.get('direct_optimizer', {}) if method == 'deepmod' and protocol == 'fixed' else base
+    shown = dict(current)
+    if method == 'discover' or protocol == 'native':
+        budget_keys = ('max_iterations', 'max_samples') if method == 'deepmod' else ('n_samples', 'batch_size')
+        caps = {'max_iterations': 250, 'max_samples': 1000} if method == 'deepmod' else {'n_samples': 1000, 'batch_size': 100}
+        full_budget = {'max_iterations': 5000, 'max_samples': 10000} if method == 'deepmod' else {'n_samples': 5000, 'batch_size': 250}
+
+        def reset_budget():
+            budget_key = prefix + protocol + '_budget'
+            if st.session_state.get(budget_key) is None:
+                st.session_state[budget_key] = 'PDEComp profile' if heavy else 'Quick demo'
+            saved = st.session_state.get('lab_widgets_saved', {})
+            for name in budget_keys:
+                widget_key = prefix + protocol + '_' + name
+                value = int(current.get(name, full_budget[name]))
+                if st.session_state[budget_key] == 'Quick demo':
+                    value = min(value, caps[name])
+                st.session_state[widget_key] = value
+                saved[widget_key] = value
+
+        budget = st.segmented_control('Run budget', ['Quick demo', 'PDEComp profile'],
+                                      default='PDEComp profile' if heavy else 'Quick demo',
+                                      selection_mode='single', key=prefix + protocol + '_budget',
+                                      on_change=reset_budget)
+        if budget == 'Quick demo':
+            shown.update({k: min(int(current.get(k, limit)), limit) for k, limit in caps.items()})
+            st.caption('Quick demo uses a smaller training budget. Full PDEComp settings are '
+                       'available above; short training does not guarantee equation recovery.')
+        else:
+            st.caption('The full PDEComp training budget can take several minutes. '
+                       'Hosted searches have a time limit; use Quick demo for a short run.')
     changes = {}
     if method == 'deepmod' and protocol == 'fixed':
         value = st.selectbox('Sparse estimator', ['pdefind', 'threshold'],
@@ -75,10 +104,12 @@ def render_settings(method, record_name=None, problem=None, arrays=None, source=
     cols = st.columns(2)
     for i, (key, title, low, high, default) in enumerate(controls):
         cast = int if type(low) is int else float
-        initial = cast(current.get(key, default))
+        initial = cast(shown.get(key, default))
         value = cols[i % 2].number_input(title, cast(low), cast(high), initial,
-                                         key=prefix + protocol + '_' + key)
-        if value != initial:
+                                         key=prefix + protocol + '_' + key,
+                                         **({'format': '%g', 'step': 0.0001 if key == 'learning_rate' else 0.01}
+                                            if cast is float else {}))
+        if value != cast(current.get(key, default)):
             changes[key] = value
     methods.validate_overrides(method, changes, protocol)
     if method == 'discover' and changes.get('n_samples', base['n_samples']) < changes.get('batch_size', base['batch_size']):
@@ -95,10 +126,10 @@ def render_settings(method, record_name=None, problem=None, arrays=None, source=
     return dict(settings, kind=kind)
 
 
-def review(method, dataset, settings):
+def review(method, dataset, settings, seed=0):
     return {'method': methods.LABELS[method], 'protocol': settings['protocol'],
             'source': f'{pdecomp.PDECOMP_REPO}@{pdecomp.PDECOMP_REV}',
             'target_orders': settings.get('target_orders') or 'from the known law',
             'changed': settings['overrides'],
             'effective': methods.describe(method, dataset, settings['overrides'], settings['protocol'],
-                                          kind=settings.get('kind', 'ode'), orders=settings.get('target_orders'))}
+                                          kind=settings.get('kind', 'ode'), orders=settings.get('target_orders'), seed=seed)}

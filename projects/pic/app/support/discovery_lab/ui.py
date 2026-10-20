@@ -10,7 +10,7 @@ import pandas as pd
 import streamlit as st
 
 from ..common import show_figure
-from ..equations import system_latex, term_plain
+from ..equations import equation_latex, native_equation_latex, system_latex, term_plain
 
 METHOD_NAMES = {"epde": "EPDE", "pdecomp": "PySINDy", "deepmod": "DeepMoD", "discover": "DISCOVER", "llm": "LLM agent"}
 METHOD_COLORS = {"epde": "#4c78a8", "pdecomp": "#f58518", "deepmod": "#b279a2", "discover": "#e45756", "llm": "#54a24b"}
@@ -48,16 +48,40 @@ def method_label(record):
 EFFORT_NAMES = {"quick": "quick", "standard": "standard", "thorough": "thorough"}
 
 
+def budget_label(job, record=None):
+    record = record or {}
+    method = record.get('method') or job.get('method')
+    settings = (record.get('baseline') or {}).get('settings') or {}
+    if method == 'deepmod' and settings.get('max_iterations') is not None:
+        return f"{settings['max_iterations']} training iterations"
+    if method == 'discover' and settings.get('n_samples') is not None:
+        return f"{settings['n_samples']} expression samples"
+    if method in ('pdecomp', 'deepmod'):
+        return 'one sparse fit'
+    return EFFORT_NAMES.get(record.get('effort') or job.get('effort'), 'standard') + ' budget'
+
+
 def axes_of(record):
     return ((record.get("evaluation") or {}).get("axis_names")
             or (record.get("problem") or {}).get("axis_names") or ["t", "x", "y"])
 
 
-def latex(system, axes):
+def latex(system, axes, *, record=None):
     try:
-        st.latex(system_latex(system, axes))
+        if record and (record.get('baseline') or {}).get('scoring_note'):
+            variables = (record.get('problem') or {}).get('variables') or ['u']
+            for eq in system:
+                rendered = native_equation_latex(eq, axes, variables)
+                if len(rendered) > 180:
+                    st.code(eq, language=None, wrap_lines=True)
+                else:
+                    st.latex(rendered)
+        elif len(system) == 1:
+            st.latex(equation_latex(system[0], axes, wrap=True))
+        else:
+            st.latex(system_latex(system, axes))
     except Exception:                                   # noqa: BLE001
-        st.code("\n".join(system), language=None)
+        st.code("\n".join(system), language=None, wrap_lines=True)
 
 
 def verdict(record):
@@ -106,7 +130,7 @@ def summary_row(job, record):
     scores = solution_scores(record)
     library = (record.get("baseline") or {}).get("library_size")
     row = {"method": method_label(record),
-           "search budget": EFFORT_NAMES.get(record.get("effort") or job.get("effort"), "standard"),
+           "search budget": budget_label(job, record),
            "found equation": " ; ".join(plain_equation(eq, axes_of(record))
                                         for eq in (record.get("selected") or [])),
            "known law found": ("not scored" if m.get("scoring_note") else ("yes" if m.get("success_selected") else
@@ -228,14 +252,13 @@ def solution_plots(records):
 
     ``records`` is a list of (title, record) on the same input."""
     import matplotlib.pyplot as plt
-    first = (records[0][1].get("evaluation") or {})
-    kind = first.get("kind", "")
     solved = [(title, r) for title, r in records
               if ((r.get("evaluation") or {}).get("solution") or {}).get("observed")]
     if not solved:
         notes = {(r.get("evaluation") or {}).get("solution_note") for _, r in records} - {None}
         st.info(" ".join(notes) or "No solution of the equation could be computed for this input.")
         return
+    kind = (solved[0][1].get("evaluation") or {}).get("kind", "")
     reference = solved[0][1]["evaluation"]["solution"]
     variables = list(reference["observed"])
     if kind.startswith("ode"):

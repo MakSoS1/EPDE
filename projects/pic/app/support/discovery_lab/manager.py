@@ -75,7 +75,8 @@ def main():
                     _terminate(proc)
                 exitcode = proc.poll()
                 if exitcode is not None:
-                    job.update(state=("stopped" if canceled else "timeout" if timed_out
+                    result_status = (queue._read(path.parent / "result.json") or {}).get("status")
+                    job.update(state=("stopped" if canceled else "timeout" if timed_out or result_status == "timeout"
                                       else "finished" if exitcode == 0 else "error"),
                                exit_code=exitcode, ended=time.time())
                     # Worker writes normalized result; manager's state describes process.
