@@ -63,19 +63,19 @@ def make_manifest(dataset, noise, seed, methods):
         raise ValueError("Seed must be within 0..999")
     if type(noise) not in (float, int) or not 0 <= noise <= 10:
         raise ValueError("Noise must be within 0..10")
-    if not isinstance(methods, list) or not 1 <= len(methods) <= 2:
-        raise ValueError("Choose one or two methods")
+    if not isinstance(methods, list) or not 1 <= len(methods) <= 4:
+        raise ValueError("Choose one to four methods")
     items = []
     for entry in methods:
-        if not isinstance(entry, dict) or entry.get("method") not in ("epde", "pdecomp"):
+        if not isinstance(entry, dict) or entry.get("method") not in ("epde", "pdecomp", "deepmod", "discover"):
             raise ValueError("Unsupported portable algorithm")
         method = entry["method"]
         if method in [x["method"] for x in items]:
             raise ValueError("Duplicate method")
-        variant = entry.get("variant") or ("pysindy_pdecomp_fixed" if method == "pdecomp" else "default")
+        variant = entry.get("variant") or ("pysindy_pdecomp_fixed" if method == "pdecomp" else f"{method}_pdecomp_native" if method in ("deepmod", "discover") else "default")
         overrides = entry.get("overrides") or {}
         if not isinstance(overrides, dict) or (set(overrides) -
-                ({"pdecomp"} if method == "pdecomp" else {"search"})):
+                ({method} if method in ("pdecomp", "deepmod", "discover") else {"search"})):
             raise ValueError("Invalid scientific settings")
         cfg = load_config(dataset, variant, overrides=overrides)
         if cfg["method"] != method:
@@ -139,14 +139,14 @@ def read_results(raw):
     with zipfile.ZipFile(io.BytesIO(raw)) as z:
         files = [x for x in z.infolist() if x.filename.startswith("results/")
                  and x.filename.endswith(".json") and "/" not in x.filename[8:]]
-        if not 1 <= len(files) <= 2:
-            raise ValueError("Expected one or two result JSON files")
+        if not 1 <= len(files) <= 4:
+            raise ValueError("Expected one to four result JSON files")
         if sum(x.file_size for x in files) > MAX_IMPORT:
             raise ValueError("Uncompressed results exceed size limit")
         records = []
         for item in files:
             record = json.loads(z.read(item))
-            if not isinstance(record, dict) or record.get("method") not in ("epde", "pdecomp"):
+            if not isinstance(record, dict) or record.get("method") not in ("epde", "pdecomp", "deepmod", "discover"):
                 raise ValueError("Unknown result method")
             if record.get("execution_location") != "user_computer" or record.get("portable_schema") != SCHEMA:
                 raise ValueError("Not a portable native result")

@@ -24,6 +24,12 @@ MAX_WORKERS = max(1, min(2, int(os.environ.get("EPDE_DEMO_WORKERS",
 TIMEOUT = max(30, min(1800, int(os.environ.get("EPDE_DEMO_TIMEOUT_SECONDS", "600"))))
 
 
+def may_start(method, running_methods):
+    """NN/TensorFlow processes get the shared host to themselves."""
+    memory_heavy = {"deepmod", "discover"}
+    return not running_methods or (method not in memory_heavy and not memory_heavy.intersection(running_methods))
+
+
 def _terminate(proc):
     if proc.poll() is not None:
         return
@@ -76,6 +82,9 @@ def main():
                     queue._write(path, job)
                     del running[path]
             for _, path, job in sorted(pending)[:max(0, MAX_WORKERS - len(running))]:
+                active_methods = [(queue._read(p) or {}).get("method") for p in running]
+                if not may_start(job.get("method"), active_methods):
+                    break
                 folder = path.parent
                 with open(folder / "worker.log", "ab") as log:
                     proc = subprocess.Popen([sys.executable,

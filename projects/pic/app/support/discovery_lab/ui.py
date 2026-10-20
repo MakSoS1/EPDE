@@ -12,10 +12,12 @@ import streamlit as st
 from ..common import show_figure
 from ..equations import system_latex, term_plain
 
-METHOD_NAMES = {"epde": "EPDE", "pdecomp": "PySINDy", "llm": "LLM agent"}
-METHOD_COLORS = {"epde": "#4c78a8", "pdecomp": "#f58518", "llm": "#54a24b"}
+METHOD_NAMES = {"epde": "EPDE", "pdecomp": "PySINDy", "deepmod": "DeepMoD", "discover": "DISCOVER", "llm": "LLM agent"}
+METHOD_COLORS = {"epde": "#4c78a8", "pdecomp": "#f58518", "deepmod": "#b279a2", "discover": "#e45756", "llm": "#54a24b"}
 #: What each method is, in one line, for captions.
 PROTOCOL_NOTES = {
+    "deepmod": "PDEComp DeepMoD: native NN/autograd/Library1D training or fixed-library sparse estimation.",
+    "discover": "PDEComp DISCOVER: native RNN symbolic search or fixed-library theta-token search.",
     "epde": "EPDE with the stored settings of the record.",
     "pdecomp": "PySINDy exactly as the PDEComp benchmark runs it: its own code at a pinned commit; "
                "on PDEComp's datasets with PDEComp's settings for them, elsewhere with the native "
@@ -28,6 +30,8 @@ def job_method_label(job):
     variant = job.get("variant") or ""
     if job.get("method") == "pdecomp" and variant.startswith("pysindy_pdecomp_"):
         return f"{METHOD_NAMES['pdecomp']} · {variant.rsplit('_', 1)[-1]} protocol"
+    if job.get("method") in ("deepmod", "discover") and variant.endswith(("_native", "_fixed")):
+        return f"{METHOD_NAMES[job['method']]} · {variant.rsplit('_', 1)[-1]} protocol"
     return METHOD_NAMES.get(job.get("method"), job.get("method"))
 
 
@@ -35,9 +39,9 @@ def method_label(record):
     """Method name with its protocol, e.g. ``PySINDy · PDEComp fixed``."""
     method = record.get("method")
     label = METHOD_NAMES.get(method, method)
-    if method == "pdecomp":
+    if method in ("pdecomp", "deepmod", "discover"):
         protocol = (record.get("baseline") or {}).get("protocol") or \
-            ((record.get("config") or {}).get("pdecomp") or {}).get("protocol")
+            ((record.get("config") or {}).get(method) or {}).get("protocol")
         if protocol:
             label += f" · {protocol} protocol"
     return label
@@ -62,6 +66,8 @@ def verdict(record):
     if not truth:
         return None
     m = record.get("metrics") or {}
+    if m.get("scoring_note"):
+        return "warning", m["scoring_note"]
     if m.get("success_selected"):
         text = "Found the known law: the selected equation has exactly its terms."
         if m.get("coef_error") is not None:
@@ -103,7 +109,7 @@ def summary_row(job, record):
            "search budget": EFFORT_NAMES.get(record.get("effort") or job.get("effort"), "standard"),
            "found equation": " ; ".join(plain_equation(eq, axes_of(record))
                                         for eq in (record.get("selected") or [])),
-           "known law found": (("yes" if m.get("success_selected") else
+           "known law found": ("not scored" if m.get("scoring_note") else ("yes" if m.get("success_selected") else
                                 "on the front" if m.get("success_front") else "no") if truth else "law unknown"),
            "coefficient error": m.get("coef_error") if truth and m.get("success_selected") else None,
            "HD": m.get("hamming_selected") if truth else None,
@@ -167,6 +173,8 @@ def _rhs_plain(eq, axes):
 
 
 def term_table(record):
+    if (record.get("metrics") or {}).get("scoring_note"):
+        return
     from ..compare import match_equations, term_rows
     truth = (record.get("problem") or {}).get("truth")
     found = record.get("selected") or []

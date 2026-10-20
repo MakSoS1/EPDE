@@ -1,0 +1,42 @@
+name: Streamlit native DeepMoD and DISCOVER
+
+on:
+  pull_request:
+    branches: [demo/streamlit-community-cloud]
+  push:
+    branches: [feat/streamlit-deepmod-discover]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-cpu:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: '.:projects/pic:projects/pic/app'
+      EPDE_TEST_NATIVE_METHODS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      TF_NUM_INTRAOP_THREADS: '1'
+      TF_NUM_INTEROP_THREADS: '1'
+      STREAMLIT_BROWSER_GATHER_USAGE_STATS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+      - name: Install locked CPU app environment
+        run: uv sync --project projects/pic --extra cpu --extra app --locked
+      - name: Native NN/RNN, wizard, worker, PySINDy regression and portable contracts
+        run: |
+          uv run --project projects/pic --extra cpu --extra app --locked --with pytest python -m pytest -q \
+            projects/pic/tests/test_native_pdecomp_methods.py \
+            projects/pic/tests/test_pdecomp_protocol.py \
+            projects/pic/tests/test_discovery_lab.py \
+            projects/pic/tests/test_portable_handoff.py \
+            projects/pic/tests/test_demo_lab_settings.py \
+            projects/pic/tests/test_demo_execution_routing.py \
+            projects/pic/tests/test_demo_workspace_navigation.py

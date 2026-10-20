@@ -70,7 +70,7 @@ def one(manifest, method, path):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bundle", type=Path, default=REPO_ROOT / "experiment.zip")
-    parser.add_argument("--method", choices=("epde", "pdecomp"), default=None,
+    parser.add_argument("--method", choices=("epde", "pdecomp", "deepmod", "discover"), default=None,
                         help=argparse.SUPPRESS)
     parser.add_argument("--output", type=Path, default=None, help=argparse.SUPPRESS)
     args = parser.parse_args(argv)

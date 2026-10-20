@@ -23,7 +23,7 @@ with st.container(border=True):
                "is checked for internal consistency; scientific results are not rerun.")
     archive = st.file_uploader("Import experiment-results.zip",
                                type=["zip"], key="import_portable_results",
-                               help="One or two native EPDE/PySINDy results (max 2 MB).")
+                               help="Up to four native method results (max 2 MB).")
     if archive is not None and st.button("Import these results", type="primary"):
         try:
             from support.discovery_lab.portable import read_results, input_key
@@ -162,6 +162,11 @@ else:
                 f"max non-zero terms: {pool.get('equation_terms_max_number', 10)} · "
                 f"holdout: {float(opts.get('validation_fraction', 0.20)):.0%}")
 
+        elif record.get("method") in ("deepmod", "discover"):
+            base = record.get("baseline") or {}
+            st.caption(f"{ui.method_label(record)} ? {base.get('source', '')}")
+            with st.expander("Effective method settings"):
+                st.json(base.get("settings") or {})
         elif record.get("method") == "pdecomp":
             base = record.get("baseline") or {}
             own = base.get("pdecomp_metrics") or {}

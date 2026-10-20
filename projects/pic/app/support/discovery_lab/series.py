@@ -28,7 +28,8 @@ def summarize(pairs, label_of):
     Returns rows per (method, noise) and the noise limit per method."""
     groups = {}
     for job, record in pairs:
-        if not _terminal(record) or not (record.get("problem") or {}).get("truth"):
+        if (not _terminal(record) or not (record.get("problem") or {}).get("truth")
+                or (record.get("metrics") or {}).get("scoring_note")):
             continue
         key = (label_of(job), float(record.get("noise", job.get("noise", 0)) or 0))
         groups.setdefault(key, []).append(record)
