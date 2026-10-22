@@ -1,5 +1,9 @@
 # EPDE Explorer — deployment and release checklist
 
+DeepMoD and DISCOVER now have native/fixed controls and isolated workers in
+the same app. See [PDECOMP_METHODS.md](PDECOMP_METHODS.md) for dependencies,
+supported inputs, TensorFlow compatibility and native execution checks.
+
 ## Correct source for the current minimal six-page Streamlit website
 
 | Setting | Required value |

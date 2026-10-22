@@ -55,6 +55,9 @@ def _source_hash():
         path = PIC_DIR / name
         if path.is_file():
             files[name] = _file_hash(path, True)
+    manifest = PIC_DIR / 'epde_bench' / 'pdecomp_sources.json'
+    if manifest.is_file():
+        files['epde_bench/pdecomp_sources.json'] = _file_hash(manifest, True)
     return _digest(files)
 
 
@@ -84,7 +87,8 @@ def _data_hash(dataset):
 def _dependency_versions():
     versions = {'python': platform.python_version()}
     for name in ('numpy', 'scipy', 'pandas', 'sympy', 'torch', 'pysindy', 'scikit-learn',
-                 'PyYAML', 'psutil', 'epde', 'netCDF4', 'h5py', 'numba', 'tedeous'):
+                 'PyYAML', 'psutil', 'epde', 'netCDF4', 'h5py', 'numba', 'tedeous',
+                 'tensorflow', 'tf-keras', 'setuptools'):
         try:
             versions[name] = metadata.version(name)
         except metadata.PackageNotFoundError:

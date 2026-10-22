@@ -65,3 +65,19 @@ pysindy_pdecomp_fixed:
 pysindy_pdecomp_native:
   method: pdecomp
   pdecomp: {protocol: native}
+
+deepmod_pdecomp_native:
+  method: deepmod
+  deepmod: {protocol: native}
+
+deepmod_pdecomp_fixed:
+  method: deepmod
+  deepmod: {protocol: fixed}
+
+discover_pdecomp_native:
+  method: discover
+  discover: {protocol: native}
+
+discover_pdecomp_fixed:
+  method: discover
+  discover: {protocol: fixed}

@@ -23,7 +23,7 @@ with st.container(border=True):
                "is checked for internal consistency; scientific results are not rerun.")
     archive = st.file_uploader("Import experiment-results.zip",
                                type=["zip"], key="import_portable_results",
-                               help="One or two native EPDE/PySINDy results (max 2 MB).")
+                               help="Up to four native method results (max 2 MB).")
     if archive is not None and st.button("Import these results", type="primary"):
         try:
             from support.discovery_lab.portable import read_results, input_key
@@ -140,13 +140,13 @@ else:
                 ui.latex(truth, axes)
             with right:
                 st.markdown(f"**Found by {ui.method_label(record)}**")
-                ui.latex(found, axes)
+                ui.latex(found, axes, record=record)
             kind, text = ui.verdict(record)
             getattr(st, kind)(text)
             ui.term_table(record)
         else:
             st.markdown(f"**Found by {ui.method_label(record)}**")
-            ui.latex(found, axes)
+            ui.latex(found, axes, record=record)
             st.caption("No known law for these data: judge the equation by how its solution "
                        "matches the data below.")
         # Scientific options are recorded per method. Never show EPDE
@@ -162,6 +162,11 @@ else:
                 f"max non-zero terms: {pool.get('equation_terms_max_number', 10)} · "
                 f"holdout: {float(opts.get('validation_fraction', 0.20)):.0%}")
 
+        elif record.get("method") in ("deepmod", "discover"):
+            base = record.get("baseline") or {}
+            st.caption(f"{ui.method_label(record)} · {base.get('source', '')}")
+            with st.expander("Effective method settings"):
+                st.json(base.get("settings") or {})
         elif record.get("method") == "pdecomp":
             base = record.get("baseline") or {}
             own = base.get("pdecomp_metrics") or {}
@@ -231,7 +236,7 @@ else:
             ui.pareto(record)
             for i, candidate in enumerate(record.get("front") or []):
                 st.markdown(f"`[{i}]`" + (" — selected" if candidate == found else ""))
-                ui.latex(candidate, axes)
+                ui.latex(candidate, axes, record=record)
         with settings_tab:
             st.caption("Complete recorded configuration of this scientific run.")
             st.json(record.get("config") or record.get("search_config") or {})

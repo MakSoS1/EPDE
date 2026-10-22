@@ -51,7 +51,7 @@ from support.discovery_lab.execution_policy import is_local_only
 EFFORTS = {"quick": "Quick (population 8, 3 epochs)",
            "standard": "Standard (population 16, 5 epochs)",
            "thorough": "Thorough (population 24, 8 epochs)"}
-METHOD_LABELS = {"epde": "EPDE", "pdecomp": "PySINDy", "llm": "LLM agent"}
+METHOD_LABELS = ui.METHOD_NAMES
 #: Series limits on the shared server: all runs of one submission, and EPDE runs among them.
 MAX_SERIES_RUNS, MAX_SERIES_EPDE_RUNS = 12, 6
 RESERVED = {"x", "t", "sin", "cos", "tanh"}
@@ -187,7 +187,7 @@ main_col, summary_col = st.columns([3.0, 1.25], gap="medium")
 with main_col:
     if wizard_stage == 1:
         step(1, "Choose method and equation")
-        options = ["epde", "pdecomp"] + (["llm"] if LLM_READY else [])
+        options = ["epde", "pdecomp", "deepmod", "discover"] + (["llm"] if LLM_READY else [])
         st.session_state.setdefault("lab_discovery_methods", ["epde", "pdecomp"])
         if any(m not in options for m in st.session_state["lab_discovery_methods"]):
             st.session_state["lab_discovery_methods"] = [
@@ -196,9 +196,9 @@ with main_col:
             "Discovery methods", options,
             key="lab_discovery_methods",
             selection_mode="multi", format_func=METHOD_LABELS.get,
-            help="Choose one or both. Each method receives identical input data, "
+            help="Choose one or more methods. Each method receives identical input data, "
                  "noise and seed; their optimizers and scoring criteria remain distinct. "
-                 "PySINDy is the PDEComp benchmark's own PySINDy code and settings."
+                 "PySINDy, DeepMoD and DISCOVER use the PDEComp benchmark code and settings."
         )
         if len(methods) == 2 and set(methods) == {"epde", "pdecomp"}:
             st.caption("Both algorithms will be saved as separate experiments in one "
@@ -480,6 +480,7 @@ with main_col:
 
             variant, overrides, settings, selected_budget = "default", {}, None, "Preset"
             sindy_settings = None
+            extra_settings = {}
             settings_valid = True
             heavy_methods = []
 
@@ -505,44 +506,47 @@ with main_col:
             try:
                 if is_heavy:
                     from support.discovery_lab.heavy_settings import render_heavy_epde, render_heavy_pysindy as render_heavy_sindy
-                    if "epde" in methods and "pdecomp" in methods:
-                        epde_tab, sindy_tab = st.tabs(
-                            ["🧬 EPDE · Evolution", "📐 PySINDy · Sparse regression"])
-                        with epde_tab:
-                            heavy_methods.append(render_heavy_epde(record_name))
-                        with sindy_tab:
-                            candidate = render_heavy_sindy(record_name)
-                            if candidate is not None:
-                                heavy_methods.append(candidate)
+                    from support.discovery_lab import pdecomp_methods as extra_ui
+                    native_methods = [m for m in methods if m != "llm"]
+                    panels = st.tabs([METHOD_LABELS[m] for m in native_methods]) if len(native_methods) > 1 else [st.container()]
+                    for m, panel in zip(native_methods, panels):
+                        with panel:
+                            if m == "epde":
+                                candidate = render_heavy_epde(record_name)
+                            elif m == "pdecomp":
+                                candidate = render_heavy_sindy(record_name)
                             else:
+                                candidate = extra_ui.render_settings(m, record_name=record_name, heavy=True)
+                            if candidate is None:
                                 settings_valid = False
-                    elif "epde" in methods:
-                        heavy_methods.append(render_heavy_epde(record_name))
-                    elif "pdecomp" in methods:
-                        candidate = render_heavy_sindy(record_name)
-                        if candidate is not None:
-                            heavy_methods.append(candidate)
-                        else:
-                            settings_valid = False
-                    else:
-                        st.info("Select EPDE and/or PySINDy to configure the native experiment.")
-                elif any(m in methods for m in ("epde", "pdecomp")):
+                            else:
+                                heavy_methods.append(candidate)
+                elif any(m in methods for m in ("epde", "pdecomp", "deepmod", "discover")):
                     editors = [(m, title) for m, title in (
                         ("epde", "🧬 EPDE · Evolution"),
-                        ("pdecomp", "📐 PySINDy · Sparse regression")) if m in methods]
+                        ("pdecomp", "📐 PySINDy · Sparse regression"),
+                        ("deepmod", "DeepMoD · Neural discovery"),
+                        ("discover", "DISCOVER · Symbolic search")) if m in methods]
                     panels = (st.tabs([title for _, title in editors]) if len(editors) > 1
                               else [st.container(border=True)])
                     for (m, _), panel in zip(editors, panels):
                         with panel:
                             if m == "epde":
                                 variant, overrides, settings, selected_budget = epde_editor()
-                            else:
+                            elif m == "pdecomp":
                                 sindy_settings = sindy_editor()
+                            else:
+                                from support.discovery_lab import pdecomp_methods as extra_ui
+                                extra_settings[m] = extra_ui.render_settings(
+                                    m, record_name=record_name, problem=problem if record_name else None,
+                                    arrays=arrays, source=source)
+                                if extra_settings[m] is None:
+                                    settings_valid = False
                 elif "llm" in methods:
                     st.caption("The LLM adapter uses the common input shown above.")
                 else:
                     st.info("Select EPDE or PySINDy in step 1 to show its scientific controls.")
-            except (ValueError, TypeError, KeyError, IndexError, AttributeError) as exc:
+            except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError, RuntimeError) as exc:
                 st.error(f"Please correct the scientific configuration before running: {exc}")
                 settings_valid = False
 
@@ -569,7 +573,7 @@ with main_col:
                                       or "pdecomp" in methods and sindy_settings is None))):
                     st.session_state["lab_draft_config"] = dict(
                         variant=variant, overrides=overrides, settings=settings,
-                        selected_budget=selected_budget, sindy_settings=sindy_settings,
+                        selected_budget=selected_budget, sindy_settings=sindy_settings, extra_settings=extra_settings,
                         heavy_methods=heavy_methods, settings_valid=settings_valid,
                         budget_code=budget_code,
                     )
@@ -587,6 +591,7 @@ with main_col:
             settings = config["settings"]
             selected_budget = config["selected_budget"]
             sindy_settings = config["sindy_settings"]
+            extra_settings = config.get("extra_settings", {})
             heavy_methods = config["heavy_methods"]
             settings_valid = config["settings_valid"]
             budget_code = config["budget_code"]
@@ -611,6 +616,12 @@ with main_col:
                     base = load_config(record_name, entry["variant"],
                                        overrides=entry.get("overrides") or {})
                     review[entry["method"]] = base
+                    if entry["method"] in ("deepmod", "discover"):
+                        from support.discovery_lab import pdecomp_methods as extra_ui
+                        method_settings = base[entry["method"]]
+                        review[entry["method"]] = dict(base, scientific_settings=extra_ui.review(
+                            entry["method"], record_name, {"protocol": method_settings["protocol"],
+                            "overrides": method_settings.get("overrides", {})}, seed=seed))
             else:
                 if "epde" in methods:
                     review["epde"] = (
@@ -620,6 +631,9 @@ with main_col:
                 if "pdecomp" in methods:
                     from support.discovery_lab.pysindy_method import review as sindy_review
                     review["pdecomp"] = sindy_review(record_name, sindy_settings or {})
+            for m, method_settings in extra_settings.items():
+                from support.discovery_lab import pdecomp_methods as extra_ui
+                review[m] = extra_ui.review(m, record_name, method_settings, seed=seed)
             available = [m for m in methods if m in review]
             panels = (st.tabs([METHOD_LABELS.get(m, m) for m in available])
                       if len(available) > 1 else
@@ -643,6 +657,8 @@ with main_col:
             ready = confirmed and settings_valid and bool(methods) and (record_name is not None or arrays is not None)
             ready = ready and ("epde" not in methods or (settings is not None or record_name is not None))
             ready = ready and ("pdecomp" not in methods or sindy_settings is not None or is_heavy)
+            if not is_heavy:
+                ready = ready and all(extra_settings.get(m) for m in methods if m in ("deepmod", "discover"))
             if is_heavy:
                 ready = confirmed and settings_valid and bool(methods) and len(heavy_methods) == len(methods)
             if ready and not is_heavy:
@@ -654,7 +670,7 @@ with main_col:
                         configurations.append(
                             load_config(record_name, variant, overrides=overrides)["search"]
                             if record_name else settings["search"])
-                    if not configurations and set(methods) - {"pdecomp"}:
+                    if not configurations and "llm" in methods:
                         configurations.append(
                             load_config(record_name, "default")["search"] if record_name
                             else settings["search"])
@@ -680,10 +696,18 @@ with main_col:
                 st.caption("The ZIP contains the complete selected method configurations, "
                            "dataset name, noise, seed, scientific source fingerprint, "
                            "and a manifest checksum. No numerical data are transferred.")
-                if ready:
+                from support.discovery_lab.portable import repository_source
+                try:
+                    repository = repository_source()
+                except ValueError:
+                    repository = None
+                    st.info("A matching repository version is unavailable for this demo checkout. "
+                            "Local export requires a clean committed checkout with an identified revision.")
+                if ready and repository:
                     try:
                         from support.discovery_lab.portable import make_manifest, bundle_bytes
-                        manifest = make_manifest(record_name, float(noise), int(seed), heavy_methods)
+                        manifest = make_manifest(record_name, float(noise), int(seed), heavy_methods,
+                                                 repository=repository)
                         st.download_button(
                             "Download experiment.zip",
                             data=bundle_bytes(manifest),
@@ -694,12 +718,11 @@ with main_col:
                         )
                     except (ValueError, TypeError, OSError) as exc:
                         st.error("Could not prepare reproducible experiment: " + str(exc))
-                else:
+                elif not ready:
                     st.caption("Confirm the configuration above to unlock the download."
                                if not confirmed else "Correct the unsupported method or settings in step 2.")
-                st.link_button(
-                    "Download EPDE repository ZIP",
-                    "https://github.com/MakSoS1/EPDE/archive/refs/heads/demo/streamlit-community-cloud.zip")
+                if repository:
+                    st.link_button("Download EPDE repository ZIP", repository["archive_url"])
                 st.markdown("**Run the downloaded experiment locally**")
                 with st.container():
                     st.write("Extract the repository and copy **experiment.zip** into its root folder.")
@@ -730,6 +753,10 @@ with main_col:
                                 runs = [(f"pysindy_pdecomp_{p}",
                                          {"pdecomp": {"overrides": changes[p]}} if changes.get(p) else {})
                                         for p in sindy_settings["protocols"]]
+                            elif m in ("deepmod", "discover"):
+                                method_settings = extra_settings[m]
+                                runs = [(f"{m}_pdecomp_{method_settings['protocol']}",
+                                         {m: {"overrides": method_settings['overrides']}})]
                             else:
                                 runs = [("default", {})]
                             for run_variant, method_overrides in runs:
@@ -764,11 +791,14 @@ with main_col:
                                 "protocol": "native",
                                 "target_orders": sindy_settings.get("target_orders") or {},
                                 "overrides": (sindy_settings.get("overrides") or {}).get("native") or {}}
+                        for m, method_settings in extra_settings.items():
+                            shared_settings["method_configs"][m] = {k: v for k, v in method_settings.items() if k != "kind"}
                         if reference:
                             shared_settings["reference_truth"] = reference
                         data_path, config_path = queue.save_upload(owner, arrays, shared_settings)
                         requests = [{
                             "method": m, "source": "upload", "dataset": "custom",
+                            "variant": (f"{m}_pdecomp_{extra_settings[m]['protocol']}" if m in extra_settings else ""),
                             "noise": float(noise), "seed": seed,
                             "effort": budget_code if m == "epde" else "standard",
                             "data_path": str(data_path), "config_path": str(config_path),
@@ -832,7 +862,7 @@ with summary_col:
             st.caption("Set your parameters here, download the experiment and run the original scientific code on your PC.")
         else:
             st.markdown("**Runs on shared server**")
-            st.caption("Compute EPDE and PySINDy on the hosted server within its safety limits.")
+            st.caption("Compute the selected methods on the hosted server within its resource limits.")
         if record_name and "pdecomp" in methods:
             from support.discovery_lab.pysindy_method import unsupported as sindy_unsupported
             reason = sindy_unsupported(record_name)

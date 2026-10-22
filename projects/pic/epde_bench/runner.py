@@ -112,6 +112,14 @@ def run_one(dataset: str, variant: str = 'default', noise: float = 0.0, seed: in
             from .baselines import run_pysindy
             texts, objectives, fit_seconds, info = run_pysindy(problem, data, cfg, seed)
             record['baseline'] = info
+        elif cfg['method'] in ('deepmod', 'discover'):
+            from . import pdecomp_methods
+            options = cfg.get(cfg['method']) or {}
+            texts, objectives, fit_seconds, info = pdecomp_methods.run(
+                problem, data, cfg['method'], seed,
+                orders=options.get('target_orders'), overrides=options.get('overrides'),
+                protocol=options.get('protocol', 'native'))
+            record['baseline'] = info
         elif cfg['method'] == 'pdecomp':
             from . import pdecomp
             options = cfg.get('pdecomp') or {}
@@ -136,11 +144,16 @@ def run_one(dataset: str, variant: str = 'default', noise: float = 0.0, seed: in
         else:
             raise ValueError(f"unknown method {cfg['method']!r}")
         record.update(status='ok', fit_seconds=fit_seconds, front=texts, objectives=objectives)
-        record['metrics'] = metrics.score_run(texts, objectives, problem.truth_systems)
+        if cfg['method'] in ('deepmod', 'discover'):
+            record['metrics'] = pdecomp_methods.score(texts, objectives, problem.truth_systems, record['baseline'])
+        else:
+            record['metrics'] = metrics.score_run(texts, objectives, problem.truth_systems)
         sel = record['metrics'].get('selected_index')
         record['selected'] = texts[sel] if texts and sel is not None else None
     except UnsupportedProblem as exc:
         record.update(status='unsupported', reason=exc.reason)
+    except TimeoutError as exc:
+        record.update(status='timeout', error=str(exc))
     except Exception as exc:                                   # noqa: BLE001
         record.update(status='error', error=repr(exc), traceback=traceback.format_exc())
     record['total_seconds'] = time.perf_counter() - t_start

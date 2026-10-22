@@ -104,8 +104,12 @@ class QueueTests(unittest.TestCase):
         self.old_root, self.old_lock = queue.ROOT, queue.MANAGER_LOCK
         queue.ROOT = Path(self.tmp.name)
         queue.MANAGER_LOCK = queue.ROOT / 'manager.lock'
+        # list_jobs can restart queued work too; keep this unit test isolated.
+        self.manager_patch = patch.object(queue, 'ensure_manager', return_value=None)
+        self.manager_patch.start()
 
     def tearDown(self):
+        self.manager_patch.stop()
         self.queue.ROOT, self.queue.MANAGER_LOCK = self.old_root, self.old_lock
         self.tmp.cleanup()
         if self.injected_paths:
@@ -249,13 +253,18 @@ class WorkerAndPage(unittest.TestCase):
         except ImportError:
             self.skipTest('streamlit is not installed')
         with patch.dict(os.environ, {}):
-            app = AppTest.from_file(str(APP / 'views' / '10_Discovery_lab.py'), default_timeout=120)
+            app = AppTest.from_file(str(APP / 'Home.py'), default_timeout=120)
             app.query_params['session'] = self.owner
             app.run()
+            app.switch_page('views/10_Discovery_lab.py').run()
+            self.assertFalse(app.exception, [e.value for e in app.exception])
+            self.assertTrue(app.button(key='lab_next_data'))
+            app.switch_page('views/11_Discovery_results.py').run()
+            self.assertFalse(app.exception, [e.value for e in app.exception])
+            self.assertTrue(app.success)  # known law found
+            app.switch_page('views/12_Discovery_compare.py').run()
         self.assertFalse(app.exception, [e.value for e in app.exception])
-        self.assertEqual([t.label for t in app.tabs], ['① New experiment', '② Results', '③ Compare'])
-        self.assertTrue(app.success)                      # known law found
-        self.assertTrue(app.metric)
+        self.assertTrue(app.dataframe)
 
 
 if __name__ == '__main__':

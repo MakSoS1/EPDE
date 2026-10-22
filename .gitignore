@@ -157,3 +157,6 @@ projects/pic/data/**/_nnm_*.npz
 projects/pic/data/dp/dp_fno.npz
 *.prof
 *.gif
+
+# Local browser QA dependencies and generated screenshots.
+/projects/pic/browser_demo/node_modules/

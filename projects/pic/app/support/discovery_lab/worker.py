@@ -34,7 +34,7 @@ def _run_record(req, *, hosted=False):
     from epde_bench.datasets import REGISTRY
     method = req["method"]
     dataset, variant = req["dataset"], req["variant"]
-    if hosted and method in ("epde", "pdecomp"):
+    if hosted and method in ("epde", "pdecomp", "deepmod", "discover"):
         from support.discovery_lab.execution_policy import is_local_only
         if is_local_only(dataset):
             raise ValueError("Hosted EPDE refused: heavy datasets must run locally.")
@@ -55,19 +55,19 @@ def _run_record(req, *, hosted=False):
     from support.discovery_lab.lab_settings import validate_public_search
     if "overrides" in req:
         overrides = req["overrides"] or {}
-        expected = {"pdecomp"} if method == "pdecomp" else {"search"}
+        expected = {method} if method in ("pdecomp", "deepmod", "discover") else {"search"}
         if not isinstance(overrides, dict) or set(overrides) - expected:
             raise ValueError("Invalid method-specific scientific overrides")
-        if method == "pdecomp" and overrides:
+        if method in ("pdecomp", "deepmod", "discover") and overrides:
             # Only PDEComp settings may change, never the protocol chosen by the variant.
-            if not isinstance(overrides["pdecomp"], dict) or set(overrides["pdecomp"]) - {"overrides"}:
-                raise ValueError("Invalid PySINDy settings")
+            if not isinstance(overrides[method], dict) or set(overrides[method]) - {"overrides"}:
+                raise ValueError("Invalid PDEComp method settings")
         if "search" in overrides and not isinstance(overrides["search"], dict):
             raise ValueError("Search overrides must contain a mapping")
         cfg = load_config(dataset, variant, overrides=overrides)
         problem = load(dataset, **cfg.get("loader", {}))
-        # PDEComp's PySINDy ignores the EPDE search budget; one sparse regression is cheap.
-        if method != "pdecomp":
+        # Each PDEComp method has its own budget, independent of EPDE evolution.
+        if method == "epde":
             validate_public_search(resolve_for_problem(cfg, problem), problem.shape, override=not hosted)
     else:
         overrides = None
@@ -124,18 +124,18 @@ def _run_upload(req, folder, *, hosted=False):
             raise ValueError("Invalid reference law")
         problem.truth = list(truth)
     # Each algorithm receives only its own scientific configuration.
-    # No EPDE population/epoch, Pareto or optimizer settings affect PySINDy.
+    # EPDE population/epoch and Pareto settings do not affect the other methods.
     configs = settings.get("method_configs") or {}
-    if not isinstance(configs, dict) or set(configs) - {"epde", "pdecomp"}:
+    if not isinstance(configs, dict) or set(configs) - {"epde", "pdecomp", "deepmod", "discover"}:
         raise ValueError("Invalid per-method uploaded configuration")
-    if method == "pdecomp":
-        # PDEComp's PySINDy: native protocol, its defaults; only the target is chosen.
-        sindy_cfg = configs.get("pdecomp") or {"protocol": "native", "target_orders": {}}
+    if method in ("pdecomp", "deepmod", "discover"):
+        # Keep protocol, target derivative and overrides specific to the method.
+        sindy_cfg = configs.get(method) or {"protocol": "native", "target_orders": {}}
         orders = sindy_cfg.get("target_orders") or {}
-        if (sindy_cfg.get("protocol") != "native" or set(sindy_cfg) - {"protocol", "target_orders", "overrides"}
+        if (sindy_cfg.get("protocol") not in (("native",) if method == "pdecomp" else ("native", "fixed")) or set(sindy_cfg) - {"protocol", "target_orders", "overrides"}
                 or not isinstance(orders, dict) or set(orders) - set(problem.variables)
                 or any(k not in (1, 2) for k in orders.values())):
-            raise ValueError("Invalid PySINDy settings")
+            raise ValueError("Invalid PDEComp method settings")
         selected = {"search": settings["search"]}   # only to check the result on the data
     else:
         selected = configs.get(method, {"search": settings["search"]})
@@ -174,12 +174,18 @@ def _run_upload(req, folder, *, hosted=False):
         require_hosted_epde(None, problem.shape, len(problem.variables), search_cfg)
     record["search_config"] = search_cfg
     if sindy_cfg is not None:
-        record["config"]["pdecomp"] = sindy_cfg
+        record["config"][method] = sindy_cfg
     data = problem.noisy(noise, seed)
     start = time.perf_counter()
     try:
         if method == "epde":
             _, front, objectives, seconds = discover(problem, search_cfg, data)
+        elif method in ("deepmod", "discover"):
+            from epde_bench import pdecomp_methods
+            front, objectives, seconds, info = pdecomp_methods.run(
+                problem, data, method, seed, orders=sindy_cfg.get("target_orders"),
+                overrides=sindy_cfg.get("overrides"), protocol=sindy_cfg.get("protocol", "native"))
+            record["baseline"] = info
         else:
             from epde_bench import pdecomp
             reason = pdecomp.unsupported_reason(problem.kind, len(problem.variables))
@@ -197,12 +203,16 @@ def _run_upload(req, folder, *, hosted=False):
                                   "library_size": dict(zip(raw["targets"], pdecomp.library_size(raw))),
                                   "result": raw, "pdecomp_metrics": own}
         record.update(status="ok", fit_seconds=seconds, front=front, objectives=objectives)
-        record["metrics"] = metrics.score_run(front, objectives,
-                                              [truth] if truth else [])
+        if method in ("deepmod", "discover"):
+            record["metrics"] = pdecomp_methods.score(front, objectives, [truth] if truth else [], record["baseline"])
+        else:
+            record["metrics"] = metrics.score_run(front, objectives, [truth] if truth else [])
         selected = record["metrics"].get("selected_index")
         record["selected"] = front[selected] if selected is not None and front else None
     except UnsupportedProblem as exc:
         record.update(status="unsupported", reason=exc.reason)
+    except TimeoutError as exc:
+        record.update(status="timeout", error=str(exc))
     record["total_seconds"] = time.perf_counter() - start
     return record
 
@@ -342,6 +352,8 @@ def evaluate(record):
       with the data; thinned series are stored for plots.
     This is an in-sample reconstruction of the record used for the search.
     """
+    if (record.get("baseline") or {}).get("scoring_note"):
+        return {"solution_note": record["baseline"]["scoring_note"]}
     import numpy as np
     from epde_bench import reconstruction as rc
     from epde_bench.config import load_config, resolve_for_problem

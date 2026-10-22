@@ -10,12 +10,14 @@ import pandas as pd
 import streamlit as st
 
 from ..common import show_figure
-from ..equations import system_latex, term_plain
+from ..equations import equation_latex, native_equation_latex, system_latex, term_plain
 
-METHOD_NAMES = {"epde": "EPDE", "pdecomp": "PySINDy", "llm": "LLM agent"}
-METHOD_COLORS = {"epde": "#4c78a8", "pdecomp": "#f58518", "llm": "#54a24b"}
+METHOD_NAMES = {"epde": "EPDE", "pdecomp": "PySINDy", "deepmod": "DeepMoD", "discover": "DISCOVER", "llm": "LLM agent"}
+METHOD_COLORS = {"epde": "#4c78a8", "pdecomp": "#f58518", "deepmod": "#b279a2", "discover": "#e45756", "llm": "#54a24b"}
 #: What each method is, in one line, for captions.
 PROTOCOL_NOTES = {
+    "deepmod": "PDEComp DeepMoD: native NN/autograd/Library1D training or fixed-library sparse estimation.",
+    "discover": "PDEComp DISCOVER: native RNN symbolic search or fixed-library theta-token search.",
     "epde": "EPDE with the stored settings of the record.",
     "pdecomp": "PySINDy exactly as the PDEComp benchmark runs it: its own code at a pinned commit; "
                "on PDEComp's datasets with PDEComp's settings for them, elsewhere with the native "
@@ -28,6 +30,8 @@ def job_method_label(job):
     variant = job.get("variant") or ""
     if job.get("method") == "pdecomp" and variant.startswith("pysindy_pdecomp_"):
         return f"{METHOD_NAMES['pdecomp']} · {variant.rsplit('_', 1)[-1]} protocol"
+    if job.get("method") in ("deepmod", "discover") and variant.endswith(("_native", "_fixed")):
+        return f"{METHOD_NAMES[job['method']]} · {variant.rsplit('_', 1)[-1]} protocol"
     return METHOD_NAMES.get(job.get("method"), job.get("method"))
 
 
@@ -35,13 +39,26 @@ def method_label(record):
     """Method name with its protocol, e.g. ``PySINDy · PDEComp fixed``."""
     method = record.get("method")
     label = METHOD_NAMES.get(method, method)
-    if method == "pdecomp":
+    if method in ("pdecomp", "deepmod", "discover"):
         protocol = (record.get("baseline") or {}).get("protocol") or \
-            ((record.get("config") or {}).get("pdecomp") or {}).get("protocol")
+            ((record.get("config") or {}).get(method) or {}).get("protocol")
         if protocol:
             label += f" · {protocol} protocol"
     return label
 EFFORT_NAMES = {"quick": "quick", "standard": "standard", "thorough": "thorough"}
+
+
+def budget_label(job, record=None):
+    record = record or {}
+    method = record.get('method') or job.get('method')
+    settings = (record.get('baseline') or {}).get('settings') or {}
+    if method == 'deepmod' and settings.get('max_iterations') is not None:
+        return f"{settings['max_iterations']} training iterations"
+    if method == 'discover' and settings.get('n_samples') is not None:
+        return f"{settings['n_samples']} expression samples"
+    if method in ('pdecomp', 'deepmod'):
+        return 'one sparse fit'
+    return EFFORT_NAMES.get(record.get('effort') or job.get('effort'), 'standard') + ' budget'
 
 
 def axes_of(record):
@@ -49,11 +66,22 @@ def axes_of(record):
             or (record.get("problem") or {}).get("axis_names") or ["t", "x", "y"])
 
 
-def latex(system, axes):
+def latex(system, axes, *, record=None):
     try:
-        st.latex(system_latex(system, axes))
+        if record and (record.get('baseline') or {}).get('scoring_note'):
+            variables = (record.get('problem') or {}).get('variables') or ['u']
+            for eq in system:
+                rendered = native_equation_latex(eq, axes, variables)
+                if len(rendered) > 180:
+                    st.code(eq, language=None, wrap_lines=True)
+                else:
+                    st.latex(rendered)
+        elif len(system) == 1:
+            st.latex(equation_latex(system[0], axes, wrap=True))
+        else:
+            st.latex(system_latex(system, axes))
     except Exception:                                   # noqa: BLE001
-        st.code("\n".join(system), language=None)
+        st.code("\n".join(system), language=None, wrap_lines=True)
 
 
 def verdict(record):
@@ -62,6 +90,8 @@ def verdict(record):
     if not truth:
         return None
     m = record.get("metrics") or {}
+    if m.get("scoring_note"):
+        return "warning", m["scoring_note"]
     if m.get("success_selected"):
         text = "Found the known law: the selected equation has exactly its terms."
         if m.get("coef_error") is not None:
@@ -100,10 +130,10 @@ def summary_row(job, record):
     scores = solution_scores(record)
     library = (record.get("baseline") or {}).get("library_size")
     row = {"method": method_label(record),
-           "search budget": EFFORT_NAMES.get(record.get("effort") or job.get("effort"), "standard"),
+           "search budget": budget_label(job, record),
            "found equation": " ; ".join(plain_equation(eq, axes_of(record))
                                         for eq in (record.get("selected") or [])),
-           "known law found": (("yes" if m.get("success_selected") else
+           "known law found": ("not scored" if m.get("scoring_note") else ("yes" if m.get("success_selected") else
                                 "on the front" if m.get("success_front") else "no") if truth else "law unknown"),
            "coefficient error": m.get("coef_error") if truth and m.get("success_selected") else None,
            "HD": m.get("hamming_selected") if truth else None,
@@ -167,6 +197,8 @@ def _rhs_plain(eq, axes):
 
 
 def term_table(record):
+    if (record.get("metrics") or {}).get("scoring_note"):
+        return
     from ..compare import match_equations, term_rows
     truth = (record.get("problem") or {}).get("truth")
     found = record.get("selected") or []
@@ -220,14 +252,13 @@ def solution_plots(records):
 
     ``records`` is a list of (title, record) on the same input."""
     import matplotlib.pyplot as plt
-    first = (records[0][1].get("evaluation") or {})
-    kind = first.get("kind", "")
     solved = [(title, r) for title, r in records
               if ((r.get("evaluation") or {}).get("solution") or {}).get("observed")]
     if not solved:
         notes = {(r.get("evaluation") or {}).get("solution_note") for _, r in records} - {None}
         st.info(" ".join(notes) or "No solution of the equation could be computed for this input.")
         return
+    kind = (solved[0][1].get("evaluation") or {}).get("kind", "")
     reference = solved[0][1]["evaluation"]["solution"]
     variables = list(reference["observed"])
     if kind.startswith("ode"):
