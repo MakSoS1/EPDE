@@ -47,8 +47,8 @@ try {
   await page.goto(BASE + '/Discovery_lab?session=' + owner);
   await page.getByRole('button',{name:/Next: configure methods/}).waitFor({timeout:90000});
   for (const name of (ALL_METHODS ? ['DeepMoD','DISCOVER'] : ['EPDE','PySINDy','DeepMoD','DISCOVER']))
-    await click(group('Discovery methods').getByRole('button',{name,exact:true}));
-  await click(group('Dataset group').getByRole('button',{name:'Extended',exact:true}));
+    await click(group('Discovery methods').getByText(name,{exact:true}));
+  await click(group('Dataset group').getByText('Extended',{exact:true}));
   await page.getByRole('combobox',{name:/Equation \(search by name\)/}).click();
   await page.getByRole('option').filter({hasText:'Two-mode linear heat diffusion'}).click();
   await settled();
@@ -61,22 +61,22 @@ try {
   }
   await click(page.getByRole('tab',{name:/DeepMoD/}));
   await screenshot('02-deepmod-native-light');
-  await click(group('Run budget').getByRole('button',{name:'PDEComp profile',exact:true}));
+  await click(group('Run budget').getByText('PDEComp profile',{exact:true}));
   if (await page.getByRole('spinbutton',{name:'Training iterations',exact:true}).inputValue() !== '5000')
     throw Error('Full PDEComp training budget not restored');
-  await click(group('Run budget').getByRole('button',{name:'Quick demo',exact:true}));
+  await click(group('Run budget').getByText('Quick demo',{exact:true}));
   if (await page.getByRole('spinbutton',{name:'Training iterations',exact:true}).inputValue() !== '250')
     throw Error('Quick budget not restored');
   const rate = await page.getByRole('spinbutton',{name:'Learning rate',exact:true}).inputValue();
   if (!rate.includes('002')) throw Error('Learning rate rounded to zero: ' + rate);
   await click(page.getByRole('tab',{name:/DISCOVER/}));
   await screenshot('03-discover-native-light');
-  await click(group('Appearance').getByRole('button',{name:'Dark',exact:true}));
+  await click(group('Appearance').getByText('Dark',{exact:true}));
   await screenshot('04-discover-native-dark');
   await page.setViewportSize({width:390,height:844});
   await screenshot('05-settings-mobile-dark');
   await page.setViewportSize({width:1440,height:1000});
-  await click(group('Appearance').getByRole('button',{name:'Light',exact:true}));
+  await click(group('Appearance').getByText('Light',{exact:true}));
   await click(page.getByRole('button',{name:/Next: review configuration/}));
   await screenshot('06-review');
   await page.getByText(/I have checked the input/).click();
@@ -109,8 +109,11 @@ try {
       throw Error('Scientific failure: ' + JSON.stringify({method:job.method,state:job.state,error:record.error}));
     if ((job.method !== 'epde' && record.baseline?.protocol !== 'native') || !record.selected?.length)
       throw Error('Missing native equation: ' + job.method);
+    const dependencies = record.identity?.dependencies;
+    if (dependencies?.torch?.split('+')[0] !== '2.9.0')
+      throw Error('Worker did not use the pinned PyTorch environment: ' + JSON.stringify(dependencies));
     runs.push({id,method:record.method,fit_seconds:record.fit_seconds,selected:record.selected,
-               metrics:record.metrics,evaluation:record.evaluation});
+               metrics:record.metrics,evaluation:record.evaluation,dependencies});
   }
   if (runs.length !== (ALL_METHODS ? 4 : 2)) throw Error('Unexpected number of scientific results');
   await fs.writeFile(path.join(OUTPUT,'scientific-results.json'),JSON.stringify(runs,null,2));
@@ -119,7 +122,9 @@ try {
   await page.getByRole('combobox',{name:/Inspect result/}).waitFor({timeout:90000});
   await screenshot('08-results-desktop');
   for (const name of ['DeepMoD','DISCOVER']) {
-    await page.getByRole('combobox',{name:/Inspect result/}).click();
+    const inspect = page.getByRole('combobox',{name:/Inspect result/});
+    await inspect.click();
+    await inspect.fill(name);
     await page.getByRole('option').filter({hasText:name}).click();
     await settled();
     await screenshot('09-result-' + name.toLowerCase());
@@ -128,12 +133,15 @@ try {
   await click(page.getByRole('link',{name:/Compare$/}).first());
   if (ALL_METHODS) {
     for (const name of ['EPDE', 'PySINDy']) {
-      await page.locator('[data-testid="stMultiSelect"]').getByRole('combobox').click();
+      const select = page.locator('[data-testid="stMultiSelect"]').getByRole('combobox');
+      await select.click();
+      await select.fill(name);
       await page.getByRole('option').filter({hasText:new RegExp('^' + name + ' ')}).click();
       await settled();
     }
-    if (await page.locator('[data-testid="stMultiSelect"] [data-baseweb="tag"]').count() !== 4)
-      throw Error('Cannot select all four scientific methods');
+    const selected = await page.locator('[data-testid="stMultiSelect"]').innerText();
+    if (!['EPDE', 'PySINDy', 'DeepMoD', 'DISCOVER'].every(name=>selected.includes(name + ' · ')))
+      throw Error('Cannot select all four scientific methods: ' + selected);
     await page.keyboard.press('Escape');
     await page.getByRole('heading',{name:'Compare',exact:true}).click();
   }

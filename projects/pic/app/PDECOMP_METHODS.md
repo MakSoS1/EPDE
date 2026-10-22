@@ -27,6 +27,14 @@ restores the full upstream training budget. The reduced iteration/sample
 settings are recorded as overrides and shown in the review. Local exports
 start from the full PDEComp profile.
 The portable local worker has no hosted 600-second training limit.
+Both CPU and CUDA `uv` extras pin PyTorch 2.9.0, matching Community Cloud;
+the pinned DeePyMoD implementation requires its `torch.qr` API.
+
+Portable downloads use the running checkout's full commit SHA, including in
+the experiment manifest and its README, rather than a mutable demo-branch URL.
+The checkout must be clean and the commit available in the configured GitHub
+repository. Git-less builds must set `EPDE_REPOSITORY_REVISION` to their full
+build SHA; forks may set `EPDE_REPOSITORY_URL`.
 
 Training iterations/sample counts are editable. Short budgets verify that
 the method runs; they do not establish recovery accuracy. All hosted jobs
@@ -67,8 +75,12 @@ bitwise equality with the historical environment is not claimed.
 DISCOVER's original expression, reward and NMSE are retained. Expressions
 that fit the EPDE token grammar receive the usual structural metrics and
 solution reconstruction. Other valid native expressions are preserved with
-an explicit scoring-unavailable note; they are excluded from success-rate
-summaries. No EPDE Pareto scores are invented for either new method.
+an explicit scoring-unavailable note. No EPDE Pareto scores are invented for
+either new method.
+Series retain these runs in the total and show a separate unscored count.
+Incomplete levels have no success percentage or confidence interval, and a
+method with any unscored level has no established noise limit. Errors and
+timeouts continue to count as failures.
 Equation-balance evaluation uses independent finite differences, rather than
 claiming to reuse DeepMoD's learned neural derivatives.
 

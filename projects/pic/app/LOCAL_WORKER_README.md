@@ -15,11 +15,10 @@ Open **Run a search** in the six-page Streamlit app, then:
    represent the equation, choose the offered **Use EPDE only** action.
 3. Download **experiment.zip**. It contains method-specific settings,
    original dataset reference, noise, seed, source fingerprint and checksum.
-4. Download the repo ZIP using the adjacent button, or clone the exact branch:
-
-   ```bash
-   git clone --branch demo/streamlit-community-cloud --single-branch https://github.com/MakSoS1/EPDE.git
-   ```
+4. Download the repo ZIP using the adjacent button. It points to the exact
+   commit running the demo, not the current tip of a branch. The same archive
+   URL and full commit SHA are included in `experiment.zip` (README.txt and
+   experiment.json). Use that version to preserve the scientific fingerprint.
 
 5. Extract the repository (if downloaded as a ZIP). Put the downloaded
    **experiment.zip** file in its top-level folder, beside run-portable.cmd
@@ -42,7 +41,7 @@ the computer. The first run therefore needs network access, time and local
 disk space. Running or downloading an executable requires the user's consent;
 corporate endpoint policies may block unsigned launchers.
 
-The scientific calculations use the original EPDE/PySINDy Python entrypoints
+The scientific calculations use the EPDE, PySINDy, DeepMoD and DISCOVER Python entrypoints
 in separate processes. `EPDE_LOCAL_FULL_RUN` is only for those scientific
 processes; it is **never** an override to load heavy PDEs in Streamlit.
 
@@ -68,9 +67,9 @@ equations. Consult `projects/pic/DATASETS.md` and the catalog's
 availability metadata. Recreate/export the config after updating the
 scientific source if a manifest-source fingerprint mismatch is reported.
 
-The current PySINDy implementation is the named EPDE-compatible sparse
-regression baseline, not an unchanged copy of `PDEComp/native`.
-Unsupported methods must never be silently substituted.
+PySINDy, DeepMoD and DISCOVER preserve the selected PDEComp native/fixed
+protocol and method-specific settings. Unsupported methods are never
+silently substituted.
 
 ## Historical protocol
 

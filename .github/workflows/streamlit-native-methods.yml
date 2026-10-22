@@ -13,7 +13,7 @@ permissions:
 jobs:
   native-cpu:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       PYTHONPATH: '.:projects/pic:projects/pic/app'
       EPDE_TEST_NATIVE_METHODS: '1'
@@ -35,6 +35,8 @@ jobs:
           uv run --project projects/pic --extra cpu --extra app --locked --with pytest python -m pytest -q \
             projects/pic/tests/test_native_pdecomp_methods.py \
             projects/pic/tests/test_native_demo_review.py \
+            projects/pic/tests/test_native_process_timeouts.py \
+            projects/pic/tests/test_native_pr_regressions.py \
             projects/pic/tests/test_pdecomp_protocol.py \
             projects/pic/tests/test_discovery_lab.py \
             projects/pic/tests/test_portable_handoff.py \

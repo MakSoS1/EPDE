@@ -696,10 +696,18 @@ with main_col:
                 st.caption("The ZIP contains the complete selected method configurations, "
                            "dataset name, noise, seed, scientific source fingerprint, "
                            "and a manifest checksum. No numerical data are transferred.")
-                if ready:
+                from support.discovery_lab.portable import repository_source
+                try:
+                    repository = repository_source()
+                except ValueError:
+                    repository = None
+                    st.info("A matching repository version is unavailable for this demo checkout. "
+                            "Local export requires a clean committed checkout with an identified revision.")
+                if ready and repository:
                     try:
                         from support.discovery_lab.portable import make_manifest, bundle_bytes
-                        manifest = make_manifest(record_name, float(noise), int(seed), heavy_methods)
+                        manifest = make_manifest(record_name, float(noise), int(seed), heavy_methods,
+                                                 repository=repository)
                         st.download_button(
                             "Download experiment.zip",
                             data=bundle_bytes(manifest),
@@ -710,12 +718,11 @@ with main_col:
                         )
                     except (ValueError, TypeError, OSError) as exc:
                         st.error("Could not prepare reproducible experiment: " + str(exc))
-                else:
+                elif not ready:
                     st.caption("Confirm the configuration above to unlock the download."
                                if not confirmed else "Correct the unsupported method or settings in step 2.")
-                st.link_button(
-                    "Download EPDE repository ZIP",
-                    "https://github.com/emil817/EPDE_demo/archive/refs/heads/demo/streamlit-community-cloud.zip")
+                if repository:
+                    st.link_button("Download EPDE repository ZIP", repository["archive_url"])
                 st.markdown("**Run the downloaded experiment locally**")
                 with st.container():
                     st.write("Extract the repository and copy **experiment.zip** into its root folder.")

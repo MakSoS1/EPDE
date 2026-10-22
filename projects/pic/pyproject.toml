@@ -34,8 +34,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-cpu = ["torch>=2.4"]
-cu128 = ["torch>=2.4"]
+# Match the Community Cloud runtime: pinned DeePyMoD still uses torch.qr.
+cpu = ["torch==2.9.0"]
+cu128 = ["torch==2.9.0"]
 app = [
     "streamlit>=1.50",
     "tensorflow==2.20.0", "tf-keras==2.20.1", "numba==0.62.1",

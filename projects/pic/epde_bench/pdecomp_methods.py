@@ -11,6 +11,7 @@ import concurrent.futures
 import hashlib
 import json
 import os
+import re
 import secrets
 import subprocess
 import sys
@@ -201,13 +202,22 @@ def run(problem, data, method, seed=0, orders=None, overrides=None, protocol='na
                          'kind': problem.kind, 'overrides': validate_overrides(method, overrides, protocol)},
                         timeout=None if os.environ.get('EPDE_LOCAL_FULL_RUN') == '1' else 600)
     raw = reply['result']
+    if method == 'discover' and protocol == 'native' and problem.kind == 'ode':
+        # PDEComp reuses DISCOVER's spatial grammar for ODEs, where x1 is
+        # time. Its lookup table misses products such as u u_x and u_x^2.
+        # Fix canonical derivative labels without changing the original model
+        # expression or coefficients; retain upstream feature names as well.
+        features = [[re.sub(r'\bu_(x{1,4})\b', lambda m: 'u_' + 't' * len(m[1]), f)
+                     for f in fs] for fs in raw['features']]
+        if features != raw['features']:
+            raw = dict(raw, features=features, original_features=raw['features'])
     # Native DISCOVER may discover functions outside the EPDE token grammar.
     # Keep those equations and its original reward, without claiming that our
     # structural metrics or numerical solver can interpret them.
     scoring_note = None
     try:
         texts = [pdecomp.to_epde_texts(problem, raw)]
-    except KeyError:
+    except (KeyError, ValueError):
         if method != 'discover' or protocol != 'native':
             raise
         texts = [[(' + '.join(f'{float(c)!r} * {f}' for c, f in zip(cs, fs) if abs(c) > 1e-12)

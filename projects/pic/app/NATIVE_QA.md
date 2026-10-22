@@ -1,5 +1,53 @@
 # Native-method demo review — 2026-10-20
 
+## PR follow-up — 2026-10-22
+
+All four reported regressions have targeted coverage in
+`tests/test_native_pr_regressions.py`:
+
+- CPU/CUDA extras and the regenerated lock pin PyTorch 2.9.0, matching Cloud.
+- Repository downloads, experiment metadata and README use the running
+  checkout's full SHA. Dirty or unidentified checkouts cannot export a
+  misleading repository link. The actual heavy-export wizard is tested.
+- Series retain unscored results and levels, report their counts, and withhold
+  incomplete percentages/intervals and unestablished noise limits. Both
+  reported examples and the rendered Compare page are tested.
+- Native DISCOVER ODE products/powers use temporal derivative labels; original
+  expressions, upstream features and coefficients remain available. Translation
+  KeyError/ValueError preserves the native result without invented scores.
+
+A new **clean** environment was installed with
+`uv sync --project projects/pic --extra cpu --extra app --locked` (no system
+site packages). Versions: Python 3.12.7, torch 2.9.0+cpu, Streamlit 1.65.0,
+TensorFlow 2.20.0, tf-keras 2.20.1, NumPy 2.3.5, SciPy 1.18.1,
+scikit-learn 1.9.1 and pandas 3.0.6. pytest 9.1.1 was added as the test runner.
+The complete selected CI suite passed **99 tests and 101 subtests**, including
+the actual DeepMoD NN/autograd run, DISCOVER controller and hosted ODE worker,
+PySINDy protocol parity and the new export/statistics/translation regressions.
+
+The real descendant-process timeout regression was moved to the independent
+`tests/test_native_process_timeouts.py`. It passed separately on Windows and
+Ubuntu 24.04 / Linux 5.15 in WSL2 (Python 3.12.3, psutil 5.9.8).
+The Linux check verifies process termination, not the full scientific stack.
+A terminated Linux zombie is distinguished from a still-computing process.
+Reproduce with `python projects/pic/tests/test_native_process_timeouts.py -v`.
+
+The browser smoke now handles Streamlit 1.65 selection controls and verifies
+the PyTorch version recorded by each actual worker. Four fresh searches on
+the same `nir1_heat` input finished with `status: ok`, all recording
+torch 2.9.0+cpu: EPDE 6.62 s fit, PySINDy 0.22 s, DeepMoD 82.62 s (250
+iterations / 1000 samples), DISCOVER 41.77 s (1000 expressions / batch 100).
+These quick budgets did not recover the exact reference law; DISCOVER's
+unscored expression was preserved explicitly. Results and all Compare tabs
+passed the browser check at 1440×1000 and 390×844, including reload and
+equation/page overflow assertions (`NATIVE_STREAMLIT_E2E_PASS`).
+Screenshots/results for
+the new locked-environment browser run use
+`browser_demo/.cache/pr-review-native/` locally. GitHub-hosted CI and Community
+Cloud deployment remain separate checks after publishing this commit.
+
+The original review below describes the earlier development environment.
+
 Checked locally on Windows, Python 3.12.7, Chrome/Playwright, with the actual
 Streamlit application and its process queue. No deployed Community Cloud
 instance was changed or verified in this review.

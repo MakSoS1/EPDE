@@ -146,11 +146,17 @@ else:
             "median time, s": st.column_config.NumberColumn(format="%.2f")})
         cols = st.columns(max(1, len(limits)))
         for col, (method, limit) in zip(cols, limits.items()):
-            col.metric(f"noise limit · {method}", "below the lowest level" if limit is None
-                       else f"{limit:g} %",
+            incomplete = any(r["method"] == method and r["unscored runs"] for r in table)
+            limit_label = ("not established" if incomplete else
+                           "below the lowest level" if limit is None else f"{limit:g} %")
+            col.metric(f"noise limit · {method}", limit_label,
                        help="Highest tested noise level up to which at least 3 of 5 runs (60 %) "
                             "found the law at every level, as in PDEComp. Needs at least 3 runs "
                             "per level.")
+        if frame["unscored runs"].sum():
+            st.info("Unscored results are included in the total run count. Success rates and "
+                    "confidence intervals are unavailable for incomplete levels; the noise "
+                    "limit is not established for methods with any unscored results.")
         if frame["noise, %"].nunique() > 1:
             import matplotlib.pyplot as plt
             from support.common import show_figure

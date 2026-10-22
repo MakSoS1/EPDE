@@ -1,6 +1,5 @@
 """Regressions found by reviewing actual desktop/mobile native-method runs."""
 import sys
-import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -60,24 +59,6 @@ class NativeResultDisplay(unittest.TestCase):
 
 
 class NativeTimeouts(unittest.TestCase):
-    def test_timeout_stops_descendant_processes(self):
-        import psutil
-        from epde_bench import pdecomp_methods as methods
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            script = root / 'slow_bridge.py'
-            script.write_text(
-                'import json,sys,time,subprocess\nfrom pathlib import Path\n'
-                'request=json.loads(sys.argv[1])\n'
-                'child=subprocess.Popen([sys.executable,"-c","import time; time.sleep(60)"])\n'
-                'Path(request["root"],"child.pid").write_text(str(child.pid))\n'
-                'time.sleep(60)\n', encoding='utf-8')
-            with patch.object(methods, 'source_dir', return_value=root), patch.object(methods, 'BRIDGE', script):
-                with self.assertRaisesRegex(TimeoutError, 'time limit'):
-                    methods._bridge({'method': 'deepmod'}, timeout=2)
-            self.assertTrue((root / 'child.pid').is_file())
-            self.assertFalse(psutil.pid_exists(int((root / 'child.pid').read_text())))
-
     def test_native_runner_reports_timeout_without_a_traceback(self):
         from epde_bench.runner import run_one
         with patch('epde_bench.pdecomp_methods.run', side_effect=TimeoutError('Training time limit')):
