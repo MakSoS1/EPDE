@@ -2,6 +2,14 @@
 
 ## PR follow-up — 2026-10-22
 
+Subsequent review found that the earlier archive/fingerprint check stopped
+before `portable_experiment.prepare()`: the launcher rebuilt the manifest
+without its repository metadata and rejected the exported ZIP. It now retains
+that metadata. Regression coverage reaches `prepare()` from the packaged ZIP
+for all four methods, accepts older archives without repository metadata, and
+still rejects different scientific sources. The portable-handoff and PR
+regression suites passed **23 tests and 5 subtests** after this correction.
+
 All four reported regressions have targeted coverage in
 `tests/test_native_pr_regressions.py`:
 

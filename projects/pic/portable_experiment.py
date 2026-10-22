@@ -22,7 +22,8 @@ def prepare(bundle: Path):
     from support.discovery_lab.portable import make_manifest, read_manifest
     manifest = read_manifest(bundle)
     expected = make_manifest(manifest["dataset"], manifest["noise"],
-                             manifest["seed"], manifest["runs"])
+                             manifest["seed"], manifest["runs"],
+                             repository=manifest.get("repository"))
     if expected != manifest:
         raise ValueError(
             "Experiment and checked-out scientific sources/configuration differ. "
