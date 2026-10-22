@@ -53,9 +53,12 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Start the actual Streamlit app
         run: |
-          uv run --project projects/pic --extra cpu --extra app --locked streamlit run \
+          # A background uv run holds the cache lock until the server exits,
+          # blocking setup-uv's post-job cache prune. Use the synced venv.
+          projects/pic/.venv/bin/python -m streamlit run \
             projects/pic/app/Home.py --server.headless=true --browser.gatherUsageStats=false \
             > /tmp/native-streamlit.log 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/native-streamlit.pid"
           for attempt in $(seq 1 45); do
             curl --fail --silent http://127.0.0.1:8501/_stcore/health && exit 0
             sleep 2
@@ -67,6 +70,12 @@ jobs:
         env:
           NATIVE_UI_ALL_METHODS: '1'
         run: node smoke_native_methods.mjs
+      - name: Stop Streamlit server
+        if: always()
+        run: |
+          if [[ -f "$RUNNER_TEMP/native-streamlit.pid" ]]; then
+            kill "$(cat "$RUNNER_TEMP/native-streamlit.pid")" 2>/dev/null || true
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:

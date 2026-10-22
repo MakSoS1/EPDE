@@ -2,6 +2,19 @@
 
 ## PR follow-up — 2026-10-22
 
+GitHub Actions run [39785009355](https://github.com/emil817/EPDE_demo/actions/runs/39785009355)
+on commit `8a634303` confirmed **101 tests and 101 subtests passed** on
+Ubuntu 24.04, including the descendant-process timeout test, followed by
+`NATIVE_STREAMLIT_E2E_PASS`. The job failed only during setup-uv's post-job
+cache cleanup: the background `uv run ... streamlit` held its cache lock,
+and `uv cache prune --ci` timed out after 300 seconds.
+The workflow now starts Streamlit with the already-synced venv Python and
+stops the server in an always-run cleanup step. An isolated local reproduction
+confirmed prune exits 2 while a background `uv run` is alive and exits 0 while
+the equivalent directly-started Python process is alive. Workflow YAML and
+all shell blocks passed syntax checks; this workflow fix still needs its next
+GitHub Actions run.
+
 Subsequent review found that the earlier archive/fingerprint check stopped
 before `portable_experiment.prepare()`: the launcher rebuilt the manifest
 without its repository metadata and rejected the exported ZIP. It now retains
