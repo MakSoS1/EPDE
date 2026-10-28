@@ -699,10 +699,12 @@ with main_col:
                 from support.discovery_lab.portable import repository_source
                 try:
                     repository = repository_source()
-                except ValueError:
+                except ValueError as exc:
                     repository = None
                     st.info("A matching repository version is unavailable for this demo checkout. "
                             "Local export requires a clean committed checkout with an identified revision.")
+                    with st.expander("Export availability details"):
+                        st.code(str(exc), language="text")
                 if ready and repository:
                     try:
                         from support.discovery_lab.portable import make_manifest, bundle_bytes
