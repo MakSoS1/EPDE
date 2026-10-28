@@ -87,7 +87,8 @@ try {
   const approval=page.getByRole('checkbox',{name:/I have checked the input/});
   await approval.waitFor();
   if(await approval.isChecked()) throw Error('Previous ODE approval was carried to Navier-Stokes');
-  const code=(await page.locator('[data-testid="stCodeBlock"]').allInnerTexts()).join('\n');
+  await page.locator('pre').first().waitFor({timeout:30000});
+  const code=(await page.locator('pre').allInnerTexts()).join('\n');
   if(!/dataset:\s*ns\b/.test(code)||/dataset:\s*ode\b/.test(code))
     throw Error('Review contains wrong dataset: '+code.slice(-1400));
   if(await page.getByRole('button',{name:/Start search:/}).count())
