@@ -6,6 +6,7 @@ on:
   push:
     branches: [feat/streamlit-deepmod-discover, demo/streamlit-community-cloud]
     paths:
+      - '.gitignore'
       - '.github/workflows/streamlit-native-methods.yml'
       - 'projects/pic/app/**'
       - 'projects/pic/epde_bench/**'

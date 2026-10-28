@@ -3,6 +3,7 @@ on:
   push:
     branches: [demo/streamlit-community-cloud]
     paths:
+      - '.gitignore'
       - 'projects/pic/app/Home.py'
       - 'projects/pic/app/views/**'
       - 'projects/pic/app/support/minimal_ui.py'
@@ -49,7 +50,9 @@ jobs:
       - id: server
         name: Launch the actual Streamlit app (no test mocks)
         run: |
-          bash run-epde.sh --server.headless=true --browser.gatherUsageStats=false \
+          EPDE_LOCAL_FULL_RUN=1 projects/pic/.venv/bin/python -m streamlit run \
+            projects/pic/app/Home.py --server.address=127.0.0.1 --server.port=8501 \
+            --server.headless=true --browser.gatherUsageStats=false \
             > /tmp/streamlit-server.log 2>&1 &
           echo $! > /tmp/streamlit-server.pid
           for i in $(seq 1 45); do
@@ -112,6 +115,10 @@ jobs:
         run: |
           set -o pipefail
           node smoke_streamlit.mjs 2>&1 | tee /tmp/streamlit-e2e.log
+      - name: Verify generated QA and native results leave export sources clean
+        run: |
+          git status --short
+          test -z "$(git status --porcelain --untracked-files=normal)"
       - id: heavy_browser
         name: Download heavy PDE experiment after configuring it in the real browser
         timeout-minutes: 8
@@ -126,6 +133,12 @@ jobs:
         run: |
           set -o pipefail
           node smoke_import_compare.mjs 2>&1 | tee /tmp/import-compare-e2e.log
+      - name: Stop the tested Streamlit server before cache cleanup
+        if: always()
+        run: |
+          if [[ -f /tmp/streamlit-server.pid ]]; then
+            kill "$(cat /tmp/streamlit-server.pid)" 2>/dev/null || true
+          fi
       - name: Publish real website integration status
         if: always()
         env:

@@ -32,8 +32,8 @@ class LockedDependencies(unittest.TestCase):
 
 
 class RepositoryExport(unittest.TestCase):
-    def test_browser_screenshots_do_not_block_export_but_new_source_does(self):
-        """Browser QA must not make a committed checkout unexportable."""
+    def test_generated_results_do_not_block_export_but_new_source_does(self):
+        """Browser QA and native runs must leave committed sources exportable."""
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             (root / '.gitignore').write_text((PIC.parents[1] / '.gitignore').read_text())
@@ -55,6 +55,11 @@ class RepositoryExport(unittest.TestCase):
                          'restored-light-catalog.png', 'public-native-methods.png',
                          'browser-smoke-last.png'):
                 (source / name).write_bytes(b'generated browser screenshot')
+            # portable_experiment.main() writes its per-method JSON files here
+            # before the browser imports the resulting experiment-results.zip.
+            results = root / 'results/portable/0123456789abcdef'
+            results.mkdir(parents=True)
+            (results / 'epde.json').write_text('{"status": "ok"}\n')
             with patch('epde_bench.paths.REPO_ROOT', root), patch.dict(os.environ, {
                     'EPDE_REPOSITORY_REVISION': '',
                     'EPDE_REPOSITORY_URL': 'https://github.com/MakSoS1/EPDE'}):

@@ -145,6 +145,7 @@ dmypy.json
 *.pdf
 
 # --- Experiment output ---
+/results/portable/
 # Thesis workspace: retired Sep 2026. Nothing reads it and its files stay on
 # disk untracked (the thesis code itself is on main). The solver/PINN study
 # lives in projects/pinn.
