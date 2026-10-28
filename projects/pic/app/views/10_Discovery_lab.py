@@ -705,6 +705,27 @@ with main_col:
                             "Local export requires a clean committed checkout with an identified revision.")
                     with st.expander("Export availability details"):
                         st.code(str(exc), language="text")
+                        # Read deployment metadata directly: an existing Cloud
+                        # process can retain an imported module across updates.
+                        # Show relative change names only, never file contents.
+                        import subprocess
+                        from epde_bench.paths import REPO_ROOT
+                        try:
+                            def deployment_git(*args):
+                                return subprocess.run(
+                                    ["git", "-C", str(REPO_ROOT), *args], check=True,
+                                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                                    text=True, timeout=10).stdout.rstrip("\r\n")
+                            deployed = deployment_git("rev-parse", "HEAD")
+                            changes = deployment_git("-c", "core.quotePath=true", "status",
+                                                     "--porcelain=v1", "--untracked-files=normal")
+                            if len(deployed) == 40 and all(c in "0123456789abcdef" for c in deployed):
+                                st.caption("Checked-out revision: " + deployed)
+                            if changes and "Changed paths:" not in str(exc):
+                                suffix = "\n(additional paths omitted)" if len(changes) > 1200 else ""
+                                st.code("Changed paths:\n" + changes[:1200] + suffix, language="text")
+                        except (OSError, subprocess.SubprocessError):
+                            pass  # The primary export error remains visible above.
                 if ready and repository:
                     try:
                         from support.discovery_lab.portable import make_manifest, bundle_bytes

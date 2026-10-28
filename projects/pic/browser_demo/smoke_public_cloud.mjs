@@ -31,7 +31,7 @@ async function exportDiagnostics(frame){
   if(await details.count()&&await details.isVisible()&&await details.getAttribute("open")===null)
     await details.locator("summary").click({timeout:5000});
   return safeText((await frame.getByText(
-    /A matching repository version is unavailable|Could not prepare reproducible experiment|Repository export requires|Could not identify the running repository revision|EPDE_REPOSITORY_REVISION/
+    /A matching repository version is unavailable|Could not prepare reproducible experiment|Repository export requires|Could not identify the running repository revision|EPDE_REPOSITORY_REVISION|Changed paths:|Checked-out revision:/
   ).allInnerTexts()).join("\n")).slice(0,2500);
 }
 async function ready(){
