@@ -26,7 +26,7 @@ def repository_source():
     checkout has no matching GitHub archive and must not advertise one.
     """
     from epde_bench.paths import REPO_ROOT
-    repository = os.environ.get("EPDE_REPOSITORY_URL", "https://github.com/emil817/EPDE_demo").rstrip("/")
+    repository = os.environ.get("EPDE_REPOSITORY_URL", "https://github.com/MakSoS1/EPDE").rstrip("/")
     if not re.fullmatch(r"https://github\.com/[\w.-]+/[\w.-]+", repository):
         raise ValueError("Invalid EPDE_REPOSITORY_URL")
     revision = os.environ.get("EPDE_REPOSITORY_REVISION", "")
