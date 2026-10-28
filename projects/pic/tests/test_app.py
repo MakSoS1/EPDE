@@ -18,8 +18,17 @@ except ImportError:                                   # pragma: no cover
 @unittest.skipIf(AppTest is None, 'streamlit is not installed')
 class PagesRender(unittest.TestCase):
     def run_page(self, path):
-        app = AppTest.from_file(str(path), default_timeout=120)
-        app.run()
+        public_views = {
+            '0_Home.py', '9_How_EPDE_works.py', '10_Discovery_lab.py',
+            '11_Discovery_results.py', '12_Discovery_compare.py', '14_Data_catalog.py',
+        }
+        if path.parent == APP / 'views' and path.name in public_views:
+            # Public page links require the registry created by the real entrypoint.
+            app = AppTest.from_file(str(APP / 'Home.py'), default_timeout=120).run()
+            self.assertFalse(app.exception, [e.value for e in app.exception])
+            app.switch_page(f'views/{path.name}').run()
+        else:
+            app = AppTest.from_file(str(path), default_timeout=120).run()
         self.assertFalse(app.exception, [e.value for e in app.exception])
         return app
 

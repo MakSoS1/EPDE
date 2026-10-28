@@ -49,7 +49,7 @@ def plot_pareto(objectives, selected=None, chosen=None):
 
 
 def reconstruction_inputs(record, problem):
-    """Reproduce the stored noise and differentiation protocol, including old baselines."""
+    """Reproduce the stored noise and numerical reconstruction derivatives."""
     from epde_bench import load_config, resolve_for_problem
     data = problem.noisy(record.get('noise', 0), record.get('seed', 0))
     search = record.get('search_config')
@@ -58,7 +58,8 @@ def reconstruction_inputs(record, problem):
         search = resolve_for_problem(cfg, problem)
     from copy import deepcopy
     search = deepcopy(search)
-    method = record.get('baseline', {}).get('differentiation', 'epde')
+    baseline = record.get('baseline') or {}
+    method = baseline.get('reconstruction_differentiation', baseline.get('differentiation', 'epde'))
     if method != 'epde':
         search['_reconstruction_differentiation'] = method
     return data, search

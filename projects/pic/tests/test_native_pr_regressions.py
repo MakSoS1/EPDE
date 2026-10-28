@@ -32,6 +32,37 @@ class LockedDependencies(unittest.TestCase):
 
 
 class RepositoryExport(unittest.TestCase):
+    def test_browser_screenshots_do_not_block_export_but_new_source_does(self):
+        """Browser QA must not make a committed checkout unexportable."""
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / '.gitignore').write_text((PIC.parents[1] / '.gitignore').read_text())
+            source = root / 'projects/pic/browser_demo'
+            source.mkdir(parents=True)
+            (source / 'app.js').write_text('// committed scientific client\n')
+
+            def git(*args):
+                return subprocess.run(['git', '-C', str(root), *args], check=True,
+                                      capture_output=True, text=True).stdout.strip()
+
+            git('init', '-q')
+            git('add', '.')
+            git('-c', 'user.name=Export test', '-c', 'user.email=export@example.invalid',
+                '-c', 'commit.gpgsign=false', 'commit', '-qm', 'Test checkout')
+            revision = git('rev-parse', 'HEAD')
+            for name in ('ui-home.png', 'dark-search-contrast.png', 'wizard-step-3.png',
+                         'streamlit-e2e.png', 'portable-heavy-e2e.png',
+                         'restored-light-catalog.png', 'public-native-methods.png',
+                         'browser-smoke-last.png'):
+                (source / name).write_bytes(b'generated browser screenshot')
+            with patch('epde_bench.paths.REPO_ROOT', root), patch.dict(os.environ, {
+                    'EPDE_REPOSITORY_REVISION': '',
+                    'EPDE_REPOSITORY_URL': 'https://github.com/MakSoS1/EPDE'}):
+                self.assertEqual(portable.repository_source()['revision'], revision)
+                (source / 'new_scientific_code.py').write_text('print("new source")\n')
+                with self.assertRaisesRegex(ValueError, 'clean committed'):
+                    portable.repository_source()
+
     def test_heavy_export_button_uses_the_same_revision_as_the_experiment(self):
         from streamlit.testing.v1 import AppTest
         source = {'url': 'https://github.com/emil817/EPDE_demo', 'revision': 'c' * 40,

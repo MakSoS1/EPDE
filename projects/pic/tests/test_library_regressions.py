@@ -10,7 +10,7 @@ env.pin_blas_threads(1)
 import numpy as np
 from epde_bench.baselines import _columns
 from epde_bench.config import load_config, resolve_for_problem, split_bench_tokens
-from epde_bench.library import _blocks
+from epde_bench.library import _blocks, _differentiate
 from epde_bench.problem import Problem, mesh
 
 
@@ -51,6 +51,19 @@ class TrigonometricLibraryTests(unittest.TestCase):
                 self.assertEqual(cosine in columns, flag is True)
                 product = 'u{power: 1.0} * ' + cosine
                 np.testing.assert_array_equal(columns[product], p.data['u'] * np.cos(p.grids[0]))
+
+
+class CoordinateDerivativeTests(unittest.TestCase):
+    def test_nonuniform_linear_time_signal_has_unit_derivative(self):
+        t = np.linspace(0, 1, 21) ** 2
+        derivative = _differentiate(t, mesh(t), 0, 1, 'finite_difference')
+        np.testing.assert_allclose(derivative, 1.0, rtol=0, atol=1e-10)
+
+    def test_nonuniform_spatial_quadratic_has_constant_second_derivative(self):
+        grids = mesh(np.linspace(0, 1, 21), np.linspace(0.3, 2, 31) ** 2)
+        values = grids[0] + grids[1] ** 2
+        derivative = _differentiate(values, grids, 1, 2, 'finite_difference')
+        np.testing.assert_allclose(derivative, 2.0, rtol=0, atol=1e-9)
 
 
 if __name__ == '__main__':

@@ -55,7 +55,7 @@ class CatalogRestartTests(unittest.TestCase):
                     "portable_epde_population_ode": 24,
                     "heavy_noise_ode": 9,
                     "native_advanced_epde_ode": "old-yaml",
-                    "discovery_owner": "session-to-preserve",
+                    "discovery_lab_owner": "session-to-preserve",
                     "discovery_selected_job": "finished-ode-run",
                     "epde_appearance": "Dark",
                     "catalog_page": 2,
@@ -75,7 +75,7 @@ class CatalogRestartTests(unittest.TestCase):
                 self.assertNotIn("portable_epde_population_ode", state)
                 self.assertNotIn("heavy_noise_ode", state)
                 self.assertNotIn("native_advanced_epde_ode", state)
-                self.assertEqual(state["discovery_owner"], "session-to-preserve")
+                self.assertEqual(state["discovery_lab_owner"], "session-to-preserve")
                 self.assertEqual(state["discovery_selected_job"], "finished-ode-run")
                 self.assertEqual(state["epde_appearance"], "Dark")
                 self.assertEqual(state["catalog_page"], 2)

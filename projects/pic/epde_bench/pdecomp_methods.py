@@ -180,6 +180,30 @@ def run(problem, data, method, seed=0, orders=None, overrides=None, protocol='na
     if problem.kind == 'pde_2d' and not pdecomp.supported(problem.name):
         raise UnsupportedProblem(problem.name, 'DeepMoD 2D support requires PDEComp Navier-Stokes data')
     fields, x, y, z, t = pdecomp._layout(problem, data)
+    if method == 'discover' or protocol == 'fixed':
+        # These pinned runners use a single coordinate step for each axis.
+        # Autograd in native DeepMoD instead receives the actual coordinates.
+        for axis, coordinates in (('t', t), ('x', x), ('y', y), ('z', z)):
+            if coordinates is None:
+                continue
+            grid = np.asarray(coordinates)
+            values = np.asarray(grid, dtype=float)
+            steps = np.diff(values)
+            precision = np.finfo(grid.dtype).eps if grid.dtype.kind == 'f' else np.finfo(float).eps
+            # Upload validation promotes coordinates to float64 without undoing
+            # float32 rounding. Recover that precision only for an exact round trip.
+            if (grid.dtype.kind == 'f' and precision < np.finfo(np.float32).eps
+                    and np.all(np.abs(values) <= np.finfo(np.float32).max)
+                    and np.array_equal(values, values.astype(np.float32).astype(float))):
+                precision = np.finfo(np.float32).eps
+            # Float32 linspace steps vary slightly after rounding. A large
+            # coordinate origin must not make material spacing changes pass.
+            tolerance = (min(4 * precision * float(np.max(np.abs(values))), abs(float(steps[0])) * 1e-3)
+                         if steps.size else 0.0)
+            if (not steps.size or not np.isfinite(steps).all() or not (steps > 0).all()
+                    or not np.allclose(steps, steps[0], rtol=1e-5, atol=tolerance)):
+                raise UnsupportedProblem(problem.name, f'{LABELS[method]} {protocol} requires a uniform {axis} grid '
+                                         'for finite differences; resample the data to evenly spaced coordinates')
     if set(targets) != set(problem.variables) or any(type(v) is not int or v not in (1, 2) for v in targets.values()):
         raise ValueError('Target orders must be 1 or 2 for each variable')
     if len(targets) > 1 and any(v != 1 for v in targets.values()):
@@ -229,7 +253,11 @@ def run(problem, data, method, seed=0, orders=None, overrides=None, protocol='na
             'settings': reply['settings'], 'overrides': overrides or {},
             'library_size': (dict(zip(raw['targets'], pdecomp.library_size(raw)))
                              if protocol == 'fixed' or method == 'deepmod' else None),
-            'result': raw, 'differentiation': 'finite_difference', 'scoring_note': scoring_note}
+            'result': raw,
+            'differentiation': 'autograd' if method == 'deepmod' and protocol == 'native' else 'finite_difference',
+            # The fitted neural network is not retained by the bridge. The
+            # app evaluates equation balance independently on the observations.
+            'reconstruction_differentiation': 'finite_difference', 'scoring_note': scoring_note}
     return texts, [None], reply['fit_seconds'], info
 
 

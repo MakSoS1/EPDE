@@ -23,7 +23,7 @@ async function ready(){
 try {
   await page.goto(url,{waitUntil:"domcontentloaded",timeout:60000});
   const f=await ready();
-  await f.getByRole("heading",{name:"EPDE Explorer"}).waitFor({timeout:25000});
+  await f.getByRole("heading",{name:"EPDE Explorer",level:1,exact:true}).waitFor({timeout:25000});
   await f.getByRole("link",{name:/Run a search/i}).first().click();
   await f.getByText(/Choose method and equation/i).first().waitFor({timeout:60000});
   await f.getByRole("button",{name:/Next: configure methods/i}).waitFor({timeout:60000});

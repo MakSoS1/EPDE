@@ -14,17 +14,16 @@ def _deriv_name(var, axis, order):
 
 
 def _differentiate(u, grids, axis, order, method, smoother_kws=None):
-    """``order``-th derivative of ``u`` along ``axis`` on a uniform grid.
+    """``order``-th derivative of ``u`` along the actual ``axis`` coordinates.
     ``smoother_kws`` go to the Savitzky-Golay filter of the smoothed method
     (``window_length``, ``polyorder``)."""
     import pysindy as ps
     coords = np.unique(np.asarray(grids[axis]))
-    step = float(coords[1] - coords[0])
     if method == 'smoothed_finite_difference':
         diff = ps.SmoothedFiniteDifference(d=order, axis=axis, smoother_kws=smoother_kws or {})
     else:
         diff = ps.FiniteDifference(order=2, d=order, axis=axis)
-    return np.asarray(diff._differentiate(u, step))
+    return np.asarray(diff._differentiate(u, coords))
 
 
 def _blocks(problem, data, search, method="epde"):

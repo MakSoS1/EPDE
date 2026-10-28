@@ -28,7 +28,7 @@ this lives next to them.
 The public **Run a search** page is a true three-screen wizard, not a
 long simultaneous settings form:
 
-1. **Methods & data.** Choose EPDE/PySINDy, a built-in equation or an
+1. **Methods & data.** Choose EPDE, PySINDy, DeepMoD and/or DISCOVER, a built-in equation or an
    uploaded/generated dataset, noise and seed. For known equations the exact
    reference law and a numerical preview are **always visible**.
 2. **Settings.** Configure the selected method's actual independent scientific
@@ -51,16 +51,16 @@ the actual scientific settings occupy distinct simple tabs.
 
 ## Unified browser-to-native scientific workflow (October 2026)
 
-The public interface has **one Run a search page**, with independent EPDE
-and PySINDy scientific controls.
+The public interface has **one Run a search page**, with independent EPDE,
+PySINDy, DeepMoD and DISCOVER scientific controls.
 
-- Small ODE/PDE: the Streamlit **server** computes both methods, including
-  PySINDy. No browser CPU/WebAssembly execution and no desktop installation
+- Small ODE/PDE: the Streamlit **server** computes the selected supported methods.
+  No browser CPU/WebAssembly execution and no desktop installation
   is required for ordinary visitors.
 - Heavy PDE (e.g., Navier–Stokes): the shared server never loads or runs it.
-  Visitors configure native EPDE/PySINDy parameters before downloading an
+  Visitors configure the supported methods and protocols before downloading an
   experiment.zip. Unsupported methods are rejected, not substituted.
-- Native execution: download the demo-branch EPDE repository ZIP, extract
+- Native execution: download the EPDE repository ZIP pinned by the export, extract
   it, put experiment.zip in its root, then double-click run-portable.cmd on
   Windows or use bash run-portable.sh on macOS/Linux. The launcher installs
   the locked Python/PyTorch CPU environment and starts original scientific
@@ -72,8 +72,8 @@ Compare only groups runs with an identical fingerprint of the input data,
 scientific source, loader parameters, noise, seed and noise protocol. It
 does not equate datasets by name alone. Imported results have internally
 validated metadata but are NOT independently recomputed on the Streamlit
-host. PySINDy reports no Pareto scores, so its result is not placed on
-EPDE's front. Both methods are checked the same way: against the known law
+host. PySINDy, DeepMoD and DISCOVER report no EPDE Pareto scores, so their
+results are not placed on EPDE's front. Supported equations are checked against the known law
 (Hamming distance and the summed relative coefficient error, as defined by
 the PDEComp benchmark) and against the data. In-sample solution R2 is not
 held-out forecast accuracy. Claims about framework quality require series
@@ -86,13 +86,46 @@ windows and grids) it uses PDEComp's settings for them, under the fixed or
 the native protocol; on any other data it uses the native protocol with
 PDEComp's default settings and is given only the target time derivative.
 It covers ODEs, systems of ODEs and scalar PDEs in one space dimension.
-DeepMoD, DISCOVER and EDL from PDEComp are not part of the website.
+
+**DeepMoD and DISCOVER are also integrated in the website and portable runner.**
+Both use PDEComp revision `4abfe4e9eef5263c35ae5672c6ebfb65aabf8365`; their
+framework files and revisions are pinned by SHA-256 in
+[pdecomp_sources.json](epde_bench/pdecomp_sources.json). The first use downloads
+and verifies those sources. Each method runs in a separate CPU process.
+
+| Method | Native protocol (default) | Fixed protocol |
+| --- | --- | --- |
+| DeepMoD | DeePyMoD neural network, automatic differentiation, stock `Library1D`, sparsity estimation and least-squares constraint. Requires a scalar 1D spatial PDE with a first time derivative target. | DeePyMoD sparse estimation on PDEComp's shared numerical derivatives and candidate library. Supports ODEs, ODE systems and scalar 1D spatial PDEs; 2D support is limited to the PDEComp Navier–Stokes record. |
+| DISCOVER | Recurrent controller and symbolic-operator search on scalar ODEs or 1D spatial PDEs. Computes its own finite-difference derivatives and receives no shared feature matrix. | Searches terms from PDEComp's shared numerical derivative and candidate library, with the same scalar ODE/1D PDE restriction. |
+
+DISCOVER in both protocols and DeepMoD fixed require uniformly spaced time and
+spatial coordinates. Their pinned numerical derivative routines use one step per
+axis, so irregular grids are rejected before fitting starts.
+Native DeepMoD receives the actual coordinates and retains irregular-grid support.
+
+The wizard rejects unsupported method/protocol combinations. It does not
+silently replace native training with a fixed-library fit. **Quick demo** starts
+DeepMoD native training with up to 250 iterations and 1,000 samples, and DISCOVER with up to
+1,000 expression samples with a controller batch size of 100. **PDEComp profile**
+restores the pinned dataset settings, which can be larger; the displayed controls
+remain editable. Hosted DeepMoD and DISCOVER invocations have a 600-second time limit, while
+the portable full-run process has no such training time limit. Short smoke runs
+check execution and do not establish equation recovery accuracy.
+
+Native DISCOVER can return symbolic expressions outside EPDE's token grammar.
+Those expressions and DISCOVER's reward are retained, with structural scoring
+and solution reconstruction marked unavailable. Series containing unscored runs
+do not report a complete success rate or noise limit. DeepMoD's native search
+records automatic differentiation separately from the app's finite-difference
+equation-balance evaluation, which uses the supplied coordinate vectors. The
+trained network is not exported by the bridge.
+EDL is not integrated.
 
 Repository ZIP: https://github.com/MakSoS1/EPDE/archive/refs/heads/demo/streamlit-community-cloud.zip
 
-The manifest requires matching scientific source/configuration hashes.
-If the demo branch has changed since the experiment was exported, update
-both the repository checkout and the exported configuration before running.
+The manifest requires matching scientific source/configuration hashes. Use the
+immutable repository archive linked by the experiment export to reproduce that
+configuration; the branch archive above is for starting a new checkout.
 The Streamlit instance has temporary storage; retain imported/exported files.
 
 ## Installation
@@ -113,6 +146,17 @@ For NVIDIA GPUs with CUDA 12.8 use `cu128` instead of `cpu`, both for the instal
 and in every run; the two options exclude each other. A run without the option may
 remove PyTorch from the environment, so every example names it. The lock file pins all
 versions; EPDE is installed in editable mode from this working copy.
+
+For the Streamlit app and the integrated DeepMoD/DISCOVER methods, include the
+`app` extra in both installation and execution:
+
+```bash
+uv sync --locked --extra cpu --extra app
+uv run --locked --extra cpu --extra app streamlit run app/Home.py
+```
+
+This installs the compatible TensorFlow/legacy-Keras stack used by DISCOVER.
+The locked CPU environment pins PyTorch to the version used by DeePyMoD.
 
 ### With pip
 

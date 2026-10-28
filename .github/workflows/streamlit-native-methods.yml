@@ -25,6 +25,46 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  cloud-requirements:
+    name: Four methods with exact Community Cloud requirements
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: '.:projects/pic:projects/pic/app'
+      EPDE_TEST_NATIVE_METHODS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      TF_NUM_INTRAOP_THREADS: '1'
+      TF_NUM_INTEROP_THREADS: '1'
+      STREAMLIT_BROWSER_GATHER_USAGE_STATS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+      - name: Install the website requirements independently of uv.lock
+        run: |
+          uv venv projects/pic/.venv --python 3.12
+          # Match pip's selection across the official PyPI and PyTorch indexes.
+          uv pip install --python projects/pic/.venv/bin/python \
+            --index-strategy unsafe-best-match -r projects/pic/app/requirements.txt pytest
+      - name: Run real EPDE, PySINDy, DeepMoD and DISCOVER with the Cloud dependency versions
+        run: |
+          set -o pipefail
+          projects/pic/.venv/bin/python -m pytest -q \
+            projects/pic/tests/test_native_pdecomp_methods.py \
+            projects/pic/tests/test_native_epde_pysindy_same_env.py \
+            projects/pic/tests/test_pdecomp_protocol.py \
+            projects/pic/tests/test_library_regressions.py \
+            projects/pic/tests/test_viewer_records.py \
+            2>&1 | tee "$RUNNER_TEMP/cloud-native-methods.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: exact-cloud-native-methods
+          path: ${{ runner.temp }}/cloud-native-methods.log
+
   native-cpu:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -44,20 +84,10 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - name: Install locked CPU app environment
         run: uv sync --project projects/pic --extra cpu --extra app --locked
-      - name: Native NN/RNN, wizard, worker, PySINDy regression and portable contracts
+      - name: Full app and scientific regressions, including actual native NN/RNN training
         run: |
           uv run --project projects/pic --extra cpu --extra app --locked --with pytest python -m pytest -q \
-            projects/pic/tests/test_native_pdecomp_methods.py \
-            projects/pic/tests/test_native_demo_review.py \
-            projects/pic/tests/test_native_process_timeouts.py \
-            projects/pic/tests/test_native_pr_regressions.py \
-            projects/pic/tests/test_pdecomp_protocol.py \
-            projects/pic/tests/test_discovery_lab.py \
-            projects/pic/tests/test_portable_handoff.py \
-            projects/pic/tests/test_demo_lab_settings.py \
-            projects/pic/tests/test_demo_execution_routing.py \
-            projects/pic/tests/test_demo_workspace_navigation.py \
-            projects/pic/tests/test_catalog_restart.py
+            projects/pic/tests
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

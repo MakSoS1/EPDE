@@ -87,10 +87,15 @@ try {
   const approval=page.getByRole('checkbox',{name:/I have checked the input/});
   await approval.waitFor();
   if(await approval.isChecked()) throw Error('Previous ODE approval was carried to Navier-Stokes');
-  await page.locator('pre').first().waitFor({timeout:30000});
-  const code=(await page.locator('pre').allInnerTexts()).join('\n');
+  // The collapsed saved-session sidebar contains an earlier, hidden <pre>.
+  // Read the visible scientific YAML, not that session code or launcher commands.
+  const reviewYaml=page.locator('pre:visible').filter({hasText:/^\s*dataset:/m});
+  await reviewYaml.first().waitFor({timeout:30000});
+  const code=(await reviewYaml.allInnerTexts()).join('\n');
   if(!/dataset:\s*ns\b/.test(code)||/dataset:\s*ode\b/.test(code))
     throw Error('Review contains wrong dataset: '+code.slice(-1400));
+  if(!/population_size:\s*8\b/.test(code))
+    throw Error('Review lost the newly configured Navier-Stokes population: '+code.slice(-1400));
   if(await page.getByRole('button',{name:/Start search:/}).count())
     throw Error('Heavy PDE exposed a hosted search action');
   await click(page.getByText(/I have checked the input/).first());

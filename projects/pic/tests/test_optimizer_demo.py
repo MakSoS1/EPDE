@@ -44,8 +44,9 @@ except ImportError:
 @unittest.skipIf(AppTest is None, 'streamlit is not installed')
 class OptimizerLessonTests(unittest.TestCase):
     def test_button_runs_and_displays_observed_history_and_equation(self):
-        app = AppTest.from_file(str(APP / 'views/9_How_EPDE_works.py'), default_timeout=60)
-        app.run()
+        app = AppTest.from_file(str(APP / 'Home.py'), default_timeout=60).run()
+        self.assertFalse(app.exception, [e.value for e in app.exception])
+        app.switch_page('views/9_How_EPDE_works.py').run()
         self.assertFalse(app.exception, [e.value for e in app.exception])
         button = next((b for b in app.button if b.label == 'Run short evolution'), None)
         self.assertIsNotNone(button, 'the lesson must offer a real short run')

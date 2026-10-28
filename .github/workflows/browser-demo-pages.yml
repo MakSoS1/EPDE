@@ -1,4 +1,4 @@
-name: Browser-only Equation Lab — verify and publish
+name: Browser-only Equation Lab — verify and publish if configured
 on:
   push:
     branches: [demo/streamlit-community-cloud]
@@ -23,8 +23,32 @@ jobs:
     timeout-minutes: 35
     permissions:
       contents: write  # write a tiny public verification result to a dedicated CI branch
+      pages: read
+    outputs:
+      pages_enabled: ${{ steps.pages_config.outputs.enabled }}
+      pages_configuration: ${{ steps.pages_config.outputs.configuration }}
     steps:
       - uses: actions/checkout@v4
+      - id: pages_config
+        name: Inspect optional GitHub Pages deployment configuration
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let configuration;
+            try {
+              const {data} = await github.rest.repos.getPages(context.repo);
+              configuration = data.build_type === 'workflow' ? 'workflow' : 'branch';
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              configuration = 'not_enabled';
+            }
+            core.setOutput('configuration', configuration);
+            core.setOutput('enabled', configuration === 'workflow' ? 'true' : 'false');
+            if (configuration !== 'workflow') {
+              core.notice('GitHub Pages is not configured for Actions; scientific browser checks still run.');
+              await core.summary.addRaw('Optional GitHub Pages publication is skipped: ' +
+                configuration + '. The Streamlit deployment is checked by its own workflow.').write();
+            }
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -50,7 +74,7 @@ jobs:
         working-directory: projects/pic/browser_demo
         run: |
           set -o pipefail
-          npm install --no-audit --no-fund 2>&1 | tee /tmp/epde-browser-setup.log
+          npm ci --no-audit --no-fund 2>&1 | tee /tmp/epde-browser-setup.log
           npx playwright install --with-deps chromium 2>&1 | tee -a /tmp/epde-browser-setup.log
       - id: serve
         name: Run browser site with bundled original LikeC4 model
@@ -154,6 +178,7 @@ jobs:
   publish:
     name: GitHub Pages — static only, no compute server
     needs: validate
+    if: needs.validate.outputs.pages_enabled == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -181,7 +206,7 @@ jobs:
         uses: actions/deploy-pages@v4
 
   deployment-report:
-    name: Confirm free Pages publication
+    name: Report validation and optional Pages publication
     needs: [validate, publish]
     if: always()
     runs-on: ubuntu-24.04
@@ -193,6 +218,7 @@ jobs:
         env:
           VALIDATE_STATE: ${{ needs.validate.result }}
           PUBLISH_STATE: ${{ needs.publish.result }}
+          PAGES_CONFIGURATION: ${{ needs.validate.outputs.pages_configuration }}
         run: |
           python - <<'PY'
           import json, os, datetime
@@ -202,6 +228,7 @@ jobs:
               "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
               "validation": os.environ["VALIDATE_STATE"],
               "github_pages": os.environ["PUBLISH_STATE"],
+              "pages_configuration": os.environ["PAGES_CONFIGURATION"],
               "published": (os.environ["VALIDATE_STATE"] == "success"
                             and os.environ["PUBLISH_STATE"] == "success"),
               "expected_url": "https://maksos1.github.io/EPDE/",

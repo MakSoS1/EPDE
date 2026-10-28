@@ -32,6 +32,46 @@ def heat():
 
 
 class NativeConfiguration(unittest.TestCase):
+    def test_results_distinguish_training_and_reconstruction_derivatives(self):
+        problem = heat()
+        reply = {'result': {'targets': ['u_t'], 'features': [['u_xx']], 'coefficients': [[1.0]]},
+                 'settings': {}, 'fit_seconds': 1}
+        cases = (('deepmod', 'native', 'autograd'),
+                 ('deepmod', 'fixed', 'finite_difference'),
+                 ('discover', 'native', 'finite_difference'),
+                 ('discover', 'fixed', 'finite_difference'))
+        for method, protocol, differentiation in cases:
+            with self.subTest(method=method, protocol=protocol), \
+                    patch.object(methods, '_bridge', return_value=reply):
+                _, _, _, info = methods.run(problem, problem.data, method, protocol=protocol)
+                self.assertEqual(info['differentiation'], differentiation)
+                self.assertEqual(info.get('reconstruction_differentiation'), 'finite_difference')
+
+    def test_viewer_uses_recorded_reconstruction_derivatives_for_native_deepmod(self):
+        from support.viewer import reconstruction_inputs
+        record = {'search_config': {'preprocessing': {'max_deriv_order': [1, 2]}},
+                  'baseline': {'differentiation': 'autograd',
+                               'reconstruction_differentiation': 'finite_difference'}}
+        _, search = reconstruction_inputs(record, heat())
+        self.assertEqual(search['_reconstruction_differentiation'], 'finite_difference')
+        self.assertNotIn('_reconstruction_differentiation', record['search_config'])
+
+    def test_worker_reports_numerical_balance_separately_from_native_training(self):
+        from epde_bench import reconstruction
+        from support.discovery_lab.worker import evaluate
+        problem = heat()
+        record = {'status': 'ok', 'dataset': problem.name,
+                  'selected': ['1.0 * d^2u/dx1^2{power: 1.0} = du/dx0{power: 1.0}'],
+                  'search_config': {'preprocessing': {'max_deriv_order': [1, 2]},
+                                    'domain': {'boundary_width': 1}},
+                  'baseline': {'differentiation': 'autograd',
+                               'reconstruction_differentiation': 'finite_difference'}}
+        with patch('epde_bench.datasets.load', return_value=problem), \
+                patch.object(reconstruction, 'simulate_pde', return_value=None):
+            evaluation = evaluate(record)
+        self.assertEqual(evaluation.get('differentiation'), 'finite_difference')
+        self.assertGreater(evaluation['balance']['du/dx0{power: 1.0}'], 0.99)
+
     def test_portable_native_worker_has_no_hosted_time_limit(self):
         problem = heat()
         reply = {'result': {'targets': ['u_t'], 'features': [['u_xx']], 'coefficients': [[0.17]]},
@@ -61,6 +101,87 @@ class NativeConfiguration(unittest.TestCase):
         self.assertIsNotNone(methods.unsupported_reason('discover', 'ode_system', 2))
         self.assertIsNotNone(methods.unsupported_reason('discover', 'pde_2d', 1))
         self.assertIsNone(methods.unsupported_reason('discover', 'ode', 1))
+
+    def test_numerical_methods_reject_irregular_time_and_space_before_training(self):
+        for method, protocol in (('discover', 'native'), ('discover', 'fixed'), ('deepmod', 'fixed')):
+            for axis in (0, 1):
+                with self.subTest(method=method, protocol=protocol, axis=axis):
+                    coordinates = [np.linspace(0, 1, 21), np.linspace(0, 6, 31)]
+                    coordinates[axis] = coordinates[axis] ** 2
+                    grids = tuple(np.meshgrid(*coordinates, indexing='ij'))
+                    problem = Problem('irregular', 'Irregular grid', 'pde_1d', 'synthetic', grids,
+                                      {'u': np.exp(-grids[0]) * np.sin(grids[1])}, ('t', 'x'))
+                    with patch.object(methods, '_bridge', side_effect=AssertionError('Training must not start')), \
+                            self.assertRaisesRegex(methods.UnsupportedProblem, 'uniform.*' + ('t' if axis == 0 else 'x')):
+                        methods.run(problem, problem.data, method, protocol=protocol)
+
+    def test_numerical_methods_accept_uniform_float_grids(self):
+        reply = {'result': {'targets': ['u_t'], 'features': [['u_xx']], 'coefficients': [[1.0]]},
+                 'settings': {}, 'fit_seconds': 1}
+        for dtype in (np.float32, np.float64):
+            for method, protocol in (('discover', 'native'), ('discover', 'fixed'), ('deepmod', 'fixed')):
+                with self.subTest(dtype=dtype, method=method, protocol=protocol):
+                    coordinates = [np.linspace(0, 1, 1000, dtype=dtype), np.linspace(0, 6, 31, dtype=dtype)]
+                    grids = tuple(np.meshgrid(*coordinates, indexing='ij'))
+                    problem = Problem('uniform', 'Uniform grid', 'pde_1d', 'synthetic', grids,
+                                      {'u': np.exp(-grids[0]) * np.sin(grids[1])}, ('t', 'x'))
+                    with patch.object(methods, '_bridge', return_value=reply):
+                        front, _, _, _ = methods.run(problem, problem.data, method, protocol=protocol)
+                    self.assertIn('du/dx0', front[0][0])
+
+    def test_uniform_float32_upload_stays_supported_after_coordinate_conversion(self):
+        from support.custom_run import problem_from_npz
+        t, x = np.linspace(0, 1, 1000, dtype=np.float32), np.linspace(0, 6, 31, dtype=np.float32)
+        grids = np.meshgrid(t, x, indexing='ij')
+        reply = {'result': {'targets': ['u_t'], 'features': [['u_xx']], 'coefficients': [[1.0]]},
+                 'settings': {}, 'fit_seconds': 1}
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'upload.npz'
+            np.savez(path, axis_0=t, axis_1=x, axis_names=np.array(['t', 'x']),
+                     var_u=np.exp(-grids[0]) * np.sin(grids[1]))
+            problem = problem_from_npz(path)
+        for method, protocol in (('discover', 'native'), ('discover', 'fixed'), ('deepmod', 'fixed')):
+            with self.subTest(method=method, protocol=protocol), \
+                    patch.object(methods, '_bridge', return_value=reply):
+                try:
+                    front, _, _, _ = methods.run(problem, problem.data, method, protocol=protocol)
+                except methods.UnsupportedProblem as exc:
+                    self.fail(f'Valid float32 upload was rejected after conversion: {exc}')
+                self.assertIn('du/dx0', front[0][0])
+
+    def test_float64_spacing_check_is_not_globally_relaxed_for_float32_rounding(self):
+        t = np.linspace(0, 1, 1000)
+        t[500] += 1e-7
+        grids = tuple(np.meshgrid(t, np.linspace(0, 6, 31), indexing='ij'))
+        problem = Problem('float64_grid', 'Irregular float64 grid', 'pde_1d', 'synthetic', grids,
+                          {'u': np.exp(-grids[0]) * np.sin(grids[1])}, ('t', 'x'))
+        for method, protocol in (('discover', 'native'), ('discover', 'fixed'), ('deepmod', 'fixed')):
+            with self.subTest(method=method, protocol=protocol), \
+                    patch.object(methods, '_bridge', side_effect=AssertionError('Training must not start')), \
+                    self.assertRaisesRegex(methods.UnsupportedProblem, 'uniform t'):
+                methods.run(problem, problem.data, method, protocol=protocol)
+
+    def test_numerical_methods_reject_large_offset_float32_irregular_grid(self):
+        steps = np.tile(np.array([0.125, 0.25], dtype=np.float32), 10)
+        t = np.float32(1_000_000) + np.concatenate((np.zeros(1, dtype=np.float32), np.cumsum(steps)))
+        grids = tuple(np.meshgrid(t, np.linspace(0, 6, 31, dtype=np.float32), indexing='ij'))
+        problem = Problem('offset_grid', 'Irregular offset grid', 'pde_1d', 'synthetic', grids,
+                          {'u': (grids[0] - t[0]) + grids[1] ** 2}, ('t', 'x'))
+        for method, protocol in (('discover', 'native'), ('discover', 'fixed'), ('deepmod', 'fixed')):
+            with self.subTest(method=method, protocol=protocol), \
+                    patch.object(methods, '_bridge', side_effect=AssertionError('Training must not start')), \
+                    self.assertRaisesRegex(methods.UnsupportedProblem, 'uniform t'):
+                methods.run(problem, problem.data, method, protocol=protocol)
+
+    def test_native_deepmod_preserves_coordinate_aware_irregular_input(self):
+        grids = tuple(np.meshgrid(np.linspace(0, 1, 21) ** 2, np.linspace(0, 6, 31) ** 2, indexing='ij'))
+        problem = Problem('irregular', 'Irregular grid', 'pde_1d', 'synthetic', grids,
+                          {'u': np.exp(-grids[0]) * np.sin(grids[1])}, ('t', 'x'))
+        reply = {'result': {'targets': ['u_t'], 'features': [['u_xx']], 'coefficients': [[1.0]]},
+                 'settings': {}, 'fit_seconds': 1}
+        with patch.object(methods, '_bridge', return_value=reply):
+            _, _, _, info = methods.run(problem, problem.data, 'deepmod')
+        self.assertEqual(info['differentiation'], 'autograd')
 
     def test_options_are_validated_before_execution(self):
         for method, changes in [('deepmod', {'max_iterations': True}),

@@ -346,7 +346,8 @@ def evaluate(record):
     """How well the selected equation describes the data, method-independently.
 
     * balance: R^2 between the left-hand side computed from the data and the
-      value of the right-hand side, per equation (same derivatives as the search);
+      value of the right-hand side, using the recorded reconstruction derivatives
+      (which can differ from neural training derivatives);
     * solution: the equation integrated from the first retained point (ODEs) or
       by the method of lines (explicit first-order-in-time 1-D PDEs), compared
       with the data; thinned series are stored for plots.
@@ -372,11 +373,13 @@ def evaluate(record):
         cfg = record.get("config") or load_config(record["dataset"], record.get("variant", "default"))
         search = resolve_for_problem(cfg, problem)
     search = dict(search)
-    differentiation = (record.get("baseline") or {}).get("differentiation", "epde")
+    baseline = record.get("baseline") or {}
+    differentiation = baseline.get("reconstruction_differentiation", baseline.get("differentiation", "epde"))
     if differentiation != "epde":
         search["_reconstruction_differentiation"] = differentiation
     out = {"kind": problem.kind, "variables": list(problem.variables),
-           "axis_names": list(problem.axis_names), "balance": {}, "solution": None}
+           "axis_names": list(problem.axis_names), "balance": {}, "solution": None,
+           "differentiation": differentiation}
     out["balance_series"] = {}
     for eq in system:
         try:

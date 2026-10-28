@@ -160,3 +160,11 @@ projects/pic/data/dp/dp_fno.npz
 
 # Local browser QA dependencies and generated screenshots.
 /projects/pic/browser_demo/node_modules/
+/projects/pic/browser_demo/browser-*.png
+/projects/pic/browser_demo/dark-*.png
+/projects/pic/browser_demo/portable-heavy-e2e.png
+/projects/pic/browser_demo/public-*.png
+/projects/pic/browser_demo/restored-light-catalog.png
+/projects/pic/browser_demo/streamlit-e2e.png
+/projects/pic/browser_demo/ui-*.png
+/projects/pic/browser_demo/wizard-step-*.png

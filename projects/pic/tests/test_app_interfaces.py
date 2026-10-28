@@ -38,7 +38,9 @@ class InterfaceExamples(unittest.TestCase):
 
     def test_existing_stage_selector_shows_matching_interfaces(self):
         from streamlit.testing.v1 import AppTest
-        app = AppTest.from_file(str(APP / 'views/9_How_EPDE_works.py'), default_timeout=60).run()
+        app = AppTest.from_file(str(APP / 'Home.py'), default_timeout=60).run()
+        self.assertFalse(app.exception, [e.value for e in app.exception])
+        app.switch_page('views/9_How_EPDE_works.py').run()
         self.assertFalse(app.exception, [e.value for e in app.exception])
         self.assertEqual(len(app.radio), 1)
         self.assertEqual(app.code[0].value, EXAMPLES['settings'].code.rstrip())

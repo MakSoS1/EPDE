@@ -14,7 +14,9 @@ class OptimizerProcessTests(unittest.TestCase):
     def test_button_delegates_real_optimizer_to_child_process(self):
         from streamlit.testing.v1 import AppTest
         from epde_bench import optimizer_demo
-        app = AppTest.from_file(str(APP / 'views/9_How_EPDE_works.py'), default_timeout=90).run()
+        app = AppTest.from_file(str(APP / 'Home.py'), default_timeout=90).run()
+        self.assertFalse(app.exception, [e.value for e in app.exception])
+        app.switch_page('views/9_How_EPDE_works.py').run()
         self.assertFalse(app.exception, [e.value for e in app.exception])
         with patch.object(optimizer_demo, 'run_optimizer_demo',
                           side_effect=AssertionError('EPDE must not run in the Streamlit process')) as parent_run:

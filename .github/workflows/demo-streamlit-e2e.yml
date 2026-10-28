@@ -44,7 +44,7 @@ jobs:
       - name: Chromium for real website user flow
         working-directory: projects/pic/browser_demo
         run: |
-          npm install --no-fund --no-audit
+          npm ci --no-fund --no-audit
           npx playwright install --with-deps chromium
       - id: server
         name: Launch the actual Streamlit app (no test mocks)
