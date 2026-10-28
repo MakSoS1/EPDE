@@ -1,5 +1,7 @@
 # Community Cloud looks beside Home.py before checking the repository root.
 # Paths in -r are relative to this file; EPDE itself is imported from this checkout.
+# CI checks these Cloud dependencies independently of projects/pic/uv.lock:
+# see the cloud-requirements job in streamlit-native-methods.yml.
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.9.0+cpu ; sys_platform == "linux"
 torch==2.9.0 ; sys_platform != "linux"

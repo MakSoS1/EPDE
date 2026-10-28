@@ -1,4 +1,4 @@
-"""Equation Discovery Lab: one public app with three workflow pages and an education page.
+"""EPDE Explorer: six public pages for EPDE, PySINDy, DeepMoD and DISCOVER.
 
 The original EPDE LikeC4 tutorial is publicly accessible alongside a PySINDy
 guide. Other legacy research tools stay private and outside the public menu.

@@ -4,9 +4,12 @@ on:
     branches: [demo/streamlit-community-cloud]
     paths:
       - '.github/workflows/demo-public-cloud-smoke.yml'
+      - '.gitignore'
       - 'projects/pic/app/Home.py'
+      - 'projects/pic/app/requirements.txt'
       - 'projects/pic/app/views/**'
       - 'projects/pic/app/support/minimal_ui.py'
+      - 'projects/pic/app/support/discovery_lab/**'
       - 'projects/pic/browser_demo/smoke_public_cloud.mjs'
   workflow_dispatch:
 
@@ -92,7 +95,7 @@ jobs:
           }
           JS
       - id: public
-        name: Verify deployed six-page Streamlit UI without starting public scientific jobs
+        name: Verify public navigation and pinned Navier-Stokes export without scientific jobs
         timeout-minutes: 8
         working-directory: projects/pic/browser_demo
         env:
@@ -110,13 +113,17 @@ jobs:
           import json,os,pathlib,datetime
           p=pathlib.Path('/tmp/cloud-browser.log')
           native=pathlib.Path('/tmp/cloud-native.log')
+          export_path=pathlib.Path('projects/pic/browser_demo/.cache/public-cloud/export-summary.json')
+          exported=json.loads(export_path.read_text()) if export_path.is_file() else None
           data={
             'revision':os.environ['GITHUB_SHA'],
+            'deployed_revision':exported['repository']['revision'] if exported else None,
             'run_id':int(os.environ['GITHUB_RUN_ID']),
             'checked_url':'https://epde-explorer-demo.streamlit.app/',
             'timestamp':datetime.datetime.now(datetime.timezone.utc).isoformat(),
             'public_browser':os.environ.get('PUBLIC'),
             'four_methods_and_catalog':os.environ.get('NATIVE_PUBLIC'),
+            'portable_export':exported,
             'verified':os.environ.get('PUBLIC')=='success' and os.environ.get('NATIVE_PUBLIC')=='success',
             'log':p.read_text(errors='replace')[-12000:] if p.exists() else '',
             'native_log':native.read_text(errors='replace')[-12000:] if native.exists() else '',
@@ -137,6 +144,8 @@ jobs:
             projects/pic/browser_demo/public-minimal-*.png
             projects/pic/browser_demo/public-native-methods.png
             projects/pic/browser_demo/public-catalog-reset.png
+            projects/pic/browser_demo/.cache/public-cloud/
             /tmp/cloud-browser.log
             /tmp/cloud-native.log
+          include-hidden-files: true
           if-no-files-found: ignore
