@@ -98,11 +98,14 @@ with right:
         st.write("**Scientific ID:**", "`"+selected+"`")
         st.write("**Execution:**", "Local only · heavy" if is_local_only(selected)
                  else "Hosted within safety limits")
-        from epde_bench.baselines import unsupported_reason
-        reason = unsupported_reason(selected)
-        st.write("**Available methods:**", "EPDE" + (", PySINDy" if not reason else ""))
+        st.write("**Integrated methods:**", "EPDE · PySINDy · DeepMoD · DISCOVER")
+        st.caption("Method availability depends on the data and native/fixed protocol. "
+                   "DeepMoD native requires a scalar 1D PDE with a first time derivative; "
+                   "DISCOVER supports scalar ODEs and 1D PDEs. Settings validates compatibility.")
+        from support.discovery_lab.pysindy_method import unsupported
+        reason = unsupported(selected)
         if reason:
-            st.caption("PySINDy adapter unsupported: " + reason)
+            st.caption("PySINDy unavailable for this record: " + reason)
         state = source_file_status(selected)
         if state["status"]=="missing":
             st.warning("Some original scientific data files are missing. "
@@ -110,7 +113,8 @@ with right:
         elif state["status"]=="unknown":
             st.caption("Original data availability cannot be verified statically.")
         if st.button("Use this record in Lab", type="primary", use_container_width=True):
-            st.session_state["catalog_requested_record"]=selected
+            from support.discovery_lab.wizard_state import begin_catalog_experiment
+            begin_catalog_experiment(st.session_state, selected)
             st.switch_page("views/10_Discovery_lab.py")
     with st.container(border=True):
         st.markdown("**Governing equation(s)**")
