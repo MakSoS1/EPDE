@@ -110,6 +110,9 @@ ENV/
 env.bak/
 venv.bak/
 
+# Streamlit Community Cloud creates this private runtime configuration.
+/.streamlit/secrets.toml
+
 # Spyder project settings
 .spyderproject
 .spyproject

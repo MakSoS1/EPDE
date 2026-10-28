@@ -33,7 +33,7 @@ class LockedDependencies(unittest.TestCase):
 
 class RepositoryExport(unittest.TestCase):
     def test_generated_results_do_not_block_export_but_new_source_does(self):
-        """Browser QA and native runs must leave committed sources exportable."""
+        """Runtime outputs and Cloud secrets must leave sources exportable."""
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             (root / '.gitignore').write_text((PIC.parents[1] / '.gitignore').read_text())
@@ -60,9 +60,18 @@ class RepositoryExport(unittest.TestCase):
             results = root / 'results/portable/0123456789abcdef'
             results.mkdir(parents=True)
             (results / 'epde.json').write_text('{"status": "ok"}\n')
+            cloud = root / '.streamlit'
+            cloud.mkdir()
+            (cloud / 'secrets.toml').write_text('# Dummy deployment configuration\n')
             with patch('epde_bench.paths.REPO_ROOT', root), patch.dict(os.environ, {
                     'EPDE_REPOSITORY_REVISION': '',
                     'EPDE_REPOSITORY_URL': 'https://github.com/MakSoS1/EPDE'}):
+                self.assertEqual(portable.repository_source()['revision'], revision)
+                unknown_cloud_source = cloud / 'notes.py'
+                unknown_cloud_source.write_text('print("untracked Cloud source")\n')
+                with self.assertRaisesRegex(ValueError, 'clean committed'):
+                    portable.repository_source()
+                unknown_cloud_source.unlink()
                 self.assertEqual(portable.repository_source()['revision'], revision)
                 (source / 'new_scientific_code.py').write_text('print("new source")\n')
                 with self.assertRaisesRegex(ValueError, 'clean committed'):
