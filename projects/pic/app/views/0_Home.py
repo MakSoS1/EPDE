@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import streamlit as st
 
-from support.discovery_lab import job_queue as queue
+from support.discovery_lab import job_queue as queue, ui
 from support.discovery_lab.session import current_owner
 from support.discovery_lab.catalog import full_catalog
 from support.minimal_ui import intro
 
-intro("EPDE Explorer", "Discover governing equations from data with EPDE and PySINDy.")
+intro("EPDE Explorer", "Discover governing equations from data with EPDE, PySINDy, DeepMoD and DISCOVER.")
 
 a,b=st.columns([1,1.15],gap="small")
 with a:
@@ -24,7 +24,7 @@ cols=st.columns(4,gap="small")
 for col,num,title,caption in zip(
     cols,range(1,5),
     ("Choose data","Configure methods","Run or export","Review & compare"),
-    ("Built-in or uploaded","Independent EPDE / PySINDy settings",
+    ("Built-in or uploaded","Independent settings for each method",
      "Light on server, heavy on your PC","Recovered equations and metrics")):
     with col:
         st.markdown(f"**{num}. {title}**")
@@ -64,7 +64,7 @@ if runs:
     st.subheader("Recent experiments")
     st.dataframe([{
         "Experiment": r.get("label") or r.get("dataset"),
-        "Method": {"epde":"EPDE","pdecomp":"PySINDy"}.get(r.get("method"),r.get("method")),
+        "Method": ui.METHOD_NAMES.get(r.get("method"),r.get("method")),
         "Status":r.get("state","unknown"),
     } for r in runs[:5]],hide_index=True,use_container_width=True)
     if st.button("See all results",key="home_see_all"):

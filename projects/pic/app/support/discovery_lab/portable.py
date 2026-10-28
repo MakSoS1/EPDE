@@ -8,13 +8,45 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import os
 import re
+import subprocess
 import zipfile
 from pathlib import Path
 
 SCHEMA = "epde-portable/1"
 HEX = re.compile(r"^[0-9a-f]{64}$")
 MAX_IMPORT = 2_000_000
+
+
+def repository_source():
+    """An immutable archive of the running checkout, never a moving branch.
+
+    Git-less deployments may supply their build SHA explicitly. A dirty local
+    checkout has no matching GitHub archive and must not advertise one.
+    """
+    from epde_bench.paths import REPO_ROOT
+    repository = os.environ.get("EPDE_REPOSITORY_URL", "https://github.com/emil817/EPDE_demo").rstrip("/")
+    if not re.fullmatch(r"https://github\.com/[\w.-]+/[\w.-]+", repository):
+        raise ValueError("Invalid EPDE_REPOSITORY_URL")
+    revision = os.environ.get("EPDE_REPOSITORY_REVISION", "")
+    if (REPO_ROOT / ".git").exists():
+        try:
+            def git(*args):
+                return subprocess.run(["git", "-C", str(REPO_ROOT), *args], check=True,
+                                      capture_output=True, text=True, timeout=10).stdout.strip()
+            head = git("rev-parse", "HEAD")
+            if git("status", "--porcelain", "--untracked-files=normal"):
+                raise ValueError("Repository export requires a clean committed checkout")
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise ValueError("Could not identify the running repository revision") from exc
+        if revision and revision != head:
+            raise ValueError("EPDE_REPOSITORY_REVISION differs from the running checkout")
+        revision = head
+    if not re.fullmatch(r"[0-9a-f]{40}", revision):
+        raise ValueError("Set EPDE_REPOSITORY_REVISION to the deployed commit in Git-less builds")
+    return {"url": repository, "revision": revision,
+            "archive_url": f"{repository}/archive/{revision}.zip"}
 
 
 def digest(value):
@@ -52,7 +84,7 @@ def input_key(record):
                    "noise_protocol": "problem.noisy/v1"})
 
 
-def make_manifest(dataset, noise, seed, methods):
+def make_manifest(dataset, noise, seed, methods, *, repository=None):
     """Build a portable experiment without accessing its scientific arrays."""
     from epde_bench.config import load_config
     from epde_bench.datasets import REGISTRY
@@ -63,19 +95,19 @@ def make_manifest(dataset, noise, seed, methods):
         raise ValueError("Seed must be within 0..999")
     if type(noise) not in (float, int) or not 0 <= noise <= 10:
         raise ValueError("Noise must be within 0..10")
-    if not isinstance(methods, list) or not 1 <= len(methods) <= 2:
-        raise ValueError("Choose one or two methods")
+    if not isinstance(methods, list) or not 1 <= len(methods) <= 4:
+        raise ValueError("Choose one to four methods")
     items = []
     for entry in methods:
-        if not isinstance(entry, dict) or entry.get("method") not in ("epde", "pdecomp"):
+        if not isinstance(entry, dict) or entry.get("method") not in ("epde", "pdecomp", "deepmod", "discover"):
             raise ValueError("Unsupported portable algorithm")
         method = entry["method"]
         if method in [x["method"] for x in items]:
             raise ValueError("Duplicate method")
-        variant = entry.get("variant") or ("pysindy_pdecomp_fixed" if method == "pdecomp" else "default")
+        variant = entry.get("variant") or ("pysindy_pdecomp_fixed" if method == "pdecomp" else f"{method}_pdecomp_native" if method in ("deepmod", "discover") else "default")
         overrides = entry.get("overrides") or {}
         if not isinstance(overrides, dict) or (set(overrides) -
-                ({"pdecomp"} if method == "pdecomp" else {"search"})):
+                ({method} if method in ("pdecomp", "deepmod", "discover") else {"search"})):
             raise ValueError("Invalid scientific settings")
         cfg = load_config(dataset, variant, overrides=overrides)
         if cfg["method"] != method:
@@ -89,6 +121,8 @@ def make_manifest(dataset, noise, seed, methods):
         "scientific_source_sha256": _source_hash(), "runs": items,
         "origin": "EPDE Explorer / Run a search",
     }
+    if repository is not None:
+        manifest["repository"] = dict(repository)
     manifest["sha256"] = digest(manifest)
     return manifest
 
@@ -104,7 +138,9 @@ def bundle_bytes(manifest):
         z.writestr("experiment.json", payload)
         z.writestr("README.txt",
             "EPDE Explorer — reproducible native experiment\n\n"
-            "1. Download the EPDE repository ZIP from the demo branch.\n"
+            "1. Download the matching EPDE repository ZIP from the demo.\n"
+            + ("   " + manifest["repository"]["archive_url"] + "\n"
+               if manifest.get("repository") else "") +
             "2. Extract it and place this file as experiment.zip in its root.\n"
             "3. Windows: double-click run-portable.cmd; macOS/Linux: bash run-portable.sh.\n"
             "4. Upload experiment-results.zip on the website's Results page.\n\n"
@@ -139,14 +175,14 @@ def read_results(raw):
     with zipfile.ZipFile(io.BytesIO(raw)) as z:
         files = [x for x in z.infolist() if x.filename.startswith("results/")
                  and x.filename.endswith(".json") and "/" not in x.filename[8:]]
-        if not 1 <= len(files) <= 2:
-            raise ValueError("Expected one or two result JSON files")
+        if not 1 <= len(files) <= 4:
+            raise ValueError("Expected one to four result JSON files")
         if sum(x.file_size for x in files) > MAX_IMPORT:
             raise ValueError("Uncompressed results exceed size limit")
         records = []
         for item in files:
             record = json.loads(z.read(item))
-            if not isinstance(record, dict) or record.get("method") not in ("epde", "pdecomp"):
+            if not isinstance(record, dict) or record.get("method") not in ("epde", "pdecomp", "deepmod", "discover"):
                 raise ValueError("Unknown result method")
             if record.get("execution_location") != "user_computer" or record.get("portable_schema") != SCHEMA:
                 raise ValueError("Not a portable native result")

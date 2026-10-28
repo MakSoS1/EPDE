@@ -5,7 +5,9 @@ seed (noise realisation and optimizer randomness) and the noise level. The
 summary follows the PDEComp benchmark: a run succeeds when its selected
 equation has exactly the terms of the known law (HD = 0); the coefficient error
 is averaged over successful runs only; the noise limit is the highest tested
-level up to which at least 3 of 5 runs (60 %) succeed at every level.
+level up to which at least 3 of 5 runs (60 %) succeed at every level. Unscored
+results remain in the total; incomplete levels have no success percentage,
+and incomplete methods have no established noise limit.
 """
 from __future__ import annotations
 
@@ -35,15 +37,21 @@ def summarize(pairs, label_of):
     rows = []
     for (method, noise), records in sorted(groups.items()):
         ok = [r for r in records if r.get("status") == "ok"]
-        metrics = [r.get("metrics") or {} for r in ok]
+        metrics = [r.get("metrics") or {} for r in ok
+                   if not ((r.get("metrics") or {}).get("scoring_note")
+                           or (r.get("baseline") or {}).get("scoring_note"))
+                   and type((r.get("metrics") or {}).get("success_selected")) is bool]
+        unscored = len(ok) - len(metrics)
         wins = [m for m in metrics if m.get("success_selected")]
         low, high = wilson_ci(len(wins), len(records))
         hd = [m["hamming_selected"] for m in metrics if isinstance(m.get("hamming_selected"), int)]
         re = [m["re_sum"] for m in wins if isinstance(m.get("re_sum"), (int, float))]
         times = [r["fit_seconds"] for r in ok if isinstance(r.get("fit_seconds"), (int, float))]
         rows.append({"method": method, "noise, %": noise, "runs": len(records),
-                     "found the law": len(wins), "success rate": len(wins) / len(records),
-                     "95 % interval": f"{low:.0%} – {high:.0%}",
+                     "scored runs": len(metrics), "unscored runs": unscored,
+                     "found the law": len(wins),
+                     "success rate": None if unscored else len(wins) / len(records),
+                     "95 % interval": None if unscored else f"{low:.0%} – {high:.0%}",
                      "HD, mean": statistics.fmean(hd) if hd else None,
                      "RE (sum), mean of successes": statistics.fmean(re) if re else None,
                      "failed runs": len(records) - len(ok),
@@ -58,6 +66,11 @@ def noise_limits(rows):
         by_method.setdefault(row["method"], []).append(row)
     limits = {}
     for method, items in by_method.items():
+        # An unknown level cannot be skipped or used to certify a limit,
+        # including when later, fully scored levels happen to succeed.
+        if any(row.get("unscored runs", 0) or row["success rate"] is None for row in items):
+            limits[method] = None
+            continue
         limit = None
         for row in sorted(items, key=lambda r: r["noise, %"]):
             if row["runs"] < MIN_RUNS_FOR_LIMIT or row["success rate"] < LIMIT_RATE:

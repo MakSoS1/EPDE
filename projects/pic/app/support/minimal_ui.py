@@ -28,6 +28,8 @@ color:var(--epde-step-text);width:28px;height:28px;border-radius:50%;margin-righ
 padding:8px 0;font-size:.88rem;color:var(--epde-muted)}
 .epde-stageitem.active {color:var(--epde-heading);border-bottom-color:var(--epde-accent);font-weight:660}
 .epde-stageitem.done {border-bottom-color:var(--epde-accent)}
+[data-testid="stPageLink"] a {white-space:normal!important;height:auto!important}
+[data-testid="stPageLink"] a p {white-space:normal!important;overflow-wrap:anywhere}
 @media(max-width:900px) {.block-container {padding:1rem .8rem 2rem} h1 {font-size:1.7rem!important}
 .epde-stageitem {min-width:90px;font-size:.79rem}}
 </style>
@@ -94,6 +96,7 @@ html, body, .stApp,
 }
 .stApp [data-testid="stCaptionContainer"],
 .stApp [data-testid="stCaptionContainer"] p,
+.stApp [data-testid="stCaption"],.stApp [data-testid="stCaption"] p,
 .stApp .epde-subtitle,.stApp .epde-stageitem,
 .stApp .epde-muted {color:var(--epde-dark-subtext)!important}
 .stApp .epde-stageitem.active {color:var(--epde-dark-text)!important}

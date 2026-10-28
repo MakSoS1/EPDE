@@ -133,7 +133,7 @@ def check_capacity(owner: str, method: str, count: int = 1):
 
 def submit(owner: str, request: dict):
     """Create an immutable input manifest and a queued job; never accept a shell command."""
-    if request.get("method") not in ("epde", "pdecomp", "llm"):
+    if request.get("method") not in ("epde", "pdecomp", "deepmod", "discover", "llm"):
         raise ValueError("Unknown algorithm")
     if request.get("source") not in ("record", "upload"):
         raise ValueError("Unknown data source")
@@ -263,7 +263,7 @@ def save_client_result(owner: str, request: dict, record: dict):
     if not isinstance(request, dict) or not isinstance(record, dict):
         raise ValueError("Invalid local result")
     method = request.get("method")
-    if method not in ("epde", "pdecomp"):
+    if method not in ("epde", "pdecomp", "deepmod", "discover"):
         raise ValueError("Invalid local method")
     if record.get("execution_location") != "user_computer":
         raise ValueError("Result was not marked as a local run")

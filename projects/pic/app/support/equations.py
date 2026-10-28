@@ -4,6 +4,7 @@
 becomes ``u_{tt} = -0.98\\, u_{t}\\,\\sin(2 t)``.
 """
 
+import ast
 import re
 
 _FACTOR = re.compile(r'([A-Za-z0-9_\^/\(\)]+)\s*\{([^}]*)\}')
@@ -73,7 +74,7 @@ def term_latex(text, axes):
     return coef, r'\,'.join(factors)
 
 
-def equation_latex(eq_text, axes=('t', 'x', 'y', 'z')):
+def equation_latex(eq_text, axes=('t', 'x', 'y', 'z'), *, wrap=False):
     """LaTeX of one EPDE equation; ``axes`` names x0, x1, ... in order."""
     axes = list(axes)
     lhs_text, rhs_text = eq_text.strip().lstrip('/|\\ ').split('=', 1)
@@ -96,7 +97,73 @@ def equation_latex(eq_text, axes=('t', 'x', 'y', 'z')):
     else:
         rhs = ''.join((s if i or s == '-' else '') + (' ' if i else '') + p + ' '
                       for i, (s, p) in enumerate(parts)).strip()
+    if wrap and len(parts) > 2:
+        lines = [(('' if i == 0 and sign == '+' else sign + ' ') + text)
+                 for i, (sign, text) in enumerate(parts)]
+        return r'\begin{aligned}' + target + ' &= ' + lines[0] + ''.join(
+            r' \\ &\quad ' + line for line in lines[1:]) + r'\end{aligned}'
     return f'{target} = {rhs}'
+
+
+def native_equation_latex(eq_text, axes=('t', 'x'), variables=('u',)):
+    """Render DISCOVER's expression grammar without evaluating its source text."""
+    coordinate = axes[1] if len(axes) > 1 else axes[0]
+
+    def render(node):
+        if isinstance(node, ast.Constant) and type(node.value) in (int, float):
+            return _number(node.value)
+        if isinstance(node, ast.Name):
+            if node.id in ('u1', 'u'):
+                return _variable(variables[0])
+            if node.id == 'x1':
+                return _variable(coordinate)
+            target = re.fullmatch(r'u_([txyz]+)', node.id)
+            if target:
+                return _variable(variables[0]) + '_{' + target.group(1) + '}'
+            return _variable(node.id)
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+            return ('-' if isinstance(node.op, ast.USub) else '') + render(node.operand)
+        if isinstance(node, ast.BinOp):
+            left, right = render(node.left), render(node.right)
+            if isinstance(node.op, ast.Add):
+                return left + ' + ' + right
+            if isinstance(node.op, ast.Sub):
+                return left + ' - ' + right
+            if isinstance(node.op, ast.Mult):
+                return atom(node.left) + r'\,' + atom(node.right)
+            if isinstance(node.op, ast.Div):
+                return r'\frac{' + left + '}{' + right + '}'
+            if isinstance(node.op, ast.Pow):
+                return '{' + atom(node.left) + '}^{' + right + '}'
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and not node.keywords:
+            name, args = node.func.id, [render(a) for a in node.args]
+            if name in ('sin', 'cos', 'exp', 'log') and len(args) == 1:
+                return '\\' + name + r'\left(' + args[0] + r'\right)'
+            if name in ('n2', 'n3') and len(args) == 1:
+                return '{' + args[0] + '}^{' + name[1:] + '}'
+            if name == 'mul' and len(args) == 2:
+                return atom(node.args[0]) + r'\,' + atom(node.args[1])
+            if name == 'add' and len(args) == 2:
+                return r'\left(' + args[0] + ' + ' + args[1] + r'\right)'
+            if name == 'div' and len(args) == 2:
+                return r'\frac{' + args[0] + '}{' + args[1] + '}'
+            if name in ('diff', 'diff2', 'diff3', 'diff4') and len(args) == 2:
+                order = name[4:] or '1'
+                return r'\operatorname{diff}_{' + order + r'}\!\left(' + args[0] + '; ' + args[1] + r'\right)'
+        raise ValueError('Unsupported display expression')
+
+    def atom(node):
+        text = render(node)
+        if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Sub)):
+            return r'\left(' + text + r'\right)'
+        return text
+
+    def parse(text):
+        text = re.sub(r'(?<=[\w)])\s+(?=[\w(])', '*', text.strip().replace('^', '**'))
+        return render(ast.parse(text, mode='eval').body)
+
+    lhs, rhs = eq_text.split('=', 1)
+    return parse(rhs) + ' = ' + parse(lhs)
 
 
 def system_latex(system, axes=('t', 'x', 'y', 'z')):

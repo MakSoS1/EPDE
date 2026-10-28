@@ -10,7 +10,7 @@ import math
 from typing import Any
 
 SCHEMA_VERSION = "discovery-demo/1.0"
-METHODS = ("epde", "pdecomp", "llm")
+METHODS = ("epde", "pdecomp", "deepmod", "discover", "llm")
 MAX_CANDIDATES = 512  # full native Pareto front; transport remains size-limited
 
 
@@ -20,7 +20,7 @@ def criterion_labels(method: str, record: dict) -> tuple[str, str]:
         obj = cfg.get("objectives") or {}
         return (str(obj.get("discrepancy_metric", "discrepancy")),
                 str(obj.get("second_objective", "EPDE second objective")))
-    if method == "pdecomp":
+    if method in ("pdecomp", "deepmod", "discover"):
         return ("not reported by PDEComp", "not reported by PDEComp")
     return ("LLM criterion 1 (provider-defined)", "LLM criterion 2 (provider-defined)")
 
