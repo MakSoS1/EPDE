@@ -122,8 +122,9 @@ class RepositoryExport(unittest.TestCase):
                        subprocess.CompletedProcess([], 0, ' M projects/pic/epde_bench/pdecomp_methods.py')]
             with patch('epde_bench.paths.REPO_ROOT', root), \
                     patch.object(portable.subprocess, 'run', side_effect=outputs), \
-                    self.assertRaisesRegex(ValueError, 'clean committed'):
+                    self.assertRaisesRegex(ValueError, 'clean committed') as error:
                 portable.repository_source()
+            self.assertIn('projects/pic/epde_bench/pdecomp_methods.py', str(error.exception))
 
     def test_gitless_build_needs_explicit_immutable_revision(self):
         with tempfile.TemporaryDirectory() as td, patch('epde_bench.paths.REPO_ROOT', Path(td)):

@@ -34,10 +34,15 @@ def repository_source():
         try:
             def git(*args):
                 return subprocess.run(["git", "-C", str(REPO_ROOT), *args], check=True,
-                                      capture_output=True, text=True, timeout=10).stdout.strip()
+                                      capture_output=True, text=True, timeout=10).stdout.rstrip("\r\n")
             head = git("rev-parse", "HEAD")
-            if git("status", "--porcelain", "--untracked-files=normal"):
-                raise ValueError("Repository export requires a clean committed checkout")
+            status = git("-c", "core.quotePath=true", "status", "--porcelain=v1", "--untracked-files=normal")
+            if status:
+                # Report only bounded, repository-relative change names. Never
+                # read changed files or disclose their contents in the UI.
+                details = status[:1200] + ("\n(additional paths omitted)" if len(status) > 1200 else "")
+                raise ValueError("Repository export requires a clean committed checkout. "
+                                 "Changed paths:\n" + details)
         except (OSError, subprocess.SubprocessError) as exc:
             raise ValueError("Could not identify the running repository revision") from exc
         if revision and revision != head:
