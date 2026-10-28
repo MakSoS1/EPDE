@@ -4,11 +4,25 @@ on:
   pull_request:
     branches: [demo/streamlit-community-cloud]
   push:
-    branches: [feat/streamlit-deepmod-discover]
+    branches: [feat/streamlit-deepmod-discover, demo/streamlit-community-cloud]
+    paths:
+      - '.github/workflows/streamlit-native-methods.yml'
+      - 'projects/pic/app/**'
+      - 'projects/pic/epde_bench/**'
+      - 'projects/pic/configs/**'
+      - 'projects/pic/tests/**'
+      - 'projects/pic/browser_demo/**'
+      - 'projects/pic/portable_experiment.py'
+      - 'projects/pic/pyproject.toml'
+      - 'projects/pic/uv.lock'
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: native-methods-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   native-cpu:
@@ -42,7 +56,8 @@ jobs:
             projects/pic/tests/test_portable_handoff.py \
             projects/pic/tests/test_demo_lab_settings.py \
             projects/pic/tests/test_demo_execution_routing.py \
-            projects/pic/tests/test_demo_workspace_navigation.py
+            projects/pic/tests/test_demo_workspace_navigation.py \
+            projects/pic/tests/test_catalog_restart.py
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -51,10 +66,11 @@ jobs:
         run: |
           npm ci --no-audit --no-fund
           npx playwright install --with-deps chromium
+          node --check smoke_catalog_restart.mjs
       - name: Start the actual Streamlit app
         run: |
-          # A background uv run holds the cache lock until the server exits,
-          # blocking setup-uv's post-job cache prune. Use the synced venv.
+          # A background uv run holds the cache lock until the server exits.
+          # Use the synced venv and always stop the server before cache cleanup.
           projects/pic/.venv/bin/python -m streamlit run \
             projects/pic/app/Home.py --server.headless=true --browser.gatherUsageStats=false \
             > /tmp/native-streamlit.log 2>&1 &
@@ -65,11 +81,18 @@ jobs:
           done
           cat /tmp/native-streamlit.log
           exit 1
-      - name: Native queue, results, comparison and desktop/mobile screenshots
+      - name: Completed ODE to catalog Navier-Stokes, fresh approval, pinned export and saved history
+        working-directory: projects/pic/browser_demo
+        run: |
+          set -o pipefail
+          node smoke_catalog_restart.mjs 2>&1 | tee /tmp/catalog-restart.log
+      - name: Four real methods, native queue, results, comparison and desktop/mobile screenshots
         working-directory: projects/pic/browser_demo
         env:
           NATIVE_UI_ALL_METHODS: '1'
-        run: node smoke_native_methods.mjs
+        run: |
+          set -o pipefail
+          node smoke_native_methods.mjs 2>&1 | tee /tmp/native-methods-browser.log
       - name: Stop Streamlit server
         if: always()
         run: |
@@ -80,6 +103,11 @@ jobs:
         if: always()
         with:
           name: native-method-browser-qa
-          path: projects/pic/browser_demo/.cache/native-ui/
+          path: |
+            projects/pic/browser_demo/.cache/native-ui/
+            projects/pic/browser_demo/.cache/catalog-restart/
+            /tmp/native-streamlit.log
+            /tmp/catalog-restart.log
+            /tmp/native-methods-browser.log
           include-hidden-files: true
           retention-days: 7
