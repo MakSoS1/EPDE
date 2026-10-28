@@ -25,11 +25,75 @@ jobs:
       - name: Install browser client
         working-directory: projects/pic/browser_demo
         run: |
-          npm install --no-fund --no-audit
+          npm ci --no-fund --no-audit
           npx playwright install --with-deps chromium
+      - id: native_public
+        name: Wake public app and verify four methods and catalog restart without running searches
+        timeout-minutes: 10
+        working-directory: projects/pic/browser_demo
+        env:
+          STREAMLIT_URL: https://epde-explorer-demo.streamlit.app/
+        run: |
+          set -o pipefail
+          node --input-type=module - <<'JS' 2>&1 | tee /tmp/cloud-native.log
+          import {chromium} from 'playwright';
+          const browser=await chromium.launch({headless:true});
+          const page=await browser.newPage({viewport:{width:1440,height:1000}});
+          const url=process.env.STREAMLIT_URL;
+          async function settle(frame){
+            await page.waitForTimeout(800);
+            const exceptions=await frame.locator('[data-testid="stException"]').allInnerTexts();
+            if(exceptions.length)throw Error(exceptions.join('\n'));
+          }
+          try {
+            await page.goto(url,{waitUntil:'domcontentloaded',timeout:60000});
+            let f=null,woken=false;
+            const deadline=Date.now()+300000;
+            while(Date.now()<deadline&&!f){
+              for(const frame of [...page.frames()].reverse()){
+                const wake=frame.getByText('Yes, get this app back up!',{exact:true}).first();
+                if(!woken&&await wake.isVisible().catch(()=>false)){
+                  await wake.click();woken=true;console.log('PUBLIC_APP_WAKE_REQUESTED');
+                }
+                if(await frame.getByRole('link',{name:/Run a search/i}).first().isVisible().catch(()=>false)){
+                  f=frame;break;
+                }
+              }
+              if(!f)await page.waitForTimeout(2500);
+            }
+            if(!f)throw Error('Published app did not become available after wake request');
+            await f.getByRole('link',{name:/Run a search/i}).first().click();
+            await f.getByRole('button',{name:/Next: configure methods/i}).waitFor({timeout:90000});
+            const methods=f.locator('[data-testid="stButtonGroup"]').filter({hasText:'Discovery methods'});
+            for(const name of ['EPDE','PySINDy','DeepMoD','DISCOVER'])
+              await methods.getByText(name,{exact:true}).waitFor({timeout:45000});
+            await page.screenshot({path:'public-native-methods.png',fullPage:true});
+            console.log('PUBLIC_FOUR_METHODS_VISIBLE_PASS');
+            await f.getByRole('button',{name:/Next: configure methods/i}).click();
+            await f.getByRole('button',{name:/Next: review configuration/i}).waitFor({timeout:120000});
+            await settle(f);
+            await f.getByRole('button',{name:/Next: review configuration/i}).click();
+            await f.getByText('Complete effective scientific configuration',{exact:true}).waitFor({timeout:90000});
+            await f.getByRole('link',{name:/Data catalog/i}).first().click();
+            const search=f.getByRole('textbox',{name:'Search dataset or equation',exact:true});
+            await search.fill('Navier');await search.press('Enter');await settle(f);
+            await f.locator('.st-key-catalog_card_ns').getByRole('button').click();await settle(f);
+            await f.getByRole('button',{name:'Use this record in Lab',exact:true}).click();
+            await f.getByRole('button',{name:/Next: configure methods/i}).waitFor({timeout:60000});
+            await settle(f);
+            const equation=f.getByRole('combobox',{name:/Equation \(search by name\)/});
+            if(!/Navier.Stokes/i.test(await equation.inputValue()))throw Error('Wrong catalog selection');
+            if(await f.getByRole('checkbox',{name:/I have checked the input/i}).count())throw Error('Old review approval retained');
+            if(await f.getByText('Complete effective scientific configuration',{exact:true}).count())throw Error('Old review screen retained');
+            await page.screenshot({path:'public-catalog-reset.png',fullPage:true});
+            console.log('PUBLIC_CATALOG_REVIEW_TO_NS_INPUT_PASS');
+          } finally {
+            await browser.close();
+          }
+          JS
       - id: public
         name: Verify deployed six-page Streamlit UI without starting public scientific jobs
-        timeout-minutes: 12
+        timeout-minutes: 8
         working-directory: projects/pic/browser_demo
         env:
           STREAMLIT_URL: https://epde-explorer-demo.streamlit.app/
@@ -40,20 +104,24 @@ jobs:
         if: always()
         env:
           PUBLIC: ${{ steps.public.outcome }}
+          NATIVE_PUBLIC: ${{ steps.native_public.outcome }}
         run: |
           python - <<'PY'
           import json,os,pathlib,datetime
-          p=pathlib.Path("/tmp/cloud-browser.log")
+          p=pathlib.Path('/tmp/cloud-browser.log')
+          native=pathlib.Path('/tmp/cloud-native.log')
           data={
-            "revision":os.environ["GITHUB_SHA"],
-            "run_id":int(os.environ["GITHUB_RUN_ID"]),
-            "checked_url":"https://epde-explorer-demo.streamlit.app/",
-            "timestamp":datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "public_browser":os.environ.get("PUBLIC"),
-            "verified":os.environ.get("PUBLIC")=="success",
-            "log":p.read_text(errors="replace")[-12000:] if p.exists() else "",
+            'revision':os.environ['GITHUB_SHA'],
+            'run_id':int(os.environ['GITHUB_RUN_ID']),
+            'checked_url':'https://epde-explorer-demo.streamlit.app/',
+            'timestamp':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'public_browser':os.environ.get('PUBLIC'),
+            'four_methods_and_catalog':os.environ.get('NATIVE_PUBLIC'),
+            'verified':os.environ.get('PUBLIC')=='success' and os.environ.get('NATIVE_PUBLIC')=='success',
+            'log':p.read_text(errors='replace')[-12000:] if p.exists() else '',
+            'native_log':native.read_text(errors='replace')[-12000:] if native.exists() else '',
           }
-          pathlib.Path("/tmp/cloud-result.json").write_text(json.dumps(data,indent=2))
+          pathlib.Path('/tmp/cloud-result.json').write_text(json.dumps(data,indent=2))
           PY
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
@@ -67,5 +135,8 @@ jobs:
           name: public-streamlit-cloud-visual-check
           path: |
             projects/pic/browser_demo/public-minimal-*.png
+            projects/pic/browser_demo/public-native-methods.png
+            projects/pic/browser_demo/public-catalog-reset.png
             /tmp/cloud-browser.log
+            /tmp/cloud-native.log
           if-no-files-found: ignore
