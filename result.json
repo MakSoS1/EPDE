@@ -1,0 +1,26 @@
+{
+  "revision": "3031a97504fa4f036ffbeac638b8a1d76b660f02",
+  "deployed_revision": "3031a97504fa4f036ffbeac638b8a1d76b660f02",
+  "run_id": 40829258069,
+  "checked_url": "https://epde-explorer-demo.streamlit.app/",
+  "timestamp": "2026-10-29T07:30:34.113180+00:00",
+  "public_browser": "success",
+  "four_methods_and_catalog": "success",
+  "portable_export": {
+    "dataset": "ns",
+    "methods": [
+      "epde"
+    ],
+    "population": 8,
+    "epochs": 1,
+    "manifest_checksum": "712045342c52c77fbacd8bd5649ab7e8839185b67817f00e06c20a1bb9e23ebf",
+    "repository": {
+      "url": "https://github.com/MakSoS1/EPDE",
+      "revision": "3031a97504fa4f036ffbeac638b8a1d76b660f02",
+      "archive_url": "https://github.com/MakSoS1/EPDE/archive/3031a97504fa4f036ffbeac638b8a1d76b660f02.zip"
+    }
+  },
+  "verified": true,
+  "log": "PUBLIC_MINIMAL_RUN_SEARCH_PASS\nPUBLIC_MINIMAL_CATALOG_PASS\nPUBLIC_CATALOG_APPROVED_ODE_TO_NS_INPUT_PASS\nPUBLIC_NS_FRESH_APPROVAL_AND_CONFIGURATION_PASS\nPUBLIC_DEPLOYED_REVISION 3031a97504fa4f036ffbeac638b8a1d76b660f02\nPUBLIC_NAVIER_STOKES_PINNED_EXPORT_PASS\nPUBLIC_MINIMAL_IMPORT_ROUTE_PASS\nPUBLIC_MINIMAL_SIX_PAGE_DEPLOYMENT_VERIFIED\n",
+  "native_log": "PUBLIC_FOUR_METHODS_VISIBLE_PASS\nPUBLIC_CATALOG_REVIEW_TO_NS_INPUT_PASS\n"
+}
