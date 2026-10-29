@@ -10,6 +10,7 @@ import pandas as pd
 import streamlit as st
 
 from support.discovery_lab import job_queue as queue, ui
+from support.discovery_lab.comparison_insights import analyze_comparison
 from support.discovery_lab.session import current_owner
 
 from support.minimal_ui import intro
@@ -17,9 +18,10 @@ intro("Compare", "Compare recovered equations on the same verified numerical inp
 owner = current_owner()
 st.page_link("views/10_Discovery_lab.py", label="Start another search", icon=":material/search:")
 
-rows = [r for r in queue.list_jobs(owner) if r.get("state") == "finished"]
+rows = [r for r in queue.list_jobs(owner)
+        if r.get("state") in ("finished", "error", "timeout", "interrupted")]
 results = {r["id"]: queue.result(owner, r["id"]) for r in rows}
-rows = [r for r in rows if (results.get(r["id"]) or {}).get("status") == "ok"]
+rows = [r for r in rows if isinstance(results.get(r["id"]), dict) and results[r["id"]]]
 if not rows:
     st.info("Finished searches appear here, grouped by input. Run several methods on the same "
             "data in **Run a search** to compare them.")
@@ -59,17 +61,59 @@ else:
         c.metric("Experiments",len(members))
         st.caption("Input fingerprint: "+key[:18]+"…" if not key.startswith("unverifiable:")
                    else "Numerical input fingerprint unavailable.")
+    # Show different methods first, even when several EPDE retries are newer.
+    defaults, seen_methods = [], set()
+    for member in members:
+        method = results[member["id"]].get("method")
+        if method not in seen_methods and len(defaults) < 4:
+            defaults.append(member["id"])
+            seen_methods.add(method)
+    defaults += [identifier for identifier in names if identifier not in defaults][:4-len(defaults)]
     picked=st.multiselect("Select runs",list(names),
-                         default=list(names)[:2],max_selections=4,format_func=names.get)
+                         default=defaults,max_selections=4,format_func=names.get)
     chosen=[(names[i],results[i]) for i in picked]
     if chosen:
         first=chosen[0][1]
         axes=ui.axes_of(first)
-        equation_tab,metrics_tab,plots_tab,balance_tab=st.tabs(
-            ["Equations","Metrics","Solution fit","Equation balance"])
+        analysis = analyze_comparison(chosen)
+        insights_tab,equation_tab,metrics_tab,plots_tab,balance_tab=st.tabs(
+            ["Insights","Equations","Metrics","Solution fit","Equation balance"])
+        with insights_tab:
+            st.subheader("What these runs show")
+            st.caption("Each highlight answers a separate question about the selected runs. "
+                       "A method can lead one metric and trail another.")
+            for start in range(0, len(analysis["metrics"]), 2):
+                cards = st.columns(2, gap="medium")
+                for card, metric in zip(cards, analysis["metrics"][start:start+2]):
+                    with card, st.container(border=True):
+                        value = metric["value"]
+                        formatted = ("—" if value is None else
+                                     f"{value:.2f} s" if metric["key"] == "seconds" else
+                                     f"{value:.4g}")
+                        st.metric(metric["title"], formatted)
+                        if metric["leaders"]:
+                            heading = "Leads this metric" if len(metric["leaders"]) == 1 else "Tied on this metric"
+                            st.markdown("**" + heading + "**")
+                            for leader in metric["leaders"]:
+                                st.success(leader)
+                        else:
+                            st.markdown("**No comparable leader**")
+                        st.caption(metric["explanation"])
+            for note in analysis["notes"]:
+                st.caption(note)
+            st.subheader("What to improve next")
+            for (_, record), run in zip(chosen, analysis["runs"]):
+                with st.container(border=True):
+                    st.markdown("**" + ui.method_label(record) + "**")
+                    st.caption(run["label"])
+                    st.write(f"Status: {run['status']} · Selected equation: {run['selected_law']}")
+                    for tip in run["advice"]:
+                        st.write("• " + tip)
         with equation_tab:
             truth=(first.get("problem") or {}).get("truth")
-            if truth:
+            shared_truth = all((record.get("problem") or {}).get("truth") == truth
+                               for _, record in chosen)
+            if truth and shared_truth:
                 st.markdown("**Known reference law**")
                 ui.latex(truth,axes)
             # Four equations remain readable in a two-column grid.
@@ -80,32 +124,59 @@ else:
                     with st.container(border=True):
                         st.markdown("**"+ui.method_label(record)+"**")
                         st.caption(name)
-                        ui.latex(record.get("selected") or [],axes,record=record)
-                        verdict=ui.verdict(record)
-                        if verdict:
-                            getattr(st,verdict[0])(verdict[1])
-                        st.caption(f"Search time: {record.get('fit_seconds',0):.1f} s"
-                                   if isinstance(record.get("fit_seconds"),(int,float))
-                                   else "Search time unavailable")
+                        if not shared_truth and (record.get("problem") or {}).get("truth"):
+                            st.caption("Reference declared for this run")
+                            ui.latex(record["problem"]["truth"], ui.axes_of(record))
+                        if record.get("selected"):
+                            ui.latex(record["selected"],ui.axes_of(record),record=record)
+                        else:
+                            st.info("No selected equation was saved.")
+                        run = analysis["runs"][i]
+                        verdict = (st.success if run["selected_law"] == "Exact structure" else
+                                   st.warning if run["selected_law"] == "Different structure" else st.info)
+                        verdict("Selected equation: " + run["selected_law"])
+                        st.caption(f"Recorded search time: {run['seconds']:.1f} s"
+                                   if run["seconds"] is not None else "Search time unavailable")
         with metrics_tab:
             methods_in_view={rec.get("method") for _,rec in chosen}
-            summaries=[dict(run=name,**ui.summary_row({},record))
-                       for name,record in chosen]
-            if len(methods_in_view)>1:
-                for row in summaries:
-                    row["equation balance R²"]=None
+            summaries = []
+            for (name, record), run in zip(chosen, analysis["runs"]):
+                row = {"run": name, "method": ui.method_label(record), "status": run["status"],
+                       "search budget": ui.budget_label({}, record),
+                       "selected equation": run["selected_law"],
+                       "HD": run["hd"], "RE (sum)": run["re"],
+                       "solution R² (worst variable)": run["solution_r2"],
+                       "candidates": len(record.get("front") or []),
+                       "search time, s": run["seconds"]}
+                if any(metric["key"] == "heldout_r2" for metric in analysis["metrics"]):
+                    row["held-out forecast R²"] = run["heldout_r2"]
+                summaries.append(row)
             st.dataframe(pd.DataFrame(summaries),hide_index=True,width="stretch",
                          column_config=ui.metric_columns())
             st.caption("Only matching input fingerprints are grouped. HD and RE follow the "
                        "PDEComp benchmark and are computed here in the same way for every method, "
                        "against the known law of this record. The methods' objectives and derivative "
-                       "estimators differ; internal scores are not interchangeable. Solution R² is "
-                       "in-sample, not a forecast.")
+                       "estimators differ; internal scores are not interchangeable. The Insights "
+                       "tab checks which scores share an evaluation basis before highlighting leaders. "
+                       "Solution R² is in-sample; unavailable scores remain blank. Coefficient errors "
+                       "of an oracle best-front candidate are not scores of the selected equation.")
             for method in sorted(methods_in_view, key=str):
                 st.caption("**"+ui.METHOD_NAMES.get(method, method)+"**: "+ui.PROTOCOL_NOTES.get(method, ""))
         with plots_tab:
             st.caption("Plots show solution reconstruction against the original data.")
-            ui.solution_plots(chosen)
+            # Different boundary cuts can yield different observations/grids even
+            # for one input. Only overlay reconstructions with the same basis.
+            plot_groups = {}
+            for index, (pair, run) in enumerate(zip(chosen, analysis["runs"])):
+                basis = run["_solution_basis"] or ("unverified", index)
+                plot_groups.setdefault(basis, []).append(pair)
+            if len(plot_groups) > 1:
+                st.caption("Separate plots keep each reconstruction on its own recorded grid. "
+                           "Only runs with matching grids and observations are overlaid.")
+            for group in plot_groups.values():
+                if len(plot_groups) > 1:
+                    st.markdown("**" + ", ".join(ui.method_label(record) for _, record in group) + "**")
+                ui.solution_plots(group)
         with balance_tab:
             st.caption("Target computed from the data against each equation's right-hand side.")
             ui.balance_plots(chosen)

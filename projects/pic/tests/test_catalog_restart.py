@@ -45,6 +45,9 @@ class CatalogRestartTests(unittest.TestCase):
                     "lab_draft_config": {"old_ode_config": True},
                     "lab_confirm_science": True,
                     "lab_started_jobs": ["finished-ode-run"],
+                    "lab_advice_context": "old-ode-input",
+                    "lab_advice_generation": 3,
+                    "lab_advice_reports": {"epde:ode:default": {"method": "epde"}},
                     "lab_widgets_saved": {"lab_builtin_equation": "ode",
                                           "lab_confirm_science": True},
                     "lab_builtin_equation": "ode",
@@ -69,6 +72,9 @@ class CatalogRestartTests(unittest.TestCase):
                 self.assertFalse(state.get("lab_confirm_science", False))
                 self.assertNotIn("lab_widgets_saved", state)
                 self.assertNotIn("lab_started_jobs", state)
+                self.assertNotIn("lab_advice_context", state)
+                self.assertNotIn("lab_advice_reports", state)
+                self.assertNotIn("lab_advice_generation", state)
                 self.assertNotIn("lab_builtin_equation", state)
                 self.assertNotIn("lab_deepmod_ode_native_max_iterations", state)
                 self.assertNotIn("lab_discover_ode_native_n_samples", state)

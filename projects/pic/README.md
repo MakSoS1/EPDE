@@ -32,7 +32,8 @@ long simultaneous settings form:
    uploaded/generated dataset, noise and seed. For known equations the exact
    reference law and a numerical preview are **always visible**.
 2. **Settings.** Configure the selected method's actual independent scientific
-   controls. The original dataset-specific EPDE YAML stays the default. Expert
+   controls. **Suggested** uses the original profile plus input/resource rules;
+   **Default** retains the saved EPDE budget. Expert
    derivative/token/operator settings remain accessible only when needed.
    **Back** preserves prior selections.
 3. **Review & run.** Inspect the **full effective scientific YAML** for each
@@ -43,6 +44,30 @@ long simultaneous settings form:
 The sidebar **Appearance** selector switches between **Light** and **Dark**
 without affecting the underlying scientific input. The same theme-aware
 native Streamlit components render on desktop and mobile.
+
+### Fast, editable starting suggestions
+
+**Suggest settings** (sparkle icon) reapplies suggestions without running any
+scientific training. A new numerical input initializes them automatically.
+Ordinary reruns, adding another method and review/back preserve manual edits;
+reapplying invalidates the old review approval and clears imported settings YAML.
+The selected EPDE profile, PDEComp protocol and target derivative are retained.
+
+The suggestion rules use existing profiles, grid geometry, explicitly declared
+added noise and the hosted resource limits. EPDE adjusts population/epochs to
+the available budget and may suggest a validated local polynomial derivative
+fit for noisy input. PySINDy retains its pinned optimizer and adjusts excessive
+boundary trimming. DeepMoD bounds training samples by available points, while
+DeepMoD and DISCOVER begin with short training/search budgets. Heavy records
+keep their full local profiles and remain metadata-only in the website.
+
+The **Why these starting settings?** panel explains the basis and limitations.
+The curated historical index covers 150 clean-data baseline runs with one
+configuration per dataset/variant across five seeds. It records execution
+experience, not learned optimal parameters; legacy PySINDy results are kept
+separate from the current PDEComp implementation. No reference-law scores or
+other visitors' session results enter the recommendation. Rebuild the index
+with `python projects/pic/scripts/build_starting_evidence.py` from repository root.
 
 There are no hidden governing-law or data-preview expanders in Run a search,
 and the chosen Data catalog governing equation is shown directly. Results
@@ -79,6 +104,14 @@ the PDEComp benchmark) and against the data. In-sample solution R2 is not
 held-out forecast accuracy. Claims about framework quality require series
 over seeds and noise levels; the app summarises them as success rates with
 95 % intervals and a noise limit by PDEComp's rule of 3 successes in 5 runs.
+
+The **Insights** tab highlights leaders for compatible metrics and explains why
+they lead, including ties and incomplete coverage. It uses the method-selected
+equation, distinguishes a known law merely appearing among candidates, and
+provides next checks for each run. Missing or unscorable results are not zeros.
+Runtime leaders require matching recorded execution environments. Common
+output metrics may compare native and fixed protocols, which remain identified
+as different pipelines. There is no combined score across unrelated objectives.
 
 PySINDy on the website is the PDEComp benchmark's own PySINDy, run unchanged
 from a pinned commit of PDEComp. On PDEComp's datasets (the same files,

@@ -10,7 +10,8 @@ def starting_settings(method, dataset, protocol, kind, orders):
     return methods.describe(method, dataset, protocol=protocol, kind=kind, orders=orders)
 
 
-def render_settings(method, record_name=None, problem=None, arrays=None, source=None, heavy=False):
+def render_settings(method, record_name=None, problem=None, arrays=None, source=None,
+                    heavy=False, advice_context=None):
     label = methods.LABELS[method]
     prefix = f'lab_{method}_{record_name or "data"}_'
     st.markdown(f'**{label} · PDEComp**')
@@ -45,43 +46,65 @@ def render_settings(method, record_name=None, problem=None, arrays=None, source=
     if kind == 'pde_2d' and not pdecomp.supported(record_name):
         st.warning('DeepMoD fixed 2D support requires the PDEComp Navier–Stokes record.')
         return None
+    widget_prefix = prefix + protocol + '_'
+    if advice_context is not None:
+        widget_prefix += f"advice_{st.session_state.get('lab_advice_generation', 0)}_"
     base = starting_settings(method, record_name, protocol, kind, orders)
     current = base.get('direct_optimizer', {}) if method == 'deepmod' and protocol == 'fixed' else base
-    shown = dict(current)
+    suggested = current
+    if advice_context is not None:
+        from support.discovery_lab.starting_settings import suggest_settings
+        from support.discovery_lab.advice_state import save_report
+        report = suggest_settings(method, base, advice_context, protocol=protocol, hosted=not heavy)
+        recommended = report['settings']
+        suggested = (recommended.get('direct_optimizer', {})
+                     if method == 'deepmod' and protocol == 'fixed' else recommended)
+        save_report(st.session_state, f'{method}:{record_name or "data"}:{protocol}', report)
+    shown = dict(suggested)
     if method == 'discover' or protocol == 'native':
         budget_keys = ('max_iterations', 'max_samples') if method == 'deepmod' else ('n_samples', 'batch_size')
         caps = {'max_iterations': 250, 'max_samples': 1000} if method == 'deepmod' else {'n_samples': 1000, 'batch_size': 100}
         full_budget = {'max_iterations': 5000, 'max_samples': 10000} if method == 'deepmod' else {'n_samples': 5000, 'batch_size': 250}
 
         def reset_budget():
-            budget_key = prefix + protocol + '_budget'
+            budget_key = widget_prefix + 'budget'
             if st.session_state.get(budget_key) is None:
-                st.session_state[budget_key] = 'PDEComp profile' if heavy else 'Quick demo'
-            saved = st.session_state.get('lab_widgets_saved', {})
+                st.session_state[budget_key] = default_budget
+            saved = st.session_state.setdefault('lab_widgets_saved', {})
+            saved[budget_key] = st.session_state[budget_key]
             for name in budget_keys:
-                widget_key = prefix + protocol + '_' + name
+                widget_key = widget_prefix + name
                 value = int(current.get(name, full_budget[name]))
                 if st.session_state[budget_key] == 'Quick demo':
                     value = min(value, caps[name])
+                elif st.session_state[budget_key] == 'Suggested':
+                    value = int(suggested.get(name, value))
                 st.session_state[widget_key] = value
                 saved[widget_key] = value
 
-        budget = st.segmented_control('Run budget', ['Quick demo', 'PDEComp profile'],
-                                      default='PDEComp profile' if heavy else 'Quick demo',
-                                      selection_mode='single', key=prefix + protocol + '_budget',
+        default_budget = 'Suggested' if advice_context is not None else ('PDEComp profile' if heavy else 'Quick demo')
+        choices = (['Suggested'] if advice_context is not None else []) + ['Quick demo', 'PDEComp profile']
+        budget = st.segmented_control('Run budget', choices,
+                                      default=default_budget,
+                                      selection_mode='single', key=widget_prefix + 'budget',
                                       on_change=reset_budget)
-        if budget == 'Quick demo':
+        if budget == 'Suggested':
+            st.caption('Suggested starting values use this input and the method’s own settings. '
+                       'Every control remains editable.')
+        elif budget == 'Quick demo':
+            shown = dict(current)
             shown.update({k: min(int(current.get(k, limit)), limit) for k, limit in caps.items()})
             st.caption('Quick demo uses a smaller training budget. Full PDEComp settings are '
                        'available above; short training does not guarantee equation recovery.')
         else:
+            shown = dict(current)
             st.caption('The full PDEComp training budget can take several minutes. '
                        'Hosted searches have a time limit; use Quick demo for a short run.')
     changes = {}
     if method == 'deepmod' and protocol == 'fixed':
         value = st.selectbox('Sparse estimator', ['pdefind', 'threshold'],
                              index=['pdefind', 'threshold'].index(current.get('type', 'threshold')),
-                             key=prefix + protocol + '_type')
+                             key=widget_prefix + 'type')
         if value != current.get('type'):
             changes['type'] = value
         controls = (('threshold', 'Sparsity threshold', 0.0, 1e4, 0.1),
@@ -106,7 +129,7 @@ def render_settings(method, record_name=None, problem=None, arrays=None, source=
         cast = int if type(low) is int else float
         initial = cast(shown.get(key, default))
         value = cols[i % 2].number_input(title, cast(low), cast(high), initial,
-                                         key=prefix + protocol + '_' + key,
+                                         key=widget_prefix + key,
                                          **({'format': '%g', 'step': 0.0001 if key == 'learning_rate' else 0.01}
                                             if cast is float else {}))
         if value != cast(current.get(key, default)):

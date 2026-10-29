@@ -145,13 +145,15 @@ def _profile_summary(search, description):
 
 
 def render_settings(*, record_name, problem, arrays, space, source, methods,
-                    noise, seed, label, origin, reference):
+                    noise, seed, label, origin, reference, advice_context=None):
     """Draw one common settings editor. Return (variant, overrides, custom_settings, label).
 
     A stored record's *default* loads config layers without synthetic budget
     overrides. An uploaded record starts from the universal conservative profile.
     """
     built_in = record_name is not None
+    advice_suffix = (f"_advice_{st.session_state.get('lab_advice_generation', 0)}"
+                     if advice_context is not None else "")
     if built_in:
         # EPDE variants are a researcher option, not required for first-time users.
         # Keep the exact pre-existing variant and layered YAML semantics.
@@ -187,7 +189,15 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
         st.caption("General-purpose starting settings; adjust the budget below or open Advanced.")
 
     _profile_summary(base, context)
-    search = copy.deepcopy(base)
+    suggested = base
+    if advice_context is not None:
+        from support.discovery_lab.starting_settings import suggest_settings
+        from support.discovery_lab.advice_state import save_report
+        report = suggest_settings("epde", {"search": base}, advice_context,
+                                  hosted=not advice_context.get("heavy", False))
+        suggested = report["settings"]["search"]
+        save_report(st.session_state, f"epde:{record_name or 'data'}:{variant}", report)
+    search = copy.deepcopy(suggested)
     prep, sp, evo = (search.setdefault(k, {}) for k in (
         "preprocessing", "search_space", "evolution"))
     objectives = search.setdefault("objectives", {})
@@ -195,18 +205,13 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
     resource = search.setdefault("runtime", {})
 
     st.markdown("**Basic search settings**")
-    preset = st.segmented_control(
-        "Search budget",
-        ["Preset", "Quick", "Thorough", "Custom"],
-        default="Preset",
-        key=f"lab_budget_{source}_{record_name}_{variant}",
-        help="Preset is loaded from this equation's stored YAML. "
-             "Quick and Thorough change the number of candidates and epochs.",
-    ) or "Preset"
-    original_pop, original_epochs = int(evo.get("population_size", 16)), int(
-        evo.get("training_epochs", 5))
+    original_evo = base.get("evolution") or {}
+    original_pop, original_epochs = int(original_evo.get("population_size", 16)), int(
+        original_evo.get("training_epochs", 5))
     derived_budget = {
-        "Preset": (original_pop, original_epochs),
+        "Suggested": (int(evo.get("population_size", original_pop)),
+                      int(evo.get("training_epochs", original_epochs))),
+        "Default": (original_pop, original_epochs),
         "Quick": (max(4, original_pop // 2),
                                   max(2, original_epochs // 2)),
         "Thorough": (min(96, original_pop * 2),
@@ -215,6 +220,53 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
     }
     local_full = os.environ.get("EPDE_LOCAL_FULL_RUN") == "1"
     pop_limit, epoch_limit = (512, 200) if local_full else (96, 50)
+    budget_key = f"lab_budget_{source}_{record_name}_{variant}{advice_suffix}"
+    pop_key = f"lab_pop_{source}_{record_name}_{variant}{advice_suffix}"
+    epochs_key = f"lab_epochs_{source}_{record_name}_{variant}{advice_suffix}"
+    default_budget = "Suggested" if advice_context is not None else "Default"
+    options = (["Suggested"] if advice_context is not None else []) + [
+        "Default", "Quick", "Thorough", "Custom"]
+    # Preserve an in-progress session when upgrading the former Preset editor.
+    previous = st.session_state.get(budget_key)
+    saved = st.session_state.get("lab_widgets_saved", {})
+    for new_key in (pop_key, epochs_key):
+        old_key = f"{new_key}_{previous or 'Preset'}"
+        if new_key not in st.session_state:
+            if old_key in st.session_state:
+                st.session_state[new_key] = st.session_state[old_key]
+            elif old_key in saved:
+                st.session_state[new_key] = saved[old_key]
+    if previous is not None and previous not in options:
+        st.session_state[budget_key] = "Default" if previous == "Preset" else default_budget
+
+    def apply_budget():
+        selected = st.session_state.get(budget_key) or default_budget
+        mirror = st.session_state.setdefault("lab_widgets_saved", {})
+        mirror[budget_key] = selected
+        if selected != "Custom":
+            population, iterations = derived_budget[selected]
+            st.session_state[pop_key] = max(4, min(pop_limit, int(population)))
+            st.session_state[epochs_key] = max(1, min(epoch_limit, int(iterations)))
+        for key in (pop_key, epochs_key):
+            if key in st.session_state:
+                mirror[key] = st.session_state[key]
+
+    def keep_manual_budget():
+        st.session_state[budget_key] = "Custom"
+        mirror = st.session_state.setdefault("lab_widgets_saved", {})
+        mirror[budget_key] = "Custom"
+        for key in (pop_key, epochs_key):
+            if key in st.session_state:
+                mirror[key] = st.session_state[key]
+
+    preset = st.segmented_control(
+        "Search budget", options,
+        default=None if budget_key in st.session_state else default_budget, key=budget_key,
+        on_change=apply_budget,
+        help="Suggested adapts the starting budget to this input. Default uses the "
+             "saved equation profile (general defaults for new data). Quick and "
+             "Thorough change only candidates and epochs. Custom keeps your edits.",
+    ) or default_budget
     dpop, dep = derived_budget[preset]
     if not 4 <= int(dpop) <= pop_limit or not 1 <= int(dep) <= epoch_limit:
         st.warning(f"Budget exceeds the selected environment limits "
@@ -223,13 +275,13 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
         dpop, dep = max(4, min(pop_limit, int(dpop))), max(1, min(epoch_limit, int(dep)))
     a, b, c = st.columns(3)
     pop = a.number_input("Population / candidates", min_value=4, max_value=pop_limit,
-                         value=dpop, step=4, key=f"lab_pop_{source}_{record_name}_{variant}_{preset}")
+                         value=dpop, step=4, key=pop_key, on_change=keep_manual_budget)
     epochs = b.number_input("Evolution epochs", min_value=1, max_value=epoch_limit,
                             value=dep, step=1,
-                            key=f"lab_epochs_{source}_{record_name}_{variant}_{preset}")
+                            key=epochs_key, on_change=keep_manual_budget)
     terms = c.slider("Maximum terms in an equation", min_value=2, max_value=15,
                      value=min(15, int(sp.get("equation_terms_max_number", 10))),
-                     key=f"lab_terms_{source}_{record_name}_{variant}")
+                     key=f"lab_terms_{source}_{record_name}_{variant}{advice_suffix}")
     evo.update(population_size=int(pop), training_epochs=int(epochs))
     sp["equation_terms_max_number"] = int(terms)
 
@@ -241,7 +293,7 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
             now = st.segmented_control("Numerical derivatives", list(DERIVATIVES),
                                        default=current if current in DERIVATIVES else "FD",
                                        format_func=DERIVATIVES.get,
-                                       key=f"lab_diff_{source}_{record_name}_{variant}") or "FD"
+                                       key=f"lab_diff_{source}_{record_name}_{variant}{advice_suffix}") or "FD"
             if now != current:
                 prep["preprocessor_kwargs"] = {}
             prep["default_preprocessor_type"] = now
@@ -258,7 +310,7 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
                 label_axis = str(axes[i]) if i < len(axes) else ("t" if i == 0 else f"x{i}")
                 selected_orders.append(int(st.number_input(
                     f"Maximum derivative order on {label_axis}", 1, 6,
-                    min(6, int(order)), key=f"lab_order_{source}_{record_name}_{variant}_{i}")))
+                    min(6, int(order)), key=f"lab_order_{source}_{record_name}_{variant}_{i}{advice_suffix}")))
             prep["max_deriv_order"] = selected_orders
             if now == "poly":
                 kw = prep.get("preprocessor_kwargs") or {}
@@ -266,19 +318,19 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
                 default_degree = int(kw.get("poly_order") or max(3, max(selected_orders) + 1))
                 degree = a.number_input("Polynomial degree", min_value=1, max_value=12,
                                         value=min(12, default_degree),
-                                        key=f"lab_poly_deg_{source}_{record_name}_{variant}")
+                                        key=f"lab_poly_deg_{source}_{record_name}_{variant}{advice_suffix}")
                 old_win = int(kw.get("polynomial_window", 11))
                 opts = list(range(5, 34, 2))
                 window = b.select_slider("Polynomial window (odd samples)", options=opts,
                                          value=old_win if old_win in opts else 11,
-                                         key=f"lab_poly_win_{source}_{record_name}_{variant}")
+                                         key=f"lab_poly_win_{source}_{record_name}_{variant}{advice_suffix}")
                 prep["preprocessor_kwargs"] = polynomial_kwargs(
                     int(window), int(degree), selected_orders, shape)
             elif now != current:
                 prep["preprocessor_kwargs"] = {}
             width = domain.get("boundary_width", "auto")
             manual = st.checkbox("Specify boundary trimming explicitly", value=width != "auto",
-                                 key=f"lab_boundary_manual_{source}_{record_name}_{variant}")
+                                 key=f"lab_boundary_manual_{source}_{record_name}_{variant}{advice_suffix}")
             if manual:
                 current_widths = ((width if isinstance(width, (list, tuple))
                                    else [width] * len(shape)) if width != "auto"
@@ -286,7 +338,7 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
                 widths = [int(st.number_input(
                     f"Trim each side of axis {i}", min_value=0, max_value=max(0,(n-10)//2),
                     value=min(int(current_widths[i]), max(0,(n-10)//2)),
-                    key=f"lab_boundary_{source}_{record_name}_{variant}_{i}"))
+                    key=f"lab_boundary_{source}_{record_name}_{variant}_{i}{advice_suffix}"))
                     for i, n in enumerate(shape)]
                 domain["boundary_width"] = widths[0] if len(widths) == 1 else widths
             else:
@@ -299,15 +351,15 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
                            "limit of 4; the controls show their safely capped values.")
             sp["data_fun_pow"] = int(a.slider(
                 "Maximum field power", 1, 4, min(4, max(1, native_dp)),
-                key=f"lab_data_power_{source}_{record_name}_{variant}"))
+                key=f"lab_data_power_{source}_{record_name}_{variant}{advice_suffix}"))
             sp["deriv_fun_pow"] = int(b.slider(
                 "Maximum derivative power", 1, 4, min(4, max(1, native_derp)),
-                key=f"lab_deriv_power_{source}_{record_name}_{variant}"))
+                key=f"lab_deriv_power_{source}_{record_name}_{variant}{advice_suffix}"))
             old_factors = sp.get("equation_factors_max_number", 1)
             allow_products = (max(old_factors.get("factors_num", [1])) >= 2 if
                               isinstance(old_factors, dict) else old_factors >= 2)
             products = c.checkbox("Allow products of 2 factors", value=allow_products,
-                                  key=f"lab_products_{source}_{record_name}_{variant}")
+                                  key=f"lab_products_{source}_{record_name}_{variant}{advice_suffix}")
             if products:
                 sp["equation_factors_max_number"] = (
                     old_factors if isinstance(old_factors, dict) and allow_products
@@ -321,7 +373,7 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
                 has_inverse = any(x.get("family") == "inverse_space_coordinate" for x in tokens)
                 inverse = st.checkbox("Include 1/x token (requires x≠0)",
                                       value=has_inverse,
-                                      key=f"lab_inverse_{source}_{record_name}_{variant}")
+                                      key=f"lab_inverse_{source}_{record_name}_{variant}{advice_suffix}")
                 if inverse != has_inverse:
                     if inverse:
                         tokens.append({"family": "inverse_space_coordinate", "axis": 1})
@@ -348,11 +400,11 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
                 if len(values) <= 7:
                     objectives[field] = col.pills(
                         title, values, default=current, selection_mode="single",
-                        key=f"lab_obj_{field}_{source}_{record_name}_{variant}") or current
+                        key=f"lab_obj_{field}_{source}_{record_name}_{variant}{advice_suffix}") or current
                 else:
                     objectives[field] = col.selectbox(
                         title, values, index=values.index(current),
-                        key=f"lab_obj_{field}_{source}_{record_name}_{variant}")
+                        key=f"lab_obj_{field}_{source}_{record_name}_{variant}{advice_suffix}")
             values = list(SPARSITY_REGISTRY)
             current = objectives.get("sparsity_cls", defaults["sparsity_cls"])
             if current not in values:
@@ -360,11 +412,11 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
             if len(values) <= 7:
                 objectives["sparsity_cls"] = b.pills(
                     "Sparsity operator", values, default=current, selection_mode="single",
-                    key=f"lab_sparsity_{source}_{record_name}_{variant}") or current
+                    key=f"lab_sparsity_{source}_{record_name}_{variant}{advice_suffix}") or current
             else:
                 objectives["sparsity_cls"] = b.selectbox(
                     "Sparsity operator", values, index=values.index(current),
-                    key=f"lab_sparsity_{source}_{record_name}_{variant}")
+                    key=f"lab_sparsity_{source}_{record_name}_{variant}{advice_suffix}")
             cache_pct = float(resource.get("memory_for_cache", 2))
             cache_limit = 16.0 if local_full else 4.0
             if not 1 <= cache_pct <= cache_limit:
@@ -373,7 +425,7 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
             resource["memory_for_cache"] = float(st.number_input(
                 "EPDE tensor cache: % of host RAM", 1.0, cache_limit,
                 value=max(1.0, min(cache_limit, cache_pct)),
-                step=1.0, key=f"lab_cache_{source}_{record_name}_{variant}"))
+                step=1.0, key=f"lab_cache_{source}_{record_name}_{variant}{advice_suffix}"))
             st.caption("Custom Python operator implementations and solver-based "
                        "fitness are not part of this interactive search interface.")
 
@@ -383,7 +435,8 @@ def render_settings(*, record_name, problem, arrays, space, source, methods,
                    "validated declarative patch; no scripts are executed.")
         uploaded = st.file_uploader("Import search-only YAML overrides",
                                     type=["yml", "yaml"],
-                                    key=f"lab_yaml_{source}_{record_name}_{variant}")
+                                    key=f"lab_yaml_{source}_{record_name}_{variant}_"
+                                        f"{st.session_state.get('lab_advice_generation', 0)}")
         if uploaded is not None:
             patch = parse_search_yaml(uploaded.getvalue())["search"]
             if set(patch) - {"domain", "preprocessing", "search_space",

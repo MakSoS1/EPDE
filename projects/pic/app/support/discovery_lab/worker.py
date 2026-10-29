@@ -475,6 +475,10 @@ def main(folder):
         record = contract.normalize({"status": "error", "error": f"{type(exc).__name__}: method execution failed"}, method)
         print(traceback.format_exc(), file=sys.stderr)
     record["wall_seconds"] = round(time.perf_counter()-start, 4)
+    if job.get("starting_suggestions"):
+        # Advice is descriptive provenance. Effective scientific settings stay
+        # in the run config/identity and may include subsequent manual edits.
+        record["starting_suggestions"] = _sanitize(job["starting_suggestions"])
     # Save the search result before the (possibly slow) evaluation: if the time
     # limit stops the evaluation, the discovered equations are not lost.
     queue._write(folder / "result.json", record)

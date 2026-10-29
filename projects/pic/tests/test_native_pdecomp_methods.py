@@ -281,14 +281,20 @@ class NativeConfiguration(unittest.TestCase):
             app.run()
             app.button(key='lab_next_data').click().run()
             self.assertFalse(app.exception)
-            self.assertEqual(app.number_input(key='lab_deepmod_nir1_heat_native_learning_rate').proto.format, '%g')
-            self.assertEqual(app.number_input(key='lab_deepmod_nir1_heat_native_max_iterations').value, 250)
-            self.assertEqual(app.number_input(key='lab_deepmod_nir1_heat_native_max_samples').value, 1000)
-            next(b for b in app.get('button_group') if b.key == 'lab_deepmod_nir1_heat_native_budget').set_value('PDEComp profile').run()
-            self.assertEqual(app.number_input(key='lab_deepmod_nir1_heat_native_max_iterations').value, 5000)
-            next(b for b in app.get('button_group') if b.key == 'lab_deepmod_nir1_heat_native_budget').set_value('Quick demo').run()
-            self.assertEqual(app.number_input(key='lab_deepmod_nir1_heat_native_max_iterations').value, 250)
-            app.number_input(key='lab_deepmod_nir1_heat_native_max_iterations').set_value(25).run()
+            def control(label):
+                return next(item for item in app.number_input if item.label == label)
+            def budget():
+                return next(item for item in app.get('button_group')
+                            if item.key.startswith('lab_deepmod_nir1_heat_native_')
+                            and item.key.endswith('_budget'))
+            self.assertEqual(control('Learning rate').proto.format, '%g')
+            self.assertEqual(control('Training iterations').value, 250)
+            self.assertEqual(control('Maximum training samples').value, 1000)
+            budget().set_value('PDEComp profile').run()
+            self.assertEqual(control('Training iterations').value, 5000)
+            budget().set_value('Quick demo').run()
+            self.assertEqual(control('Training iterations').value, 250)
+            control('Training iterations').set_value(25).run()
             app.button(key='lab_next_settings').click().run()
             self.assertFalse(app.exception)
             configuration = app.session_state['lab_draft_config']['extra_settings']
@@ -296,7 +302,7 @@ class NativeConfiguration(unittest.TestCase):
             self.assertEqual(configuration['discover']['protocol'], 'native')
             self.assertEqual(configuration['deepmod']['overrides']['max_iterations'], 25)
             app.button(key='lab_back_settings').click().run()
-            self.assertEqual(app.number_input(key='lab_deepmod_nir1_heat_native_max_iterations').value, 25)
+            self.assertEqual(control('Training iterations').value, 25)
 
 
 @unittest.skipUnless(os.environ.get('EPDE_TEST_NATIVE_METHODS') == '1', 'real NN/RNN smoke is opt-in')

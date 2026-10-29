@@ -1,9 +1,7 @@
-"""Equation Discovery Lab: run EPDE, PySINDy (and later an LLM agent) on the same
-input and look at the results side by side.
+"""Configure EPDE, PySINDy, DeepMoD and DISCOVER on the same numerical input.
 
-The page never ranks methods: their selection rules and criteria differ. It
-shows, for every run, the equation, its candidates, how its solution compares
-with the data and, when the law is known, whether it was found.
+Fast editable starting suggestions preserve each method's scientific meaning.
+Results and Compare explain recovery, reconstruction and execution separately.
 """
 from __future__ import annotations
 
@@ -133,7 +131,7 @@ def example_files():
 # preserved as validated arrays in lab_draft_input.
 _WIZARD_READONLY_PREFIXES = (
     "lab_yaml_", "lab_export_", "lab_next_", "lab_back_",
-    "heavy_export_", "heavy_supported_method_", "native_advanced_",
+    "heavy_export_", "heavy_supported_method_", "native_advanced_", "lab_advice_",
 )
 _WIZARD_READONLY_KEYS = {"lab_start", "lab_new_experiment"}
 _WIZARD_INTERNAL_KEYS = {
@@ -252,7 +250,7 @@ with main_col:
                 st.session_state["lab_builtin_group"] = default_group
             st.caption("Filter the full registry or type an equation name.")
             group = st.pills(
-                "Dataset group", list(groups), default=default_group,
+                "Dataset group", list(groups),
                 selection_mode="single",
                 format_func=lambda x: group_labels.get(x, x),
                 key="lab_builtin_group",
@@ -341,22 +339,14 @@ with main_col:
                                                       help="Seeds start at the seed above."))
                     series_noise = d.multiselect("Also at noise, %", [0.0, 0.5, 1.0, 2.0, 5.0, 10.0],
                                                  key="lab_series_noise_" + record_name)
-        from support.discovery_lab.pysindy_method import shape_of_arrays, unsupported as sindy_unsupported
-        sindy_reason = None
-        if "pdecomp" in methods and (record_name or arrays is not None):
-            sindy_reason = (sindy_unsupported(record_name) if record_name
-                            else sindy_unsupported(None, *shape_of_arrays(arrays)))
-            if sindy_reason and not is_heavy:
-                st.warning("PySINDy cannot run on these data: " + sindy_reason +
-                           ". Deselect PySINDy or choose other data.")
         elif source == "Generate an ODE":
             st.caption("Type the right-hand side of du/dt = f(t, u). Allowed: t, u, numbers, + − * / **, "
                        "sin, cos, tanh. The expression is parsed, never executed as code.")
-            expression = st.text_input("du/dt =", value="-0.5*u + sin(t)")
+            expression = st.text_input("du/dt =", value="-0.5*u + sin(t)", key="lab_ode_rhs")
             a, b, c = st.columns(3)
-            horizon = a.number_input("End time", 1.0, 30.0, 10.0)
-            u0 = b.number_input("u(0)", -10.0, 10.0, 1.0)
-            count = c.number_input("Samples", 60, 3000, 301, step=20)
+            horizon = a.number_input("End time", 1.0, 30.0, 10.0, key="lab_ode_horizon")
+            u0 = b.number_input("u(0)", -10.0, 10.0, 1.0, key="lab_ode_initial")
+            count = c.number_input("Samples", 60, 3000, 301, step=20, key="lab_ode_samples")
             try:
                 compile_rhs(expression)
                 arrays = generate(expression, horizon, u0, int(count))
@@ -421,6 +411,14 @@ with main_col:
                                         help="Usually 0 for measured data.")
 
 
+        from support.discovery_lab.pysindy_method import shape_of_arrays, unsupported as sindy_unsupported
+        sindy_reason = None
+        if "pdecomp" in methods and (record_name or arrays is not None):
+            sindy_reason = (sindy_unsupported(record_name) if record_name
+                            else sindy_unsupported(None, *shape_of_arrays(arrays)))
+            if sindy_reason and not is_heavy:
+                st.warning("PySINDy cannot run on these data: " + sindy_reason +
+                           ". Deselect PySINDy or choose other data.")
         input_ready = bool(methods) and (record_name is not None or arrays is not None)
         if "pdecomp" in methods and sindy_reason and not is_heavy:
             input_ready = False
@@ -474,11 +472,32 @@ with main_col:
                 original_profile.get("loader", {}), sort_keys=True))
         if wizard_stage == 2:
             step(2, "Configure method settings")
-            st.caption("Start with the recommended profile. Each method keeps its own scientific settings.")
+            from support.discovery_lab.starting_settings import summarize_input
+            from support.discovery_lab.advice_state import prepare_context, request_suggestions
+            advice_context = summarize_input(
+                record_name=record_name, problem=problem if record_name and not is_heavy else None,
+                arrays=arrays, noise_percent=noise, heavy=is_heavy)
+            # Exclude the reference law, method selection and optimizer seed:
+            # adding a method or repeating a seed must preserve existing edits.
+            context_key = hashlib.sha256(json.dumps({
+                "source": source, "record": record_name,
+                "loader": original_profile.get("loader", {}) if record_name and not is_heavy else {},
+                "numerical_input": arrays_digest(arrays) if arrays is not None else None,
+                "space": space, "noise": noise, "geometry": advice_context,
+            }, sort_keys=True, allow_nan=False).encode()).hexdigest()
+            prepare_context(st.session_state, context_key)
+            st.session_state["lab_advice_reports"] = {}
+            st.caption("Suggested settings use the data size, declared noise and each method's profile. "
+                       "Edit any value; your changes stay in place until you ask for a new suggestion.")
+            st.button("Suggest settings", icon=":material/auto_awesome:",
+                      key="lab_advice_apply",
+                      help="Replace editable settings with fresh suggestions. Keeps the selected "
+                           "profile, protocol and target derivative; clears imported settings YAML.",
+                      on_click=lambda: request_suggestions(st.session_state))
             from support.discovery_lab.lab_settings import render_settings
             from support.discovery_lab import pysindy_method
 
-            variant, overrides, settings, selected_budget = "default", {}, None, "Preset"
+            variant, overrides, settings, selected_budget = "default", {}, None, "Suggested"
             sindy_settings = None
             extra_settings = {}
             settings_valid = True
@@ -494,13 +513,14 @@ with main_col:
                     record_name=record_name, problem=problem if record_name else None,
                     arrays=arrays, space=space, source=source, methods=["epde"],
                     noise=noise, seed=seed, label=label, origin=origin, reference=reference,
+                    advice_context=advice_context,
                 )
 
 
             def sindy_editor():
                 return pysindy_method.render_settings(
                     record_name=record_name, problem=problem if record_name else None,
-                    arrays=arrays, source=source)
+                    arrays=arrays, source=source, advice_context=advice_context)
 
 
             try:
@@ -512,11 +532,12 @@ with main_col:
                     for m, panel in zip(native_methods, panels):
                         with panel:
                             if m == "epde":
-                                candidate = render_heavy_epde(record_name)
+                                candidate = render_heavy_epde(record_name, advice_context=advice_context)
                             elif m == "pdecomp":
-                                candidate = render_heavy_sindy(record_name)
+                                candidate = render_heavy_sindy(record_name, advice_context=advice_context)
                             else:
-                                candidate = extra_ui.render_settings(m, record_name=record_name, heavy=True)
+                                candidate = extra_ui.render_settings(m, record_name=record_name, heavy=True,
+                                                                     advice_context=advice_context)
                             if candidate is None:
                                 settings_valid = False
                             else:
@@ -539,7 +560,7 @@ with main_col:
                                 from support.discovery_lab import pdecomp_methods as extra_ui
                                 extra_settings[m] = extra_ui.render_settings(
                                     m, record_name=record_name, problem=problem if record_name else None,
-                                    arrays=arrays, source=source)
+                                    arrays=arrays, source=source, advice_context=advice_context)
                                 if extra_settings[m] is None:
                                     settings_valid = False
                 elif "llm" in methods:
@@ -551,12 +572,27 @@ with main_col:
                 settings_valid = False
 
             budget_code = {
-                "Preset": "standard",
+                "Suggested": "standard",
+                "Default": "standard",
                 "Quick": "quick",
                 "Thorough": "thorough",
                 "Custom": "custom",
             }.get(selected_budget, "standard")
 
+            advice_reports = st.session_state.get("lab_advice_reports", {})
+            if advice_reports:
+                with st.expander("Why these starting settings?"):
+                    st.caption("Instant profile and input rules; no training runs are launched. "
+                               "A suggested budget does not guarantee the best equation. "
+                               "The review screen contains your final edited values.")
+                    for report in advice_reports.values():
+                        st.markdown("**" + METHOD_LABELS.get(report["method"], report["method"])
+                                    + " · " + report.get("protocol", "native") + "**")
+                        for reason in report["reasons"]:
+                            st.write("• " + reason)
+            # Preserve edits on ordinary reruns, including protocol/budget
+            # changes that temporarily remove another method's controls.
+            _save_wizard_widgets()
 
             controls = st.columns([1, 2])
             with controls[0]:
@@ -575,7 +611,7 @@ with main_col:
                         variant=variant, overrides=overrides, settings=settings,
                         selected_budget=selected_budget, sindy_settings=sindy_settings, extra_settings=extra_settings,
                         heavy_methods=heavy_methods, settings_valid=settings_valid,
-                        budget_code=budget_code,
+                        budget_code=budget_code, starting_suggestions=advice_reports,
                     )
                     st.session_state["lab_confirm_science"] = False
                     st.session_state.pop("lab_started_jobs", None)
@@ -595,6 +631,7 @@ with main_col:
             heavy_methods = config["heavy_methods"]
             settings_valid = config["settings_valid"]
             budget_code = config["budget_code"]
+            advice_reports = config.get("starting_suggestions", {})
 
             st.markdown("**Selected input and execution**")
             st.write("**Dataset:**", label or record_name or source)
@@ -828,6 +865,10 @@ with main_col:
                             "display": {"label": label, "input_key": key},
                         } for m in methods]
                     # A joint capacity check avoids partially submitting paired runs.
+                    for req in requests:
+                        req["starting_suggestions"] = [
+                            report for report in advice_reports.values()
+                            if report["method"] == req["method"]]
                     for m in methods:
                         queue.check_capacity(owner, m, count=len(requests))
                     ids = [queue.submit(owner, req) for req in requests]

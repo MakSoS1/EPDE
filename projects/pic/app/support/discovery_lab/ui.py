@@ -45,12 +45,19 @@ def method_label(record):
         if protocol:
             label += f" · {protocol} protocol"
     return label
-EFFORT_NAMES = {"quick": "quick", "standard": "standard", "thorough": "thorough"}
+EFFORT_NAMES = {"quick": "quick", "standard": "standard", "thorough": "thorough",
+                "custom": "custom"}
 
 
 def budget_label(job, record=None):
     record = record or {}
     method = record.get('method') or job.get('method')
+    if method == 'epde':
+        search = record.get('search_config') or (record.get('config') or {}).get('search') or {}
+        evolution = search.get('evolution') or {}
+        population, epochs = evolution.get('population_size'), evolution.get('training_epochs')
+        if type(population) is int and type(epochs) is int and population > 0 and epochs > 0:
+            return f"{population} candidates × {epochs} epoch{'s' if epochs != 1 else ''}"
     settings = (record.get('baseline') or {}).get('settings') or {}
     if method == 'deepmod' and settings.get('max_iterations') is not None:
         return f"{settings['max_iterations']} training iterations"

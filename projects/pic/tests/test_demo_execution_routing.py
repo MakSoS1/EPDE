@@ -66,7 +66,12 @@ class HostedResourcePolicyTests(unittest.TestCase):
         self.assertIn("elif st.button(", lab)
         self.assertIn("make_manifest(record_name", lab)
         self.assertIn("data=bundle_bytes(manifest)", lab)
-        self.assertIn("render_heavy_epde(record_name)", lab)
+        heavy_calls = [node for node in ast.walk(ast.parse(lab))
+                       if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                       and node.func.id == "render_heavy_epde"]
+        self.assertEqual(len(heavy_calls), 1)
+        self.assertIsInstance(heavy_calls[0].args[0], ast.Name)
+        self.assertEqual(heavy_calls[0].args[0].id, "record_name")
         self.assertIn('st.session_state.setdefault("lab_discovery_methods", ["epde", "pdecomp"])', lab)
         self.assertNotIn("lab_execution_location", lab)
         self.assertIn('"Dataset group"', lab)

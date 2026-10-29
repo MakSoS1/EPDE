@@ -14,6 +14,7 @@ const page = await browser.newPage({viewport: {width: 1440, height: 1000}});
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
 const owner = process.env.NATIVE_UI_SESSION || randomBytes(24).toString('hex');
+await fs.writeFile(path.join(OUTPUT, 'session.txt'), owner);
 const group = label => page.locator('[data-testid="stButtonGroup"]:visible').filter({hasText: label});
 async function settled() {
   await page.waitForTimeout(700);
@@ -55,6 +56,19 @@ try {
   await screenshot('01-input-desktop');
   await click(page.getByRole('button',{name:/Next: configure methods/}));
   await page.getByRole('tab',{name:/DeepMoD/}).waitFor({timeout:90000});
+  await page.getByRole('button',{name:/Suggest settings$/}).waitFor();
+  if (ALL_METHODS) {
+    const budget = group('Search budget');
+    if (!await budget.getByText('Suggested',{exact:true}).isVisible()
+        || !await budget.getByText('Default',{exact:true}).isVisible())
+      throw Error('Suggested and Default budgets are not available');
+    const suggestedPopulation = await page.getByRole('spinbutton',{name:'Population / candidates',exact:true}).inputValue();
+    await number('Population / candidates',suggestedPopulation === '20' ? 16 : 20);
+    await click(page.getByRole('button',{name:/Suggest settings$/}));
+    if (await page.getByRole('spinbutton',{name:'Population / candidates',exact:true}).inputValue() !== suggestedPopulation)
+      throw Error('Explicit suggestion did not replace the edited budget');
+    console.log('STARTING_SETTINGS_REAPPLIED');
+  }
   if (ALL_METHODS) {
     await number('Population / candidates',4);
     await number('Evolution epochs',1);
@@ -75,6 +89,10 @@ try {
   await screenshot('04-discover-native-dark');
   await page.setViewportSize({width:390,height:844});
   await screenshot('05-settings-mobile-dark');
+  if (ALL_METHODS) {
+    await click(page.getByRole('tab',{name:/EPDE.*Evolution/}));
+    await screenshot('05b-epde-budget-mobile-dark');
+  }
   await page.setViewportSize({width:1440,height:1000});
   await click(group('Appearance').getByText('Light',{exact:true}));
   await click(page.getByRole('button',{name:/Next: review configuration/}));
@@ -109,6 +127,9 @@ try {
       throw Error('Scientific failure: ' + JSON.stringify({method:job.method,state:job.state,error:record.error}));
     if ((job.method !== 'epde' && record.baseline?.protocol !== 'native') || !record.selected?.length)
       throw Error('Missing native equation: ' + job.method);
+    if (!process.env.NATIVE_UI_SESSION && !record.starting_suggestions?.some(item=>item.method === job.method
+        && item.version === 'starting-settings-v1'))
+      throw Error('Missing saved starting-settings provenance: ' + job.method);
     const dependencies = record.identity?.dependencies;
     if (dependencies?.torch?.split('+')[0] !== '2.9.0')
       throw Error('Worker did not use the pinned PyTorch environment: ' + JSON.stringify(dependencies));
@@ -132,7 +153,9 @@ try {
   }
   await click(page.getByRole('link',{name:/Compare$/}).first());
   if (ALL_METHODS) {
-    for (const name of ['EPDE', 'PySINDy']) {
+    for (const name of ['EPDE', 'PySINDy', 'DeepMoD', 'DISCOVER']) {
+      const current = await page.locator('[data-testid="stMultiSelect"]').innerText();
+      if (current.includes(name + ' · ')) continue;
       const select = page.locator('[data-testid="stMultiSelect"]').getByRole('combobox');
       await select.click();
       await select.fill(name);
@@ -145,9 +168,24 @@ try {
     await page.keyboard.press('Escape');
     await page.getByRole('heading',{name:'Compare',exact:true}).click();
   }
+  await click(page.getByRole('tab',{name:'Insights',exact:true}));
+  await page.getByRole('heading',{name:'What these runs show',exact:true})
+    .evaluate(element=>element.scrollIntoView({block:'start'}));
+  await screenshot('10-compare-insights');
+  const insights = await page.getByRole('tabpanel',{name:'Insights',exact:true}).innerText();
+  for (const name of (ALL_METHODS ? ['EPDE','PySINDy','DeepMoD','DISCOVER'] : ['DeepMoD','DISCOVER'])) {
+    if (!insights.includes(name)) throw Error('Insights omit selected method: ' + name);
+  }
+  if (!/next|improv|try|check/i.test(insights)) throw Error('Comparison has no actionable next steps');
+  await page.getByRole('heading',{name:'What to improve next',exact:true})
+    .evaluate(element=>element.scrollIntoView({block:'start'}));
+  await screenshot('10c-compare-next-steps');
+  console.log('FOUR_METHOD_COMPARISON_INSIGHTS');
+  await click(page.getByRole('tab',{name:'Equations',exact:true}));
   await screenshot('10-compare-equations');
   if (ALL_METHODS) {
-    await page.getByText('PySINDy · native protocol',{exact:true}).scrollIntoViewIfNeeded();
+    await page.getByRole('tabpanel',{name:'Equations',exact:true})
+      .getByText('PySINDy · native protocol',{exact:true}).scrollIntoViewIfNeeded();
     await screenshot('10b-compare-second-row');
   }
   for (const name of ['Metrics','Solution fit','Equation balance']) {
@@ -155,6 +193,10 @@ try {
     await screenshot('11-compare-' + name.toLowerCase().replaceAll(' ','-'));
   }
   await page.setViewportSize({width:390,height:844});
+  await click(page.getByRole('tab',{name:'Insights',exact:true}));
+  await page.getByRole('heading',{name:'What these runs show',exact:true})
+    .evaluate(element=>element.scrollIntoView({block:'start'}));
+  await screenshot('12-compare-insights-mobile');
   await click(page.getByRole('tab',{name:'Equations',exact:true}));
   await screenshot('12-compare-mobile');
   await page.reload();

@@ -61,7 +61,9 @@ available or every method supports that equation.
    **DISCOVER**, then a built-in equation, uploaded data or a generated ODE,
    with shared noise and seed settings.
 2. **Settings:** adjust each selected method's scientific controls and
-   protocol. Dataset-specific presets are prefilled where available.
+   protocol. **Suggested** starts from its profile and adapts resource settings
+   to the input. **Default** restores EPDE's saved budget; the sparkle
+   **Suggest settings** button reapplies editable starting suggestions.
 3. **Review & run:** inspect the effective scientific YAML for each method,
    confirm the configuration, then start a supported hosted search or prepare
    a portable experiment for a heavy equation.
@@ -95,6 +97,11 @@ portable workflow when a matching repository revision is available:
 3. Upload the resulting **experiment-results.zip** on **Results**. **Compare**
    groups runs only when their input data, scientific source, loader settings,
    noise and seed identities match.
+
+**Compare → Insights** explains metric-specific leaders and useful next steps
+for all four methods. It separates selected-equation recovery, reconstruction,
+held-out evaluation and runtime, and states when a comparison is unavailable.
+Internal objectives and unavailable scores do not produce an overall ranking.
 
 **Export availability must be checked on the deployed site.** A passing CI
 build does not establish that the public download path is working. If the

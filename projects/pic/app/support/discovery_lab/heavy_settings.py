@@ -11,9 +11,17 @@ import streamlit as st
 from epde_bench.config import load_config
 
 
-def render_heavy_epde(name):
+def render_heavy_epde(name, advice_context=None):
+    advice_suffix = (f"_advice_{st.session_state.get('lab_advice_generation', 0)}"
+                     if advice_context is not None else "")
     cfg = load_config(name, "default")
     search = copy.deepcopy(cfg["search"])
+    if advice_context is not None:
+        from support.discovery_lab.starting_settings import suggest_settings
+        from support.discovery_lab.advice_state import save_report
+        report = suggest_settings("epde", {"search": search}, advice_context, hosted=False)
+        search = report["settings"]["search"]
+        save_report(st.session_state, f"epde:{name}:default", report)
     evo = search.setdefault("evolution", {})
     sp = search.setdefault("search_space", {})
     st.caption("Original EPDE pipeline; its native worker will load the full dataset.")
@@ -21,20 +29,20 @@ def render_heavy_epde(name):
     evo["population_size"] = int(a.number_input(
         "Population / candidates", 4, 512,
         value=min(512, max(4, int(evo.get("population_size", 16)))), step=4,
-        key="portable_epde_population_" + name))
+        key="portable_epde_population_" + name + advice_suffix))
     evo["training_epochs"] = int(b.number_input(
         "Evolution epochs", 1, 200,
         value=min(200, max(1, int(evo.get("training_epochs", 5)))),
-        key="portable_epde_epochs_" + name))
+        key="portable_epde_epochs_" + name + advice_suffix))
     sp["equation_terms_max_number"] = int(c.number_input(
         "Maximum terms", 2, 15,
         value=min(15, max(2, int(sp.get("equation_terms_max_number", 10)))),
-        key="portable_epde_terms_" + name))
+        key="portable_epde_terms_" + name + advice_suffix))
     st.caption("The complete dataset-specific EPDE YAML is shown on the review screen.")
     return {"method": "epde", "variant": "default", "overrides": {"search": search}}
 
 
-def render_heavy_pysindy(name):
+def render_heavy_pysindy(name, advice_context=None):
     """PySINDy as the PDEComp benchmark runs it, for a record computed locally."""
     from epde_bench import pdecomp
     from epde_bench.datasets import REGISTRY
@@ -51,7 +59,7 @@ def render_heavy_pysindy(name):
     st.caption("PDEComp's own PySINDy code; the settings start from "
                + ("PDEComp's settings for this dataset." if pdecomp.supported(name)
                   else "PDEComp's native defaults."))
-    changes = settings_editor(name, protocol, "heavy_" + name)
+    changes = settings_editor(name, protocol, "heavy_" + name, advice_context=advice_context)
     return {"method": "pdecomp", "variant": f"pysindy_pdecomp_{protocol}",
             "overrides": {"pdecomp": {"overrides": changes}} if changes else {}}
 

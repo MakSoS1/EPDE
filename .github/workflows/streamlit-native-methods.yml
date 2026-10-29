@@ -27,9 +27,13 @@ concurrency:
 
 jobs:
   cloud-requirements:
-    name: Four methods with exact Community Cloud requirements
+    name: Four methods with exact Community Cloud requirements (Python ${{ matrix.python-version }})
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.12', '3.13']
     env:
       PYTHONPATH: '.:projects/pic:projects/pic/app'
       EPDE_TEST_NATIVE_METHODS: '1'
@@ -42,11 +46,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: ${{ matrix.python-version }}
       - uses: astral-sh/setup-uv@v6
       - name: Install the website requirements independently of uv.lock
         run: |
-          uv venv projects/pic/.venv --python 3.12
+          uv venv projects/pic/.venv --python '${{ matrix.python-version }}'
           # Match pip's selection across the official PyPI and PyTorch indexes.
           uv pip install --python projects/pic/.venv/bin/python \
             --index-strategy unsafe-best-match -r projects/pic/app/requirements.txt pytest
@@ -59,11 +63,16 @@ jobs:
             projects/pic/tests/test_pdecomp_protocol.py \
             projects/pic/tests/test_library_regressions.py \
             projects/pic/tests/test_viewer_records.py \
+            projects/pic/tests/test_starting_settings.py \
+            projects/pic/tests/test_starting_settings_wizard.py \
+            projects/pic/tests/test_advised_editors.py \
+            projects/pic/tests/test_starting_evidence.py \
+            projects/pic/tests/test_comparison_insights.py \
             2>&1 | tee "$RUNNER_TEMP/cloud-native-methods.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: exact-cloud-native-methods
+          name: exact-cloud-native-methods-python-${{ matrix.python-version }}
           path: ${{ runner.temp }}/cloud-native-methods.log
 
   native-cpu:
