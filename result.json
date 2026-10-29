@@ -1,0 +1,10 @@
+{
+  "revision": "3031a97504fa4f036ffbeac638b8a1d76b660f02",
+  "run_id": 40829258041,
+  "timestamp": "2026-10-29T06:27:43.355693+00:00",
+  "dependencies": "success",
+  "public_browser": "success",
+  "verified": true,
+  "url": "https://raw.githack.com/MakSoS1/EPDE/3031a97504fa4f036ffbeac638b8a1d76b660f02/projects/pic/browser_demo/index.html",
+  "log": "\n> smoke\n> node smoke.mjs\n\nWaiting for real official PySINDy cold-start in browser (CDN+Pyodide)...\nPASS: genuine PySINDy native library executing inside Chromium WebAssembly.\nPASS: measured in-browser EPDE/PyTorch/subprocess limits: {\"platform\":\"emscripten\",\"torch_importable\":false,\"epde_importable\":false,\"native_subprocess\":false,\"subprocess_reason\":\"OSError\"}\nPASS: result persisted through browser refresh.\nPASS: identical-data comparison works and distinguishes EvoSparse from EPDE.\nPASS: external CDN preview retains original LikeC4 model link (interactive bundle not promised).\nPASS: compact hosted-website PySINDy embedding keeps browser-local Results.\nBROWSER_SMOKE_PASS\n"
+}
