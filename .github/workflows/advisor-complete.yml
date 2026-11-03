@@ -1,0 +1,111 @@
+name: Complete CatBoost advisor and public gallery
+on:
+  push:
+    branches: [feat/catboost-advisor-public-results]
+    paths: [.github/workflows/advisor-complete.yml]
+permissions:
+  contents: write
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .:projects/pic:projects/pic/app
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      TF_NUM_INTRAOP_THREADS: '1'
+      TF_NUM_INTEROP_THREADS: '1'
+      STREAMLIT_BROWSER_GATHER_USAGE_STATS: 'false'
+      EPDE_TEST_NATIVE_METHODS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          artifact-ids: '13247565424'
+          run-id: 41667264588
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/tested
+      - name: Restore the exact scientifically tested source and fix icon-bearing locators
+        run: |
+          python3 - <<'PY'
+          import hashlib,os,pathlib,tarfile,subprocess
+          archive=next(pathlib.Path(os.environ['RUNNER_TEMP'],'tested').rglob('advisor-publish-source.tar.gz'))
+          assert hashlib.sha256(archive.read_bytes()).hexdigest()=='ad8adc0939f7680671812e0be5a86dc2638caa928ce1c0cea1b660758f51e8d6'
+          with tarfile.open(archive) as tar:
+              members=[m for m in tar.getmembers() if m.isfile() and '__pycache__' not in m.name and not m.name.endswith('.pyc')]
+              for m in members:
+                  name=pathlib.PurePosixPath(m.name)
+                  assert not name.is_absolute() and '..' not in name.parts and '.git' not in name.parts
+              tar.extractall('.',members=members,filter='data')
+          p=pathlib.Path('projects/pic/browser_demo/smoke_public_results.mjs');s=p.read_text()
+          for label in ['Compare this example','Try this dataset in Lab','Delete this result']:
+              old="name:'"+label+"',exact:true"
+              assert old in s
+              s=s.replace(old,'name:/'+label+'$/')
+          s=s.replace("}finally{await browser.close();}","}catch(error){await page.screenshot({path:out+'/failure.png',fullPage:true}).catch(()=>{}); console.error('PUBLIC_EXAMPLE_ACTIONS',await app.getByRole('button').allTextContents().catch(()=>[])); throw error;}finally{await browser.close();}")
+          p.write_text(s)
+          files=subprocess.check_output(['git','ls-files','.github/advisor-*.b64','.github/workflows/advisor-*.yml'],text=True).splitlines()
+          files=[p for p in files if p!='.github/workflows/advisor-campaign.yml']
+          if files:subprocess.run(['git','rm','-f','--',*files],check=True)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add README.md docs/superpowers projects/pic/README.md projects/pic/app projects/pic/scripts projects/pic/tests projects/pic/browser_demo projects/pic/experiments/advisor_v1 projects/pic/public_results .github/workflows
+          git diff --cached --check
+          git commit -m 'feat(explorer): trained CatBoost recommendations and read-only public examples'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+      - name: Install exact CPU environment
+        run: |
+          uv sync --project projects/pic --extra cpu --extra app --locked
+          uv pip install --python projects/pic/.venv/bin/python catboost==1.2.8 pytest
+      - name: Scientific and application regressions
+        run: |
+          set -o pipefail
+          projects/pic/.venv/bin/python -m pytest -q projects/pic/tests 2>&1 | tee "$RUNNER_TEMP/advisor-complete-tests.log"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Chromium and check scripts
+        working-directory: projects/pic/browser_demo
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          node --check smoke_public_results.mjs
+          node test_starting_provenance.mjs
+      - name: Start actual application
+        run: |
+          projects/pic/.venv/bin/python -m streamlit run projects/pic/app/Home.py --server.headless=true --browser.gatherUsageStats=false > "$RUNNER_TEMP/advisor-complete-server.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/advisor-complete.pid"
+          for n in $(seq 1 45); do
+            curl --fail --silent http://127.0.0.1:8501/_stcore/health && exit 0
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/advisor-complete-server.log"; exit 1
+      - name: Public results, four-method Compare, mobile and isolated private results
+        working-directory: projects/pic/browser_demo
+        run: |
+          set -o pipefail
+          node smoke_public_results.mjs 2>&1 | tee "$RUNNER_TEMP/advisor-complete-browser.log"
+      - name: Publish verified feature branch
+        run: git push origin HEAD:refs/heads/feat/catboost-advisor-public-results
+      - name: Stop server and retain exact tested source
+        if: always()
+        run: |
+          if [[ -f "$RUNNER_TEMP/advisor-complete.pid" ]]; then kill "$(cat "$RUNNER_TEMP/advisor-complete.pid")" 2>/dev/null || true; fi
+          git rev-parse HEAD > "$RUNNER_TEMP/advisor-complete-revision.txt"
+          git archive HEAD --format=tar.gz --output="$RUNNER_TEMP/advisor-complete-source.tar.gz"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: advisor-complete-verification
+          path: |
+            ${{ runner.temp }}/advisor-complete-*.log
+            ${{ runner.temp }}/advisor-complete-revision.txt
+            ${{ runner.temp }}/advisor-complete-source.tar.gz
+            projects/pic/browser_demo/.cache/public-results/
+          include-hidden-files: true
+          retention-days: 30
