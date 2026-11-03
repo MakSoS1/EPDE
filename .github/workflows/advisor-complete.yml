@@ -26,7 +26,7 @@ jobs:
           run-id: 41667264588
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/tested
-      - name: Restore the exact scientifically tested source and fix icon-bearing locators
+      - name: Restore exact tested science and add collection-lifetime regression
         run: |
           python3 - <<'PY'
           import hashlib,os,pathlib,tarfile,subprocess
@@ -49,11 +49,53 @@ jobs:
           files=[p for p in files if p!='.github/workflows/advisor-campaign.yml']
           if files:subprocess.run(['git','rm','-f','--',*files],check=True)
           PY
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add README.md docs/superpowers projects/pic/README.md projects/pic/app projects/pic/scripts projects/pic/tests projects/pic/browser_demo projects/pic/experiments/advisor_v1 projects/pic/public_results .github/workflows
-          git diff --cached --check
-          git commit -m 'feat(explorer): trained CatBoost recommendations and read-only public examples'
+          cat > projects/pic/tests/test_collection_persistence.py <<'PY'
+          """Collection preference outlives Streamlit's page-scoped widgets."""
+          from pathlib import Path
+          from unittest.mock import patch
+          from streamlit.testing.v1 import AppTest
+          from support.discovery_lab import job_queue as queue
+          APP=Path(__file__).resolve().parents[1]/'app'
+          SOURCE='''
+          import streamlit as st
+          from support.discovery_lab.public_results_ui import choose_collection
+          if st.session_state.get('show_collection',True):
+              choose_collection(False)
+          else:
+              st.write('Another page without the collection widget')
+          '''
+          def collection(app):
+              return next(g for g in app.get('button_group') if g.label=='Result collection')
+          def test_collection_preference_survives_widget_cleanup():
+              app=AppTest.from_string(SOURCE).run()
+              assert collection(app).value=='Public results'
+              collection(app).set_value('My results').run()
+              app.session_state['show_collection']=False
+              app.run()
+              app.session_state['show_collection']=True
+              app.run()
+              assert not app.exception
+              assert collection(app).value=='My results'
+          def test_private_collection_survives_results_compare_navigation(tmp_path):
+              with patch.object(queue,'ROOT',tmp_path):
+                  app=AppTest.from_file(str(APP/'Home.py'),default_timeout=60).run()
+                  app.switch_page('views/12_Discovery_compare.py').run()
+                  collection(app).set_value('My results').run()
+                  app.switch_page('views/11_Discovery_results.py').run()
+                  assert not app.exception
+                  assert collection(app).value=='My results'
+                  assert any('No experiments yet' in x.value for x in app.info)
+                  collection(app).set_value('Public results').run()
+                  app.switch_page('views/12_Discovery_compare.py').run()
+                  assert not app.exception
+                  assert collection(app).value=='Public results'
+          def test_new_search_can_explicitly_open_private_results():
+              app=AppTest.from_string(SOURCE).run()
+              app.session_state['discovery_result_collection']='My results'
+              app.run()
+              assert not app.exception
+              assert collection(app).value=='My results'
+          PY
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -62,7 +104,54 @@ jobs:
         run: |
           uv sync --project projects/pic --extra cpu --extra app --locked
           uv pip install --python projects/pic/.venv/bin/python catboost==1.2.8 pytest
-      - name: Scientific and application regressions
+      - name: Reproduce preference loss before the fix
+        run: |
+          set +e
+          projects/pic/.venv/bin/python -m pytest -q projects/pic/tests/test_collection_persistence.py::test_collection_preference_survives_widget_cleanup > "$RUNNER_TEMP/advisor-complete-red.log" 2>&1
+          status=$?
+          cat "$RUNNER_TEMP/advisor-complete-red.log"
+          test "$status" -eq 1
+      - name: Separate permanent preference from page-scoped widget identity
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('projects/pic/app/support/discovery_lab/public_results_ui.py')
+          s=p.read_text();start=s.index('def choose_collection(');end=s.index('def public_groups(')
+          replacement='''_COLLECTION_KEY = "discovery_result_collection"
+          _WIDGET_KEY = "_discovery_result_collection_widget"
+          _COLLECTIONS = ["My results", "Public results"]
+
+
+          def _remember_collection():
+              selected = st.session_state.get(_WIDGET_KEY)
+              if selected in _COLLECTIONS:
+                  st.session_state[_COLLECTION_KEY] = selected
+
+
+          def choose_collection(has_private):
+              # Streamlit removes widgets when changing pages. Keep user intent in
+              # a non-widget key, and rehydrate the page-local control on every render.
+              preferred = st.session_state.get(_COLLECTION_KEY)
+              if preferred not in _COLLECTIONS:
+                  preferred = "My results" if has_private else "Public results"
+              st.session_state[_WIDGET_KEY] = preferred
+              chosen = st.segmented_control(
+                  "Result collection", _COLLECTIONS, key=_WIDGET_KEY,
+                  selection_mode="single", on_change=_remember_collection,
+              )
+              st.session_state[_COLLECTION_KEY] = chosen if chosen in _COLLECTIONS else preferred
+              return st.session_state[_COLLECTION_KEY] == "Public results"
+
+
+          '''
+          p.write_text(s[:start]+replacement+s[end:])
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add README.md docs/superpowers projects/pic/README.md projects/pic/app projects/pic/scripts projects/pic/tests projects/pic/browser_demo projects/pic/experiments/advisor_v1 projects/pic/public_results .github/workflows
+          git diff --cached --check
+          git commit -m 'feat(explorer): trained CatBoost recommendations and persistent public/private result galleries'
+      - name: Scientific and application regressions after fix
         run: |
           set -o pipefail
           projects/pic/.venv/bin/python -m pytest -q projects/pic/tests 2>&1 | tee "$RUNNER_TEMP/advisor-complete-tests.log"
