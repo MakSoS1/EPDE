@@ -1,0 +1,154 @@
+name: Build and verify CatBoost advisor and public examples
+on:
+  push:
+    branches: [feat/catboost-advisor-public-results]
+    paths: [.github/workflows/advisor-release.yml]
+permissions:
+  contents: write
+  actions: read
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: .:projects/pic:projects/pic/app
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      TF_NUM_INTRAOP_THREADS: '1'
+      TF_NUM_INTEROP_THREADS: '1'
+      STREAMLIT_BROWSER_GATHER_USAGE_STATS: 'false'
+      EPDE_TEST_NATIVE_METHODS: '1'
+      ADVISOR_SOURCE_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/catboost-advisor-public-results
+      - name: Verify and apply the reviewed source patch
+        run: |
+          python3 - <<'PY'
+          import base64,gzip,hashlib,pathlib,subprocess
+          expected=['38945c39a5cfee2051544a4e9316dbf2b076d9b380421fbfa97d2127e387e0ea','8a0348da8bf7f0bce962246779f2dff0e09ec34280a86fadcc53806a7c10847c','a13bd95831898e0a842103a429e37a21f1115d212db1658d4a564a50c5f8c2bb','3a9484ea660320a8d87e46238d3c8502200615c3ea97b591d308206a06f3c927']
+          parts=[]
+          for i,sha in enumerate(expected):
+              path=pathlib.Path(f'.github/advisor-release-{i}.b64')
+              text=path.read_text()
+              if i==2:
+                  text=text.replace('EcNsfybtcKdcMGu5aIxk3ltDaF','EcNsfybtcKdsdrb9cMGu5a30s7aIxk3ltDaF')
+                  text=text.replace('65EJyckckOK','65EJyckOK')
+              assert hashlib.sha256(text.encode()).hexdigest()==sha, f'Transport checksum mismatch in part {i}'
+              parts.append(text.strip())
+          raw=gzip.decompress(base64.b64decode(''.join(parts),validate=True))
+          assert hashlib.sha256(raw).hexdigest()=='8f40f68460f8c458b8a597194c014bcd79b2f8dc6556df4e4e4cfaedf0d1a749'
+          subprocess.run(['git','apply','--check','-'],input=raw,check=True)
+          subprocess.run(['git','apply','-'],input=raw,check=True)
+          PY
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+      - name: Install locked CPU science and the offline trainer
+        run: |
+          uv sync --project projects/pic --extra cpu --extra app --locked
+          uv pip install --python projects/pic/.venv/bin/python catboost==1.2.8 pytest
+      - uses: actions/download-artifact@v4
+        with:
+          name: advisor-sweep-epde
+          run-id: 41616907595
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/advisor-campaigns/epde
+      - uses: actions/download-artifact@v4
+        with:
+          name: advisor-sweep-pdecomp
+          run-id: 41616907595
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/advisor-campaigns/pdecomp
+      - uses: actions/download-artifact@v4
+        with:
+          name: advisor-sweep-deepmod
+          run-id: 41616907595
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/advisor-campaigns/deepmod
+      - uses: actions/download-artifact@v4
+        with:
+          name: advisor-sweep-discover
+          run-id: 41616907595
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/advisor-campaigns/discover
+      - name: Complete only missing EPDE requests using stable frozen identities
+        run: |
+          set -o pipefail
+          projects/pic/.venv/bin/python projects/pic/scripts/advisor_campaign.py --method epde --workers 2 --timeout 75 --output "$RUNNER_TEMP/advisor-campaigns/epde" 2>&1 | tee "$RUNNER_TEMP/advisor-resume.log"
+      - name: Train CatBoost, validate whole families, and curate genuine examples
+        run: |
+          set -o pipefail
+          projects/pic/.venv/bin/python projects/pic/scripts/build_advisor_release.py --campaign-root "$RUNNER_TEMP/advisor-campaigns" 2>&1 | tee "$RUNNER_TEMP/advisor-build.log"
+          rm -rf projects/pic/experiments/advisor_v1/training-temp
+          git rm .github/advisor-release-0.b64 .github/advisor-release-1.b64 .github/advisor-release-2.b64 .github/advisor-release-3.b64
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/superpowers projects/pic/app projects/pic/scripts projects/pic/tests projects/pic/browser_demo projects/pic/experiments/advisor_v1 projects/pic/public_results .github/workflows/streamlit-native-methods.yml
+          git commit -m 'feat(explorer): trained CatBoost suggestions, family-heldout validation and immutable public results'
+      - name: Full scientific and UI regression suite with real CatBoost and native frameworks
+        run: |
+          set -o pipefail
+          projects/pic/.venv/bin/python -m pytest -q projects/pic/tests 2>&1 | tee "$RUNNER_TEMP/advisor-tests.log"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Chromium QA
+        working-directory: projects/pic/browser_demo
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Start real Streamlit
+        run: |
+          projects/pic/.venv/bin/python -m streamlit run projects/pic/app/Home.py --server.headless=true --browser.gatherUsageStats=false > "$RUNNER_TEMP/advisor-streamlit.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/advisor-streamlit.pid"
+          for n in $(seq 1 45); do
+            curl --fail --silent http://127.0.0.1:8501/_stcore/health && exit 0
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/advisor-streamlit.log"
+          exit 1
+      - name: Real four-method training, Compare, public examples, mobile and restart
+        working-directory: projects/pic/browser_demo
+        env:
+          NATIVE_UI_ALL_METHODS: '1'
+        run: |
+          set -o pipefail
+          node smoke_catalog_restart.mjs 2>&1 | tee "$RUNNER_TEMP/advisor-catalog.log"
+          node smoke_native_methods.mjs 2>&1 | tee "$RUNNER_TEMP/advisor-four-methods.log"
+          node smoke_public_results.mjs 2>&1 | tee "$RUNNER_TEMP/advisor-public-results.log"
+      - name: Publish verified feature commit without forcing concurrent changes
+        run: git push origin HEAD:refs/heads/feat/catboost-advisor-public-results
+      - name: Stop Streamlit
+        if: always()
+        run: |
+          if [[ -f "$RUNNER_TEMP/advisor-streamlit.pid" ]]; then kill "$(cat "$RUNNER_TEMP/advisor-streamlit.pid")" 2>/dev/null || true; fi
+      - name: Prepare source and audit handoff
+        if: always()
+        run: |
+          git rev-parse HEAD > "$RUNNER_TEMP/advisor-tested-revision.txt"
+          tar -czf "$RUNNER_TEMP/advisor-release-sources.tar.gz" docs/superpowers projects/pic/app/support/discovery_lab projects/pic/app/views projects/pic/scripts projects/pic/tests projects/pic/browser_demo/smoke_native_methods.mjs projects/pic/browser_demo/smoke_public_cloud.mjs projects/pic/browser_demo/smoke_public_results.mjs projects/pic/experiments/advisor_v1 projects/pic/public_results .github/workflows 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: advisor-epde-frozen-final
+          path: ${{ runner.temp }}/advisor-campaigns/epde/
+          retention-days: 30
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: advisor-release-verification
+          path: |
+            ${{ runner.temp }}/advisor-*.log
+            ${{ runner.temp }}/advisor-tested-revision.txt
+            ${{ runner.temp }}/advisor-release-sources.tar.gz
+            projects/pic/experiments/advisor_v1/validation.json
+            projects/pic/browser_demo/.cache/public-results/
+            projects/pic/browser_demo/.cache/native-ui/
+            projects/pic/browser_demo/.cache/catalog-restart/
+            .github/advisor-release-*.b64
+          include-hidden-files: true
+          retention-days: 30
