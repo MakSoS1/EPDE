@@ -26,7 +26,7 @@ jobs:
           run-id: 41636580471
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/completed
-      - name: Restore audited scientific build and fix version-aware browser assertion
+      - name: Restore audited build and repair learned-provenance browser assertion
         run: |
           python3 - <<'PY'
           import hashlib,os,pathlib,tarfile
@@ -56,29 +56,19 @@ jobs:
           p.write_text(text[:start]+'on:\n  workflow_dispatch:\n'+text[end:])
           p=pathlib.Path('.github/workflows/demo-public-cloud-smoke.yml');text=p.read_text()
           needle='      - name: Report actual deployment status, not just a local build'
-          step='''      - id: examples
-                  name: Verify public examples, four-method Compare and mobile without running searches
-                  timeout-minutes: 6
-                  working-directory: projects/pic/browser_demo
-                  env:
-                    STREAMLIT_URL: https://epde-explorer-demo.streamlit.app/
-                  run: |
-                    set -o pipefail
-                    node smoke_public_results.mjs 2>&1 | tee /tmp/cloud-examples.log
-          '''
-          import textwrap
-          step=textwrap.dedent(step)
-          step='\n'.join('      '+line if line else line for line in step.splitlines())+'\n'
-          # Keep YAML indentation explicit rather than relying on heredoc dedent.
           step='      - id: examples\n        name: Verify public examples, four-method Compare and mobile without running searches\n        timeout-minutes: 6\n        working-directory: projects/pic/browser_demo\n        env:\n          STREAMLIT_URL: https://epde-explorer-demo.streamlit.app/\n        run: |\n          set -o pipefail\n          node smoke_public_results.mjs 2>&1 | tee /tmp/cloud-examples.log\n'
           assert needle in text;text=text.replace(needle,step+needle,1)
-          text=text.replace('          PUBLIC: ${{ steps.public.outcome }}','          PUBLIC: ${{ steps.public.outcome }}\n          PUBLIC_EXAMPLES: ${{ steps.examples.outcome }}')
+          # Construct expressions at runtime; the current workflow must not evaluate them.
+          expression=lambda name:'$'+'{{ '+name+' }}'
+          env_line='          PUBLIC: '+expression('steps.public.outcome')
+          assert env_line in text
+          text=text.replace(env_line,env_line+'\n          PUBLIC_EXAMPLES: '+expression('steps.examples.outcome'),1)
           text=text.replace("            'portable_export':exported,", "            'portable_export':exported,\n            'public_results':os.environ.get('PUBLIC_EXAMPLES'),")
           text=text.replace("'verified':os.environ.get('PUBLIC')=='success' and os.environ.get('NATIVE_PUBLIC')=='success',", "'verified':os.environ.get('PUBLIC')=='success' and os.environ.get('NATIVE_PUBLIC')=='success' and os.environ.get('PUBLIC_EXAMPLES')=='success' and bool(exported) and exported['repository']['revision']==os.environ['GITHUB_SHA'],")
           text=text.replace('            /tmp/cloud-native.log','            /tmp/cloud-native.log\n            /tmp/cloud-examples.log\n            projects/pic/browser_demo/.cache/public-results/')
           p.write_text(text)
           PY
-      - name: Guard both rule and learned provenance, never accept missing model identity
+      - name: Check rule and learned provenance, rejecting missing model identity
         run: |
           cat > projects/pic/browser_demo/test_starting_provenance.mjs <<'JS'
           import fs from 'node:fs';
@@ -105,17 +95,21 @@ jobs:
         with:
           python-version: '3.12'
       - uses: astral-sh/setup-uv@v6
-      - name: Install locked CPU science and offline model verification dependencies
+      - name: Install locked science and offline model verification dependencies
         run: |
           uv sync --project projects/pic --extra cpu --extra app --locked
           uv pip install --python projects/pic/.venv/bin/python catboost==1.2.8 pytest
-      - name: Retire transport files and commit reproducible sources
+      - name: Retire only temporary transport files and commit reproducible sources
         run: |
           python3 - <<'PY'
-          import subprocess,pathlib
+          import subprocess,pathlib,yaml
           files=subprocess.check_output(['git','ls-files','.github/advisor-*.b64','.github/workflows/advisor-*.yml'],text=True).splitlines()
           files=[p for p in files if p!='.github/workflows/advisor-campaign.yml']
-          if files:subprocess.run(['git','rm','--',*files],check=True)
+          # The verified source snapshot contains an older copy of this temporary workflow.
+          # No product source or user data is removed.
+          if files:subprocess.run(['git','rm','-f','--',*files],check=True)
+          for p in pathlib.Path('.github/workflows').glob('*.yml'):
+              yaml.safe_load(p.read_text())
           p=pathlib.Path('docs/superpowers/plans/2026-11-03-catboost-public-results.md')
           text=p.read_text()
           text+='\n## Recovery verification\nThe complete 512-run campaign and trained models were recovered by archive checksum. A stale browser assertion accepted only rule-based provenance; it now accepts CatBoost only with an applied flag and a 64-character model checksum. Publication is gated by the complete scientific suite and actual four-method/Public results Chromium flows.\n'
