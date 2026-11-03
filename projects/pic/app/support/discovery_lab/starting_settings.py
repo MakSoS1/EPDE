@@ -165,7 +165,7 @@ def _epde_noise(search, shape, context, reasons):
     reasons.append(f"For {float(context['noise_percent']):g}% declared added noise, suggested local polynomial differentiation (window {window}, degree {degree}). Check smoothing bias as well as noise reduction.")
 
 
-def suggest_settings(method, base, context, *, protocol="native", hosted=True):
+def rule_suggestion(method, base, context, *, protocol="native", hosted=True):
     """Suggest valid, editable starting values from the existing method profile.
 
     ``base`` is the editor's already cached full profile; this function never
@@ -198,7 +198,7 @@ def suggest_settings(method, base, context, *, protocol="native", hosted=True):
             settings[field] = min(original, limit)
             if settings[field] != original:
                 reasons.append(f"Reduced boundary trimming from {original} to {settings[field]} points to retain enough interior samples on the shortest axis.")
-        reasons.append("Kept the pinned sparse optimizer and library settings. The archive has no compatible parameter sweep for the current PySINDy implementation.")
+        reasons.append("Kept the pinned sparse optimizer and library settings in the rule baseline; validated CatBoost selection is checked separately.")
     elif method == "deepmod":
         if protocol == "native" and hosted:
             settings["max_iterations"] = min(int(settings.get("max_iterations", 5000)), 250)
@@ -223,7 +223,14 @@ def suggest_settings(method, base, context, *, protocol="native", hosted=True):
     if evidence:
         reasons.append(f"Historical clean-data baseline for this record: {evidence['completed']}/{evidence['total']} completed, {evidence['timed_out']} timed out. It used an older source/environment and one setting across seeds; it does not establish the best parameters or predict this server's speed.")
     elif method != "epde":
-        reasons.append("No compatible archived tuning runs are available for this method; the suggestion uses its profile and input/resource rules.")
+        reasons.append("This fallback uses the method profile and input/resource rules; CatBoost evidence and eligibility are checked separately.")
     return {"version": VERSION, "method": method, "protocol": protocol,
             "settings": settings, "reasons": reasons, "source": source,
             "evidence": evidence}
+
+
+def suggest_settings(method, base, context, *, protocol="native", hosted=True):
+    """Use validated offline CatBoost advice, or explain the rule fallback."""
+    fallback = rule_suggestion(method, base, context, protocol=protocol, hosted=hosted)
+    from .meta_advisor.inference import recommend
+    return recommend(method, base, context, fallback, protocol=protocol, hosted=hosted)

@@ -103,10 +103,20 @@ jobs:
         run: |
           set -o pipefail
           node smoke_public_cloud.mjs 2>&1 | tee /tmp/cloud-browser.log
+      - id: examples
+        name: Verify public examples, four-method Compare and mobile without running searches
+        timeout-minutes: 6
+        working-directory: projects/pic/browser_demo
+        env:
+          STREAMLIT_URL: https://epde-explorer-demo.streamlit.app/
+        run: |
+          set -o pipefail
+          node smoke_public_results.mjs 2>&1 | tee /tmp/cloud-examples.log
       - name: Report actual deployment status, not just a local build
         if: always()
         env:
           PUBLIC: ${{ steps.public.outcome }}
+          PUBLIC_EXAMPLES: ${{ steps.examples.outcome }}
           NATIVE_PUBLIC: ${{ steps.native_public.outcome }}
         run: |
           python - <<'PY'
@@ -124,7 +134,8 @@ jobs:
             'public_browser':os.environ.get('PUBLIC'),
             'four_methods_and_catalog':os.environ.get('NATIVE_PUBLIC'),
             'portable_export':exported,
-            'verified':os.environ.get('PUBLIC')=='success' and os.environ.get('NATIVE_PUBLIC')=='success',
+            'public_results':os.environ.get('PUBLIC_EXAMPLES'),
+            'verified':os.environ.get('PUBLIC')=='success' and os.environ.get('NATIVE_PUBLIC')=='success' and os.environ.get('PUBLIC_EXAMPLES')=='success' and bool(exported) and exported['repository']['revision']==os.environ['GITHUB_SHA'],
             'log':p.read_text(errors='replace')[-12000:] if p.exists() else '',
             'native_log':native.read_text(errors='replace')[-12000:] if native.exists() else '',
           }
@@ -147,5 +158,7 @@ jobs:
             projects/pic/browser_demo/.cache/public-cloud/
             /tmp/cloud-browser.log
             /tmp/cloud-native.log
+            /tmp/cloud-examples.log
+            projects/pic/browser_demo/.cache/public-results/
           include-hidden-files: true
           if-no-files-found: ignore

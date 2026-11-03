@@ -17,39 +17,58 @@ intro("Results", "Review experiments, open discovered equations, or import a loc
 owner = current_owner()
 st.page_link("views/10_Discovery_lab.py", label="Start a new search", icon=":material/search:")
 
-with st.container(border=True):
-    st.markdown("**Import local results · experiment-results.zip**")
-    st.caption("Upload experiment-results.zip from the local launcher. File metadata "
-               "is checked for internal consistency; scientific results are not rerun.")
-    archive = st.file_uploader("Import experiment-results.zip",
-                               type=["zip"], key="import_portable_results",
-                               help="Up to four native method results (max 2 MB).")
-    if archive is not None and st.button("Import these results", type="primary"):
-        try:
-            from support.discovery_lab.portable import read_results, input_key
-            records = read_results(archive.getvalue())
-            if len(queue.list_jobs(owner)) + len(records) > queue.MAX_OWNER_JOBS:
-                raise ValueError("Too many saved experiments in this session")
-            jobs = []
-            for record in records:
-                dataset = record["dataset"]
-                import_request = {
-                    "method": record["method"],
-                    "source": "record",
-                    "dataset": dataset,
-                    "variant": record.get("variant", "default"),
-                    "noise": record["noise"], "seed": record["seed"],
-                    "effort": record.get("effort", "standard"),
-                    "display": {
-                        "label": (record.get("problem") or {}).get("title", dataset),
-                        "input_key": input_key(record),
-                    },
-                }
-                jobs.append(queue.save_client_result(owner, import_request, record))
-            st.success(f"Imported {len(jobs)} scientifically identified result(s). "
-                       "They are now available below and under Compare.")
-        except (ValueError, KeyError, TypeError, OSError, json.JSONDecodeError, zipfile.BadZipFile) as exc:
-            st.error("Result import rejected: " + str(exc))
+from support.discovery_lab import public_examples, public_results_ui
+private_rows = queue.list_jobs(owner)
+is_public = public_results_ui.choose_collection(bool(private_rows))
+public_records = {}
+public_group = None
+if is_public:
+    groups = public_results_ui.public_groups()
+    if groups:
+        public_group = public_results_ui.choose_example(groups)
+        rows, public_records = public_examples.jobs_and_results([public_group])
+        if st.button("Compare this example", icon=":material/compare_arrows:"):
+            st.session_state["discovery_compare_key"] = public_group["input_key"]
+            st.switch_page("views/12_Discovery_compare.py")
+    else:
+        rows = []
+        st.info("No public examples are bundled with this build.")
+else:
+    rows = private_rows
+    with st.container(border=True):
+        st.markdown("**Import local results · experiment-results.zip**")
+        st.caption("Upload experiment-results.zip from the local launcher. File metadata "
+                   "is checked for internal consistency; scientific results are not rerun.")
+        archive = st.file_uploader("Import experiment-results.zip",
+                                   type=["zip"], key="import_portable_results",
+                                   help="Up to four native method results (max 2 MB).")
+        if archive is not None and st.button("Import these results", type="primary"):
+            try:
+                from support.discovery_lab.portable import read_results, input_key
+                records = read_results(archive.getvalue())
+                if len(queue.list_jobs(owner)) + len(records) > queue.MAX_OWNER_JOBS:
+                    raise ValueError("Too many saved experiments in this session")
+                jobs = []
+                for record in records:
+                    dataset = record["dataset"]
+                    import_request = {
+                        "method": record["method"],
+                        "source": "record",
+                        "dataset": dataset,
+                        "variant": record.get("variant", "default"),
+                        "noise": record["noise"], "seed": record["seed"],
+                        "effort": record.get("effort", "standard"),
+                        "display": {
+                            "label": (record.get("problem") or {}).get("title", dataset),
+                            "input_key": input_key(record),
+                        },
+                    }
+                    jobs.append(queue.save_client_result(owner, import_request, record))
+                rows = queue.list_jobs(owner)
+                st.success(f"Imported {len(jobs)} scientifically identified result(s). "
+                           "They are now available below and under Compare.")
+            except (ValueError, KeyError, TypeError, OSError, json.JSONDecodeError, zipfile.BadZipFile) as exc:
+                st.error("Result import rejected: " + str(exc))
 st.divider()
 
 # ------------------------------------------------------------------ results
@@ -83,11 +102,11 @@ def live_status():
         st.caption(f"{len(active)} experiment(s) running or queued; this list updates automatically.")
 
 
-rows = queue.list_jobs(owner)
 if not rows:
     st.info("No experiments yet. Start in Run a search, or import a local results ZIP.")
 else:
-    live_status()
+    if not is_public:
+        live_status()
     a,b,c=st.columns(3)
     a.metric("Experiments",len(rows))
     b.metric("Completed",sum(r.get("state")=="finished" for r in rows))
@@ -118,7 +137,13 @@ else:
                         format_func=names.get,key="results_selected")
     st.session_state["discovery_selected_job"]=chosen
     job = next(r for r in rows if r["id"] == chosen)
-    record = queue.result(owner, chosen)
+    record = public_records.get(chosen) if is_public else queue.result(owner, chosen)
+    if is_public and record:
+        public_results_ui.show_provenance(record)
+        if st.button("Try this dataset in Lab", icon=":material/science:"):
+            from support.discovery_lab.wizard_state import begin_catalog_experiment
+            begin_catalog_experiment(st.session_state, record["dataset"])
+            st.switch_page("views/10_Discovery_lab.py")
     if job.get("state") in ("queued", "running"):
         st.info("This search is still running.")
         if st.button("Cancel this search"):
@@ -244,7 +269,7 @@ else:
         export = {k: v for k, v in record.items() if k != "data_file"}
         st.download_button("Download result (JSON)", json.dumps(export, indent=1, ensure_ascii=False),
                            f"discovery_{chosen[:8]}.json", "application/json")
-    if job.get("state") not in ("queued", "running"):
+    if not is_public and job.get("state") not in ("queued", "running"):
         if st.button("Delete this result", type="secondary"):
             queue.delete_job(owner, chosen)
             st.session_state.pop("discovery_selected_job", None)

@@ -61,8 +61,8 @@ available or every method supports that equation.
    **DISCOVER**, then a built-in equation, uploaded data or a generated ODE,
    with shared noise and seed settings.
 2. **Settings:** adjust each selected method's scientific controls and
-   protocol. **Suggested** starts from its profile and adapts resource settings
-   to the input. **Default** restores EPDE's saved budget; the sparkle
+   protocol. **Suggested** uses validated CatBoost recommendations when supported,
+   otherwise transparent input-aware rules. **Default** restores EPDE's saved budget; the sparkle
    **Suggest settings** button reapplies editable starting suggestions.
 3. **Review & run:** inspect the effective scientific YAML for each method,
    confirm the configuration, then start a supported hosted search or prepare
@@ -132,3 +132,10 @@ keep locally generated result archives.
 The model has access to whichever numerical data are actually present in this
 checkout. Data that require downloading from original scientific sources must
 be acquired separately; registration alone does not create a dataset.
+
+### Learned suggestions and public examples
+
+Results and Compare include a read-only Public results collection with three real
+four-method examples. CatBoost recommendations use numerical signal descriptors
+and whole-equation-family validation, with explicit fallback where the evidence
+or input compatibility is insufficient. See the [model card and complete audit](projects/pic/experiments/advisor_v1/README.md). Visitor results are never published automatically.

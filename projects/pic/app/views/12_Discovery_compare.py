@@ -18,9 +18,19 @@ intro("Compare", "Compare recovered equations on the same verified numerical inp
 owner = current_owner()
 st.page_link("views/10_Discovery_lab.py", label="Start another search", icon=":material/search:")
 
-rows = [r for r in queue.list_jobs(owner)
-        if r.get("state") in ("finished", "error", "timeout", "interrupted")]
-results = {r["id"]: queue.result(owner, r["id"]) for r in rows}
+from support.discovery_lab import public_examples, public_results_ui
+private_rows = [r for r in queue.list_jobs(owner)
+                if r.get("state") in ("finished", "error", "timeout", "interrupted")]
+is_public = public_results_ui.choose_collection(bool(private_rows))
+if is_public:
+    groups = public_results_ui.public_groups()
+    rows, results = public_examples.jobs_and_results(groups)
+    preferred_group = next((g for g in groups if g["id"] == st.session_state.get("public_example_group")), None)
+    if preferred_group:
+        st.session_state["discovery_compare_key"] = preferred_group["input_key"]
+else:
+    rows = private_rows
+    results = {r["id"]: queue.result(owner, r["id"]) for r in rows}
 rows = [r for r in rows if isinstance(results.get(r["id"]), dict) and results[r["id"]]]
 if not rows:
     st.info("Finished searches appear here, grouped by input. Run several methods on the same "
@@ -42,6 +52,12 @@ else:
                        index=keys.index(preferred) if preferred in keys else 0,
                        format_func=input_label)
     members = groups[key]
+    if is_public:
+        descriptions = public_examples.load_library()
+        description = next((g for g in descriptions if g["input_key"] == key), None)
+        if description:
+            st.info(description["summary"])
+            st.caption(description.get("selection_note", "Curated educational example."))
     if key.startswith("unverifiable:"):
         st.warning("No reliable input fingerprint: this run is isolated from "
                    "all other experiments rather than assuming identical data.")
@@ -51,8 +67,9 @@ else:
                    "Their file/source hashes are self-reported and verified for "
                    "internal consistency; this website has not independently "
                    "recomputed the underlying heavy-data experiment.")
-    names = {r["id"]: f"{ui.job_method_label(r)} · {ui.budget_label(r, results[r['id']])}"
-                      f" · started {time.strftime('%H:%M:%S', time.localtime(r.get('created', 0)))}"
+    names = {r["id"]: (r.get("public_label") or
+                      f"{ui.job_method_label(r)} · {ui.budget_label(r, results[r['id']])}"
+                      f" · started {time.strftime('%H:%M:%S', time.localtime(r.get('created', 0)))}")
              for r in members}
     with st.container(border=True):
         a,b,c=st.columns(3)
@@ -185,66 +202,67 @@ else:
                    "alone are insufficient. Native imports are consistency-checked but "
                    "not independently rerun. Multiple seeds are needed for strong claims.")
 
-# ------------------------------------------------------------------ series
-all_rows = [r for r in queue.list_jobs(owner)
-            if r.get("state") in ("finished", "error", "timeout")]
-by_dataset = {}
-for r in all_rows:
-    by_dataset.setdefault(r.get("dataset"), []).append(r)
-repeated = {d: rs for d, rs in by_dataset.items()
-            if d != "custom" and len({(r.get("seed"), r.get("noise")) for r in rs}) > 1}
-st.divider()
-st.subheader("Series over seeds and noise levels")
-if not repeated:
-    st.caption("Run a record with several seeds or noise levels (Run a search, step 1) to see "
-               "success rates with 95 % intervals and the noise limit of each method.")
-else:
-    from support.discovery_lab import series
-    dataset = st.selectbox("Record", list(repeated),
-                           format_func=lambda d: repeated[d][0].get("label") or d,
-                           key="series_dataset")
-    pairs = [(r, queue.result(owner, r["id"])) for r in repeated[dataset]]
-    table, limits = series.summarize(pairs, ui.job_method_label)
-    if not table:
-        st.info("This record has no known law, so success cannot be counted.")
+if not is_public:
+    # ------------------------------------------------------------------ series
+    all_rows = [r for r in queue.list_jobs(owner)
+                if r.get("state") in ("finished", "error", "timeout")]
+    by_dataset = {}
+    for r in all_rows:
+        by_dataset.setdefault(r.get("dataset"), []).append(r)
+    repeated = {d: rs for d, rs in by_dataset.items()
+                if d != "custom" and len({(r.get("seed"), r.get("noise")) for r in rs}) > 1}
+    st.divider()
+    st.subheader("Series over seeds and noise levels")
+    if not repeated:
+        st.caption("Run a record with several seeds or noise levels (Run a search, step 1) to see "
+                   "success rates with 95 % intervals and the noise limit of each method.")
     else:
-        frame = pd.DataFrame(table)
-        st.dataframe(frame, hide_index=True, width="stretch", column_config={
-            "success rate": st.column_config.ProgressColumn(format="percent", min_value=0, max_value=1),
-            "HD, mean": st.column_config.NumberColumn(format="%.2f", help=ui.METRIC_HELP["HD"]),
-            "RE (sum), mean of successes": st.column_config.NumberColumn(
-                format="%.4g", help=ui.METRIC_HELP["RE (sum)"]),
-            "median time, s": st.column_config.NumberColumn(format="%.2f")})
-        cols = st.columns(max(1, len(limits)))
-        for col, (method, limit) in zip(cols, limits.items()):
-            incomplete = any(r["method"] == method and r["unscored runs"] for r in table)
-            limit_label = ("not established" if incomplete else
-                           "below the lowest level" if limit is None else f"{limit:g} %")
-            col.metric(f"noise limit · {method}", limit_label,
-                       help="Highest tested noise level up to which at least 3 of 5 runs (60 %) "
-                            "found the law at every level, as in PDEComp. Needs at least 3 runs "
-                            "per level.")
-        if frame["unscored runs"].sum():
-            st.info("Unscored results are included in the total run count. Success rates and "
-                    "confidence intervals are unavailable for incomplete levels; the noise "
-                    "limit is not established for methods with any unscored results.")
-        if frame["noise, %"].nunique() > 1:
-            import matplotlib.pyplot as plt
-            from support.common import show_figure
-            fig, ax = plt.subplots(figsize=(7, 3))
-            for method, part in frame.groupby("method"):
-                ax.plot(part["noise, %"], part["success rate"], marker="o", label=method)
-            ax.axhline(series.LIMIT_RATE, color="grey", lw=.8, ls="--")
-            ax.set_xlabel("noise, % of the standard deviation")
-            ax.set_ylabel("success rate")
-            ax.set_ylim(-0.05, 1.05)
-            ax.grid(alpha=.3)
-            ax.legend(fontsize=8)
-            fig.tight_layout()
-            show_figure(fig)
-        st.caption("A run succeeds when its selected equation has exactly the terms of the known "
-                   "law. Failed runs (errors, time limit) count as unsuccessful, as in PDEComp. "
-                   "Methods are described side by side, not ranked.")
+        from support.discovery_lab import series
+        dataset = st.selectbox("Record", list(repeated),
+                               format_func=lambda d: repeated[d][0].get("label") or d,
+                               key="series_dataset")
+        pairs = [(r, queue.result(owner, r["id"])) for r in repeated[dataset]]
+        table, limits = series.summarize(pairs, ui.job_method_label)
+        if not table:
+            st.info("This record has no known law, so success cannot be counted.")
+        else:
+            frame = pd.DataFrame(table)
+            st.dataframe(frame, hide_index=True, width="stretch", column_config={
+                "success rate": st.column_config.ProgressColumn(format="percent", min_value=0, max_value=1),
+                "HD, mean": st.column_config.NumberColumn(format="%.2f", help=ui.METRIC_HELP["HD"]),
+                "RE (sum), mean of successes": st.column_config.NumberColumn(
+                    format="%.4g", help=ui.METRIC_HELP["RE (sum)"]),
+                "median time, s": st.column_config.NumberColumn(format="%.2f")})
+            cols = st.columns(max(1, len(limits)))
+            for col, (method, limit) in zip(cols, limits.items()):
+                incomplete = any(r["method"] == method and r["unscored runs"] for r in table)
+                limit_label = ("not established" if incomplete else
+                               "below the lowest level" if limit is None else f"{limit:g} %")
+                col.metric(f"noise limit · {method}", limit_label,
+                           help="Highest tested noise level up to which at least 3 of 5 runs (60 %) "
+                                "found the law at every level, as in PDEComp. Needs at least 3 runs "
+                                "per level.")
+            if frame["unscored runs"].sum():
+                st.info("Unscored results are included in the total run count. Success rates and "
+                        "confidence intervals are unavailable for incomplete levels; the noise "
+                        "limit is not established for methods with any unscored results.")
+            if frame["noise, %"].nunique() > 1:
+                import matplotlib.pyplot as plt
+                from support.common import show_figure
+                fig, ax = plt.subplots(figsize=(7, 3))
+                for method, part in frame.groupby("method"):
+                    ax.plot(part["noise, %"], part["success rate"], marker="o", label=method)
+                ax.axhline(series.LIMIT_RATE, color="grey", lw=.8, ls="--")
+                ax.set_xlabel("noise, % of the standard deviation")
+                ax.set_ylabel("success rate")
+                ax.set_ylim(-0.05, 1.05)
+                ax.grid(alpha=.3)
+                ax.legend(fontsize=8)
+                fig.tight_layout()
+                show_figure(fig)
+            st.caption("A run succeeds when its selected equation has exactly the terms of the known "
+                       "law. Failed runs (errors, time limit) count as unsuccessful, as in PDEComp. "
+                       "Methods are described side by side, not ranked.")
 
 # Curated published benchmark archives remain available without exposing
 # other visitors' private files from the shared app/results directory.

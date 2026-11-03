@@ -23,7 +23,11 @@ try{
       await page.getByRole("button",{name:/Next: configure methods/i}).waitFor({timeout:85000});
       await page.getByText(/Experiment summary/i).first().waitFor({timeout:85000});
     }
-    if(name==="results") await page.getByText(/Import local results/i).first().waitFor({timeout:50000});
+    if(name==="results"){
+      await page.locator('[data-testid="stButtonGroup"]').filter({hasText:"Result collection"})
+        .getByText("My results",{exact:true}).click();
+      await page.getByText(/Import local results/i).first().waitFor({timeout:50000});
+    }
     if(name==="compare") await page.getByText(/Show published benchmark archives/i).first().waitFor({timeout:50000});
     if(name==="catalog") await page.getByRole("button",{name:/Use this record in Lab/i}).waitFor({timeout:50000});
     await page.waitForTimeout(1000);

@@ -71,6 +71,8 @@ try{
 
   await f.getByRole("link",{name:/Results/i}).first().click();
   f=await appFrame();
+  await f.locator('[data-testid="stButtonGroup"]').filter({hasText:"Result collection"})
+    .getByText("My results",{exact:true}).click();
   await f.getByText(/Import local results/i).first().waitFor({timeout:30000});
   await f.getByText(/Import experiment-results.zip/i).first().waitFor();
   console.log("RESULTS_IMPORT_UI_PASS");
