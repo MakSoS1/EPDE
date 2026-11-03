@@ -1,0 +1,14 @@
+{
+  "revision": "90d99884d32fc0de14ffe42a08cb544bbfa59e13",
+  "deployed_revision": null,
+  "run_id": 41682880120,
+  "checked_url": "https://epde-explorer-demo.streamlit.app/",
+  "timestamp": "2026-11-03T17:25:31.719065+00:00",
+  "public_browser": "skipped",
+  "four_methods_and_catalog": "failure",
+  "portable_export": null,
+  "public_results": "skipped",
+  "verified": false,
+  "log": "",
+  "native_log": "file:///home/runner/work/EPDE/EPDE/projects/pic/browser_demo/[eval1]:26\n  if(!f)throw Error('Published app did not become available after wake request');\n              ^\n\nError: Published app did not become available after wake request\n    at file:///home/runner/work/EPDE/EPDE/projects/pic/browser_demo/[eval1]:26:15\n\nNode.js v22.23.4\n"
+}
