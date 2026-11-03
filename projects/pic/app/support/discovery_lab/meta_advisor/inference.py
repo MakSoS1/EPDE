@@ -43,6 +43,7 @@ def recommend(method, base, context, fallback, *, protocol='native', hosted=True
         learned['reason']=reason
         report['reasons'].append('CatBoost: '+reason)
         return report
+    if not hosted:return decline('The model was evaluated at short hosted budgets, not full local training budgets; kept the local profile.')
     if protocol!='native':return decline('The learned portfolio covers native protocols only; kept your fixed-protocol settings.')
     if context.get('heavy'):return decline('Large datasets remain metadata-only on the host; kept the full profile.')
     if not context.get('data_features'):return decline('Numerical descriptors are unavailable; using the rule-based starting settings.')
@@ -60,6 +61,14 @@ def recommend(method, base, context, fallback, *, protocol='native', hosted=True
                 or not 0<=context.get('noise_percent',0)<=domain['noise_max']
                 or f['uniform_fraction']<1):
             return decline('Input geometry, spacing or declared noise lies outside the evaluated training domain.')
+        lower=domain.get('descriptor_min'); upper=domain.get('descriptor_max')
+        if lower is not None and upper is not None:
+            from .features import FEATURE_NAMES
+            # A fixed tolerance permits round-off, not unlimited extrapolation.
+            for name,lo,hi in zip(FEATURE_NAMES,lower,upper):
+                margin=max(1e-6,.1*(hi-lo))
+                if not math.isfinite(f[name]) or not lo-margin <= f[name] <= hi+margin:
+                    return decline('Signal descriptors lie outside the evaluated numerical domain; kept the rule baseline.')
         if semantic_signature(method,base) not in model['semantic_signatures']:
             return decline('This scientific profile or target/library definition was not evaluated; kept it unchanged.')
         candidates=portfolio(method,base,context,protocol=protocol,hosted=hosted)

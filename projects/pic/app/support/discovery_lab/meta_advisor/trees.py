@@ -39,6 +39,12 @@ def predict(model, features):
     if (model.get('schema')!='numeric-catboost/1' or type(count) is not int
             or not 1<=count<=128 or x.ndim!=2 or x.shape[1]!=count or not np.isfinite(x).all()):
         raise ValueError('Invalid numeric CatBoost model or feature matrix')
+    # Native CatBoost quantizes float inputs as float32 before testing borders.
+    # Comparing float64 neighbours directly can choose a different leaf.
+    with np.errstate(over='ignore'):
+        x=x.astype(np.float32)
+    if not np.isfinite(x).all():
+        raise ValueError('Features exceed CatBoost float32 range')
     trees=model.get('trees')
     if not isinstance(trees,list) or not 1<=len(trees)<=1000:
         raise ValueError('Invalid CatBoost tree count')

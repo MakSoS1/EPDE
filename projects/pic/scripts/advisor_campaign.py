@@ -113,11 +113,37 @@ def execute(request,root,timeout):
     return request,result
 
 
+def reuse_frozen_requests(requests, root):
+    """Reuse request identity across harmless platform rounding in descriptors.
+
+    Scientific configurations and feature values must remain equivalent. This
+    does not retry failures, replace runs, or combine different experiments.
+    """
+    import numpy as np
+    keys=('method','dataset','noise','seed','policy')
+    saved={}
+    for path in sorted((Path(root)/'runs').glob('*/request.json')):
+        item=json.loads(path.read_text())
+        key=tuple(item[k] for k in keys)
+        if key not in saved:saved[key]=item
+    frozen=[]
+    for item in requests:
+        old=saved.get(tuple(item[k] for k in keys))
+        if old is not None:
+            if (old['overrides']!=item['overrides']
+                    or old.get('settings')!=item.get('settings')
+                    or not np.allclose(old['vector'],item['vector'],rtol=1e-10,atol=1e-12)):
+                raise ValueError('Scientific request changed; start a separate campaign')
+            item=old
+        frozen.append(item)
+    return frozen
+
+
 def run(method,out,workers,timeout):
     from support.discovery_lab.meta_advisor.training import quality_loss
     from epde_bench.identity import _source_hash
     root=Path(out);root.mkdir(parents=True,exist_ok=True)
-    requests=prepare(method)
+    requests=reuse_frozen_requests(prepare(method),root)
     provenance={'schema':'advisor-sweep/1','created_at':datetime.now(timezone.utc).isoformat(),
                 'source_commit':os.environ.get('ADVISOR_SOURCE_SHA',''),
                 'scientific_source_sha256':_source_hash(),'datasets':DATASETS,

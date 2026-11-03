@@ -112,6 +112,27 @@ def _bootstrap_family_interval(pairs):
     return [float(x) for x in np.quantile(boot,[.025,.975])]
 
 
+def activation_allowed(mean, covered, baseline_covered, families, interval):
+    """Automatic changes need positive grouped evidence, not just a mean gain."""
+    return bool(mean is not None and mean > .01 and covered >= baseline_covered
+                and families >= 4 and interval is not None and interval[0] > 0)
+
+
+def best_fixed_policy(rows):
+    """Choose one constant policy on training inputs only, never held-out outcomes.
+
+    Rank on inputs where every policy is scored so coverage cannot make a sparse
+    successful subset look superior. With no complete comparisons keep rule.
+    """
+    by_input=defaultdict(dict)
+    for row in rows:
+        by_input[row['input_id']][row['policy']]=row.get('loss')
+    policies=sorted({r['policy'] for r in rows if r.get('loss') is not None})
+    complete=[g for g in by_input.values() if all(g.get(p) is not None for p in policies)]
+    if not policies or not complete:return 'rule'
+    return min(policies,key=lambda p:(float(np.mean([g[p] for g in complete])),p!='rule',p))
+
+
 def train_bundle(rows, out_dir, provenance):
     """Return a frozen model bundle and auditable OOF choices for every input."""
     from epde_bench.identity import _source_hash
@@ -122,7 +143,9 @@ def train_bundle(rows, out_dir, provenance):
         current=[r for r in rows if r['method']==method]
         pairs=[]
         for train,test in family_folds(current):
-            fitted=_fit([current[i] for i in train],model_dir)
+            training_rows=[current[i] for i in train]
+            fitted=_fit(training_rows,model_dir)
+            fixed_policy=best_fixed_policy(training_rows)
             groups=defaultdict(list)
             for i in test:groups[current[i]['input_id']].append(current[i])
             for group in groups.values():
@@ -130,12 +153,18 @@ def train_bundle(rows, out_dir, provenance):
                 if not group or group[0]['policy']!='rule':continue
                 chosen=0 if fitted is None else select_index(fitted,[r['vector'] for r in group])[0]
                 base,selected=group[0],group[chosen]
+                fixed=next((r for r in group if r['policy']==fixed_policy),base)
+                scorable=[r for r in group if r.get('loss') is not None]
                 pair={'method':method,'family':base['family'],'dataset':base['dataset'],
                       'noise':base['noise'],'seed':base['seed'],'input_id':base['input_id'],
                       'baseline_policy':'rule','selected_policy':selected['policy'],
+                      'fixed_policy':fixed['policy'],'fixed_loss':fixed.get('loss'),
+                      'oracle_portfolio_loss':min((r['loss'] for r in scorable),default=None),
                       'baseline_loss':base.get('loss'),'selected_loss':selected.get('loss'),
                       'baseline_seconds':base['seconds'],'selected_seconds':selected['seconds'],
                       'baseline_status':base['status'],'selected_status':selected['status'],
+                      'baseline_exact':(base.get('metrics') or {}).get('success_selected'),
+                      'selected_exact':(selected.get('metrics') or {}).get('success_selected'),
                       'selected_run_id':selected['run_id'],'baseline_run_id':base['run_id'],
                       'train_families':sorted({current[i]['family'] for i in train})}
                 assert pair['family'] not in pair['train_families']
@@ -147,18 +176,30 @@ def train_bundle(rows, out_dir, provenance):
         baseline_covered=sum(p['baseline_loss'] is not None for p in pairs)
         families=len({p['family'] for p in comparable})
         interval=_bootstrap_family_interval(pairs)
+        family_means=[np.mean([p['baseline_loss']-p['selected_loss'] for p in comparable if p['family']==f])
+                      for f in sorted({p['family'] for p in comparable})]
+        family_mean=float(np.mean(family_means)) if family_means else None
+        fixed_pairs=[dict(p,baseline_loss=p['fixed_loss']) for p in pairs]
+        fixed_deltas=[p['fixed_loss']-p['selected_loss'] for p in pairs
+                      if p['fixed_loss'] is not None and p['selected_loss'] is not None]
         # A modest empirical gate; interval explicitly distinguishes exploratory
         # evidence from a statistically established improvement.
-        enabled=bool(mean is not None and mean>.01 and covered>=baseline_covered and families>=4)
+        enabled=activation_allowed(family_mean, covered, baseline_covered, families, interval)
         report={'protocol':'leave-one-equation-family-out','inputs':len(pairs),
                 'families':families,'scored_pairs':len(comparable),'selected_scored':covered,
                 'baseline_scored':baseline_covered,'mean_loss_reduction':mean,
+                'mean_family_loss_reduction':family_mean,
+                'baseline_exact':sum(p['baseline_exact'] is True for p in pairs),
+                'selected_exact':sum(p['selected_exact'] is True for p in pairs),
                 'family_bootstrap_95_interval':interval,'enabled':enabled,
+                'mean_gain_over_training_selected_fixed':float(np.mean(fixed_deltas)) if fixed_deltas else None,
+                'fixed_comparator_family_95_interval':_bootstrap_family_interval(fixed_pairs),
+                'fixed_comparator_note':'One policy chosen on training families only; all candidates must be scored on the paired training inputs.',
                 'wins':sum(d>1e-9 for d in deltas),'ties':sum(abs(d)<=1e-9 for d in deltas),
                 'losses':sum(d< -1e-9 for d in deltas),
                 'evidence':'positive grouped interval' if interval and interval[0]>0 else 'exploratory; interval includes zero',
-                'reason':('Paired family-held-out average improves without reduced scoring coverage.' if enabled else
-                          'No sufficient held-out advantage over Suggested v1; keep the rule baseline.'),
+                'reason':('Positive family-held-out gain with a positive grouped interval and no reduced scoring coverage.' if enabled else
+                          'Held-out evidence is insufficient for automatic changes; keep Suggested v1. The validation report retains the model results.'),
                 'runs':len(current),'scored_runs':sum(r.get('loss') is not None for r in current)}
         reports[method]=report;all_pairs+=pairs
         fitted=_fit(current,model_dir)
@@ -170,6 +211,8 @@ def train_bundle(rows, out_dir, provenance):
                                   'variables':sorted(set(data[:,1].tolist())),
                                   'log_cells_min':float(data[:,2].min()),'log_cells_max':float(data[:,2].max()),
                                   'noise_max':max(r['noise'] for r in current),
+                                  'descriptor_min':data[:,:18].min(axis=0).tolist(),
+                                  'descriptor_max':data[:,:18].max(axis=0).tolist(),
                                   'kinds':sorted({r['kind'] for r in current})})
             models[method]=fitted
     bundle={'schema':ASSET_SCHEMA,'feature_version':FEATURE_VERSION,

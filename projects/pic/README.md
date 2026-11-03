@@ -45,29 +45,38 @@ The sidebar **Appearance** selector switches between **Light** and **Dark**
 without affecting the underlying scientific input. The same theme-aware
 native Streamlit components render on desktop and mobile.
 
-### Fast, editable starting suggestions
+### CatBoost starting suggestions and public examples
 
-**Suggest settings** (sparkle icon) reapplies suggestions without running any
-scientific training. A new numerical input initializes them automatically.
-Ordinary reruns, adding another method and review/back preserve manual edits;
-reapplying invalidates the old review approval and clears imported settings YAML.
-The selected EPDE profile, PDEComp protocol and target derivative are retained.
+**Suggest settings** ranks a finite portfolio using offline-trained CatBoost
+models, 18 bounded numerical signal/grid descriptors, declared additional
+noise and candidate parameters. Names, reference equations and seed IDs
+are not model features. The complete campaign has 512 real native runs:
+eight scalar 1D PDE datasets, seven families, two noise levels, two seeds
+and four configurations per method. Entire equation families are held out.
 
-The suggestion rules use existing profiles, grid geometry, explicitly declared
-added noise and the hosted resource limits. EPDE adjusts population/epochs to
-the available budget and may suggest a validated local polynomial derivative
-fit for noisy input. PySINDy retains its pinned optimizer and adjusts excessive
-boundary trimming. DeepMoD bounds training samples by available points, while
-DeepMoD and DISCOVER begin with short training/search budgets. Heavy records
-keep their full local profiles and remain metadata-only in the website.
+Automatic changes are enabled only where the grouped held-out interval
+supports improvement over Suggested v1 without reduced scoring coverage.
+The current enabled method is native DeepMoD at short initial budgets.
+Unsupported profiles, heavy inputs, full local budgets and out-of-domain
+observations fall back to the existing rules, with a visible explanation.
+This is not a global optimum or an improvement guarantee on arbitrary PDEs.
+See [the model card](experiments/advisor_v1/README.md) and
+[validation report](experiments/advisor_v1/validation.json).
 
-The **Why these starting settings?** panel explains the basis and limitations.
-The curated historical index covers 150 clean-data baseline runs with one
-configuration per dataset/variant across five seeds. It records execution
-experience, not learned optimal parameters; legacy PySINDy results are kept
-separate from the current PDEComp implementation. No reference-law scores or
-other visitors' session results enter the recommendation. Rebuild the index
-with `python projects/pic/scripts/build_starting_evidence.py` from repository root.
+Suggestions never train scientific models on click. Manual edits persist
+across ordinary reruns and review/back. Explicit reapply invalidates prior
+approval and clears imported configuration YAML. The chosen profile,
+protocol and target are retained. Estimated quality/time are predictions,
+not measured recovery or guaranteed server runtimes.
+
+**Results -> Public results** opens three immutable educational examples
+with all four native algorithms: Gaussian diffusion, noisy transport and
+noisy advection-diffusion. New visitors can inspect equations, metrics and
+plots without running jobs. **Compare this example** opens shared insights;
+**Try this dataset in Lab** starts a fresh experiment. **My results** is
+separate; private uploads never become public or training data automatically.
+Original outputs, settings, checksums and reconstruction provenance are
+retained. These curated examples are not a representative leaderboard.
 
 There are no hidden governing-law or data-preview expanders in Run a search,
 and the chosen Data catalog governing equation is shown directly. Results

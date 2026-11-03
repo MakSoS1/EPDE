@@ -165,6 +165,8 @@ try {
   console.log("PUBLIC_NAVIER_STOKES_PINNED_EXPORT_PASS");
 
   await click(f,f.getByRole("link",{name:/Results/i}).first());
+  const collection=f.locator('[data-testid="stButtonGroup"]').filter({hasText:'Result collection'});
+  if(await collection.count())await click(f,collection.getByText('My results',{exact:true}));
   await f.getByText(/Import local results/).first().waitFor({timeout:45000});
   await f.getByText(/No experiments yet\. Start in Run a search/).waitFor({timeout:30000});
   console.log("PUBLIC_MINIMAL_IMPORT_ROUTE_PASS");

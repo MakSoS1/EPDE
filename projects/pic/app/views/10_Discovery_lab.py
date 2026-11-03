@@ -477,6 +477,9 @@ with main_col:
             advice_context = summarize_input(
                 record_name=record_name, problem=problem if record_name and not is_heavy else None,
                 arrays=arrays, noise_percent=noise, heavy=is_heavy)
+            from support.discovery_lab.meta_advisor.features import enrich_context
+            advice_context = enrich_context(advice_context,
+                problem=problem if record_name and not is_heavy else None, arrays=arrays)
             # Exclude the reference law, method selection and optimizer seed:
             # adding a method or repeating a seed must preserve existing edits.
             context_key = hashlib.sha256(json.dumps({
@@ -487,8 +490,9 @@ with main_col:
             }, sort_keys=True, allow_nan=False).encode()).hexdigest()
             prepare_context(st.session_state, context_key)
             st.session_state["lab_advice_reports"] = {}
-            st.caption("Suggested settings use the data size, declared noise and each method's profile. "
-                       "Edit any value; your changes stay in place until you ask for a new suggestion.")
+            st.caption("CatBoost ranks tested configurations from numerical data descriptors where "
+                       "family-held-out evidence supports it; otherwise the original input rules apply. "
+                       "All settings stay editable. No training or search is launched by this button.")
             st.button("Suggest settings", icon=":material/auto_awesome:",
                       key="lab_advice_apply",
                       help="Replace editable settings with fresh suggestions. Keeps the selected "
@@ -582,14 +586,23 @@ with main_col:
             advice_reports = st.session_state.get("lab_advice_reports", {})
             if advice_reports:
                 with st.expander("Why these starting settings?"):
-                    st.caption("Instant profile and input rules; no training runs are launched. "
+                    st.caption("Offline-trained CatBoost with explicit domain/evidence checks; no live training. "
                                "A suggested budget does not guarantee the best equation. "
                                "The review screen contains your final edited values.")
                     for report in advice_reports.values():
                         st.markdown("**" + METHOD_LABELS.get(report["method"], report["method"])
                                     + " · " + report.get("protocol", "native") + "**")
+                        learned = report.get("learned") or {}
+                        if learned.get("applied"):
+                            st.success("CatBoost recommendation · " + learned.get("selected_policy", ""))
+                        else:
+                            st.caption("Rule-based fallback: " + learned.get("reason", "No learned model requested."))
                         for reason in report["reasons"]:
                             st.write("• " + reason)
+                        if learned.get("ranking"):
+                            st.dataframe(learned["ranking"], hide_index=True, width="stretch")
+                            st.caption("These are model estimates, not measured results. Model disagreement "
+                                       "is not a calibrated confidence interval; times refer to the training runner.")
             # Preserve edits on ordinary reruns, including protocol/budget
             # changes that temporarily remove another method's controls.
             _save_wizard_widgets()
@@ -873,6 +886,7 @@ with main_col:
                         queue.check_capacity(owner, m, count=len(requests))
                     ids = [queue.submit(owner, req) for req in requests]
                     st.session_state["discovery_selected_job"] = ids[0]
+                    st.session_state["discovery_result_collection"] = "My results"
                     st.session_state["discovery_compare_key"] = key
                     st.session_state["lab_started_jobs"] = ids
                     st.success(f"{len(ids)} search(es) started for the same input. "

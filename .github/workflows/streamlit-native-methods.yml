@@ -12,6 +12,8 @@ on:
       - 'projects/pic/epde_bench/**'
       - 'projects/pic/configs/**'
       - 'projects/pic/tests/**'
+      - 'projects/pic/public_results/**'
+      - 'projects/pic/experiments/advisor_v1/**'
       - 'projects/pic/browser_demo/**'
       - 'projects/pic/portable_experiment.py'
       - 'projects/pic/pyproject.toml'
@@ -68,6 +70,9 @@ jobs:
             projects/pic/tests/test_advised_editors.py \
             projects/pic/tests/test_starting_evidence.py \
             projects/pic/tests/test_comparison_insights.py \
+            projects/pic/tests/test_meta_advisor_integration.py \
+            projects/pic/tests/test_public_examples.py \
+            projects/pic/tests/test_advisor_campaign_resume.py \
             2>&1 | tee "$RUNNER_TEMP/cloud-native-methods.log"
       - uses: actions/upload-artifact@v4
         if: always()
@@ -96,7 +101,7 @@ jobs:
         run: uv sync --project projects/pic --extra cpu --extra app --locked
       - name: Full app and scientific regressions, including actual native NN/RNN training
         run: |
-          uv run --project projects/pic --extra cpu --extra app --locked --with pytest python -m pytest -q \
+          uv run --project projects/pic --extra cpu --extra app --locked --with pytest --with catboost==1.2.8 python -m pytest -q \
             projects/pic/tests
       - uses: actions/setup-node@v4
         with:
@@ -133,6 +138,9 @@ jobs:
         run: |
           set -o pipefail
           node smoke_native_methods.mjs 2>&1 | tee /tmp/native-methods-browser.log
+      - name: Read-only public examples and four-method comparison
+        working-directory: projects/pic/browser_demo
+        run: node smoke_public_results.mjs
       - name: Stop Streamlit server
         if: always()
         run: |
@@ -146,6 +154,7 @@ jobs:
           path: |
             projects/pic/browser_demo/.cache/native-ui/
             projects/pic/browser_demo/.cache/catalog-restart/
+            projects/pic/browser_demo/.cache/public-results/
             /tmp/native-streamlit.log
             /tmp/catalog-restart.log
             /tmp/native-methods-browser.log

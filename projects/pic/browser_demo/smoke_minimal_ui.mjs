@@ -34,7 +34,11 @@ async function shot(filename, expected){
     await f.getByText("Experiment summary",{exact:true}).waitFor({timeout:90000});
   }
   if(filename==="catalog")await f.getByRole("button",{name:/Use this record in Lab/i}).waitFor({timeout:60000});
-  if(filename==="results")await f.getByText(/Import local results/i).first().waitFor({timeout:60000});
+  if(filename==="results"){
+    await f.locator('[data-testid="stButtonGroup"]').filter({hasText:"Result collection"})
+      .getByText("My results",{exact:true}).click();
+    await f.getByText(/Import local results/i).first().waitFor({timeout:60000});
+  }
   // Wait for Streamlit reruns, not just a blank application shell.
   await page.waitForTimeout(850);
   const exceptions=await f.locator('[data-testid="stException"]').allInnerTexts();

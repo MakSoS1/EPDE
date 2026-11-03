@@ -1,8 +1,6 @@
 name: CatBoost advisor — frozen native scientific sweep
 on:
-  push:
-    branches: [feat/catboost-advisor-public-results]
-    paths: [.github/workflows/advisor-campaign.yml]
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:

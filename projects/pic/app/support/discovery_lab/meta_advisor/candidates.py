@@ -138,7 +138,7 @@ def semantic_signature(method, base):
         value={k:base.get(k) for k in ('targets','polynomial_degree','differentiation')}
         value['optimizer_type']=(base.get('optimizer') or {}).get('type','STLSQ')
     elif method=='deepmod':
-        value={k:base.get(k) for k in ('targets','poly_order','diff_order','hidden_dims')}
+        value={k:base.get(k) for k in ('targets','poly_order','diff_order','hidden_layers','train_fraction')}
     else:
         value={k:base.get(k) for k in ('targets','function_set','base_config')}
     return settings_hash(value)

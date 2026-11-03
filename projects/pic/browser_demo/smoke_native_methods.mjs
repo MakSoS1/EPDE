@@ -82,7 +82,7 @@ try {
   if (await page.getByRole('spinbutton',{name:'Training iterations',exact:true}).inputValue() !== '250')
     throw Error('Quick budget not restored');
   const rate = await page.getByRole('spinbutton',{name:'Learning rate',exact:true}).inputValue();
-  if (!rate.includes('002')) throw Error('Learning rate rounded to zero: ' + rate);
+  if (!(Number(rate)>0 && Number(rate)<=0.1)) throw Error('Invalid learning rate: ' + rate);
   await click(page.getByRole('tab',{name:/DISCOVER/}));
   await screenshot('03-discover-native-light');
   await click(group('Appearance').getByText('Dark',{exact:true}));
@@ -128,7 +128,10 @@ try {
     if ((job.method !== 'epde' && record.baseline?.protocol !== 'native') || !record.selected?.length)
       throw Error('Missing native equation: ' + job.method);
     if (!process.env.NATIVE_UI_SESSION && !record.starting_suggestions?.some(item=>item.method === job.method
-        && item.version === 'starting-settings-v1'))
+        && (item.version === 'starting-settings-v1'
+          || (item.version === 'catboost-starting-settings-v1'
+            && item.learned?.applied === true && item.learned?.engine === 'CatBoost'
+            && /^[a-f0-9]{64}$/.test(item.learned?.model_sha256 || '')))))
       throw Error('Missing saved starting-settings provenance: ' + job.method);
     const dependencies = record.identity?.dependencies;
     if (dependencies?.torch?.split('+')[0] !== '2.9.0')

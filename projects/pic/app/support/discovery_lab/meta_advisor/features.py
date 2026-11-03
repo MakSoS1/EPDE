@@ -80,3 +80,24 @@ def describe_problem(problem):
             index=[0]*g.ndim;index[axis]=slice(None);g=g[tuple(index)]
         arrays[f'axis_{axis}']=g
     return describe_arrays(arrays)
+
+
+def enrich_context(context, *, problem=None, arrays=None):
+    """Add bounded numeric descriptors without changing the caller's state.
+
+    Builtins use their observations before the declared synthetic noise is added,
+    exactly as in the frozen offline campaign. Actual uploaded values are used as
+    supplied; this does not estimate an unknown measurement-noise percentage.
+    """
+    from copy import deepcopy
+    result = deepcopy(context)
+    if result.get('heavy'):
+        return result
+    try:
+        if problem is not None:
+            result['data_features'] = describe_problem(problem)
+        elif arrays is not None:
+            result['data_features'] = describe_arrays(arrays)
+    except (ValueError, TypeError, AttributeError, IndexError, OverflowError):
+        result['descriptor_note'] = 'Numerical input is outside the supported descriptor domain.'
+    return result

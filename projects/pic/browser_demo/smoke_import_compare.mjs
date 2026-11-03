@@ -24,6 +24,8 @@ try{
   await page.goto(base,{waitUntil:"domcontentloaded",timeout:45000});
   let f=await frame();
   await f.getByRole("link",{name:/Results/i}).first().click();
+  await f.locator('[data-testid="stButtonGroup"]').filter({hasText:"Result collection"})
+    .getByText("My results",{exact:true}).click();
   await f.getByText(/Import local results/i).first().waitFor({timeout:45000});
   await f.locator('input[type="file"]').setInputFiles(zip);
   await f.getByRole("button",{name:/Import these results/i}).click();
