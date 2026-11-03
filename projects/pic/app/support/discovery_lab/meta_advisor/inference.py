@@ -77,6 +77,16 @@ def recommend(method, base, context, fallback, *, protocol='native', hosted=True
         if not candidates or candidates[0][0]!='rule':return decline('No safe candidate portfolio fits the existing resource limits.')
         from .training import select_index
         selected,values=select_index(model,[vector(context,method,c[2]) for c in candidates])
+        validation = model['report']
+        scored_pairs = validation['scored_pairs']
+        inputs = validation['inputs']
+        insufficient_coverage = experimental and (
+            validation['families'] < 4 or scored_pairs * 2 < inputs
+        )
+        mean_gain = validation['mean_family_loss_reduction']
+        insufficient_gain = experimental and (mean_gain is None or mean_gain <= .01)
+        if insufficient_coverage or insufficient_gain:
+            selected = 0
         mean,spread,times,availability=values
         learned['ranking']=[{'policy':c[0],'label':c[1],'predicted_loss':float(mean[i]),
                              'model_disagreement':float(spread[i]),'estimated_seconds':float(times[i]),
@@ -88,6 +98,18 @@ def recommend(method, base, context, fallback, *, protocol='native', hosted=True
         report['source']='CatBoost · ' + ('experimental ranking' if experimental else 'validated ranking')
         if experimental:
             report['reasons'].append('Experimental: held-out evidence has not established an improvement over rule-based settings.')
+        if insufficient_coverage:
+            report['reasons'].append(
+                f'Kept rule-based settings: only {scored_pairs}/{inputs} held-out pairs '
+                f'could be scored across {validation["families"]} families.'
+            )
+            return report
+        if insufficient_gain:
+            report['reasons'].append(
+                'Kept rule-based settings: the average gain across held-out families '
+                'did not clear the minimum improvement threshold (0.01 loss units).'
+            )
+            return report
         report['reasons'].append(f"CatBoost selected {candidates[selected][1]}. Predicted benchmark loss {mean[selected]:.3g}; estimated search time {times[selected]:.1f} s on the training runner, not a server time guarantee.")
         report['reasons'].append('The model ranks a finite tested portfolio, not all possible settings. Validate the discovered equation and keep manual adjustments.')
         report['reasons'].append('Family-held-out evidence: '+model['report']['evidence']+'.')

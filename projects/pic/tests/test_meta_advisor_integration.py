@@ -147,3 +147,9 @@ def test_all_packaged_methods_can_rank_in_experimental_mode():
                 else record['baseline']['settings'])
         report = starting_settings.suggest_settings(method, base, context)
         assert report['learned'].get('ranking'), (method, report['learned']['reason'])
+        if method == 'discover':
+            assert report['learned']['selected_policy'] == 'rule'
+            assert any('3/32 held-out pairs' in reason for reason in report['reasons'])
+        if method == 'epde':
+            assert report['learned']['selected_policy'] == 'rule'
+            assert any('minimum improvement threshold' in reason for reason in report['reasons'])
