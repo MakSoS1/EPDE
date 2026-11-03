@@ -53,7 +53,9 @@ def recommend(method, base, context, fallback, *, protocol='native', hosted=True
         learned.update(model_sha256=digest,training=bundle['provenance'],baseline=bundle['baseline'])
         if not model:return decline('There are not enough scored training runs for this method.')
         learned['validation']=model['report']
-        if not model['enabled']:return decline(model['report']['reason'])
+        experimental = not model['enabled']
+        if experimental and not context.get('experimental_catboost'):
+            return decline(model['report']['reason'])
         domain=model['domain'];f=context['data_features']
         if (context.get('kind') not in domain['kinds'] or f['axes'] not in domain['axes']
                 or f['variables'] not in domain['variables']
@@ -79,11 +81,13 @@ def recommend(method, base, context, fallback, *, protocol='native', hosted=True
         learned['ranking']=[{'policy':c[0],'label':c[1],'predicted_loss':float(mean[i]),
                              'model_disagreement':float(spread[i]),'estimated_seconds':float(times[i]),
                              'estimated_scorability':float(availability[i])} for i,c in enumerate(candidates)]
-        learned.update(applied=True,selected_policy=candidates[selected][0],
+        learned.update(applied=True,experimental=experimental,selected_policy=candidates[selected][0],
                        reason='Ranked valid configurations using offline-trained CatBoost models.',
                        uncertainty='Model disagreement is not a calibrated confidence interval.')
         report['settings']=deepcopy(candidates[selected][2]);report['version']='catboost-starting-settings-v1'
-        report['source']='CatBoost · numerical descriptors + frozen scientific parameter sweeps'
+        report['source']='CatBoost · ' + ('experimental ranking' if experimental else 'validated ranking')
+        if experimental:
+            report['reasons'].append('Experimental: held-out evidence has not established an improvement over rule-based settings.')
         report['reasons'].append(f"CatBoost selected {candidates[selected][1]}. Predicted benchmark loss {mean[selected]:.3g}; estimated search time {times[selected]:.1f} s on the training runner, not a server time guarantee.")
         report['reasons'].append('The model ranks a finite tested portfolio, not all possible settings. Validate the discovered equation and keep manual adjustments.')
         report['reasons'].append('Family-held-out evidence: '+model['report']['evidence']+'.')

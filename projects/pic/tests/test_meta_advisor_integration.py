@@ -130,3 +130,20 @@ def test_packaged_deepmod_model_changes_only_allowed_values_on_real_input():
     assert semantic_signature('deepmod',base)==semantic_signature('deepmod',report['settings'])
     assert set(changes_for('deepmod',base,report['settings'])) <= {'learning_rate','threshold'}
     assert base==before
+
+
+def test_all_packaged_methods_can_rank_in_experimental_mode():
+    import json
+    from epde_bench.datasets import load
+    root = Path(__file__).resolve().parents[1]
+    from epde_bench.config import load_config
+    for method in ('epde', 'pdecomp', 'deepmod', 'discover'):
+        record = json.loads((root / f'public_results/diffusion-{method}.json').read_text())
+        problem = load(record['dataset'])
+        context = features.enrich_context(starting_settings.summarize_input(
+            record_name=record['dataset'], problem=problem, noise_percent=0), problem=problem)
+        context['experimental_catboost'] = True
+        base = (load_config(record['dataset'], 'default') if method == 'epde'
+                else record['baseline']['settings'])
+        report = starting_settings.suggest_settings(method, base, context)
+        assert report['learned'].get('ranking'), (method, report['learned']['reason'])

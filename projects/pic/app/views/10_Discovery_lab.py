@@ -491,13 +491,21 @@ with main_col:
             prepare_context(st.session_state, context_key)
             st.session_state["lab_advice_reports"] = {}
             st.caption("CatBoost ranks tested configurations from numerical data descriptors where "
-                       "family-held-out evidence supports it; otherwise the original input rules apply. "
+                       "family-held-out evidence supports it. Enable experimental suggestions to try the other models. "
                        "All settings stay editable. No training or search is launched by this button.")
+            st.checkbox("Include experimental CatBoost suggestions", key="lab_advice_experimental_choice",
+                        value=st.session_state.get("lab_advice_experimental", False),
+                        help="Try models whose improvement has not yet been established on held-out data.")
+            def apply_advice():
+                st.session_state["lab_advice_experimental"] = st.session_state["lab_advice_experimental_choice"]
+                request_suggestions(st.session_state)
+
+            advice_context["experimental_catboost"] = st.session_state.get("lab_advice_experimental", False)
             st.button("Suggest settings", icon=":material/auto_awesome:",
                       key="lab_advice_apply",
                       help="Replace editable settings with fresh suggestions. Keeps the selected "
                            "profile, protocol and target derivative; clears imported settings YAML.",
-                      on_click=lambda: request_suggestions(st.session_state))
+                      on_click=apply_advice)
             from support.discovery_lab.lab_settings import render_settings
             from support.discovery_lab import pysindy_method
 
@@ -593,7 +601,11 @@ with main_col:
                         st.markdown("**" + METHOD_LABELS.get(report["method"], report["method"])
                                     + " · " + report.get("protocol", "native") + "**")
                         learned = report.get("learned") or {}
-                        if learned.get("applied"):
+                        if learned.get("applied") and learned.get("selected_policy") == "rule":
+                            st.info("CatBoost ranked the candidates and kept the rule-based settings.")
+                        elif learned.get("experimental"):
+                            st.info("Experimental CatBoost · " + learned.get("selected_policy", ""))
+                        elif learned.get("applied"):
                             st.success("CatBoost recommendation · " + learned.get("selected_policy", ""))
                         else:
                             st.caption("Rule-based fallback: " + learned.get("reason", "No learned model requested."))
