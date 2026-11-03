@@ -78,9 +78,6 @@ The builder rejects incomplete/mixed campaigns and checksum mismatches. Training
 requires CatBoost; using the deployed advisor does not. Changing numerical source
 or descriptor/selection implementation invalidates the packaged model until rebuilt.
 
-To try a model before it meets the automatic activation gate, enable **Include
-experimental CatBoost suggestions** and press **Suggest settings**. This uses the
-same trained models and candidate checks for all four methods. The model can
-retain the rule-based configuration when alternatives have weak predictions or
-exceed resource limits. The experimental option does not change the validation
-results or expand the model's supported domain.
+**Suggest settings** ranks configurations for all four methods when the input
+and protocol match the training domain. If held-out evidence is weak or the
+candidates exceed resource limits, it keeps the rule-based configuration.

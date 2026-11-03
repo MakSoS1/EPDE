@@ -54,8 +54,6 @@ def recommend(method, base, context, fallback, *, protocol='native', hosted=True
         if not model:return decline('There are not enough scored training runs for this method.')
         learned['validation']=model['report']
         experimental = not model['enabled']
-        if experimental and not context.get('experimental_catboost'):
-            return decline(model['report']['reason'])
         domain=model['domain'];f=context['data_features']
         if (context.get('kind') not in domain['kinds'] or f['axes'] not in domain['axes']
                 or f['variables'] not in domain['variables']

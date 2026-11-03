@@ -490,22 +490,14 @@ with main_col:
             }, sort_keys=True, allow_nan=False).encode()).hexdigest()
             prepare_context(st.session_state, context_key)
             st.session_state["lab_advice_reports"] = {}
-            st.caption("CatBoost ranks tested configurations from numerical data descriptors where "
-                       "family-held-out evidence supports it. Enable experimental suggestions to try the other models. "
-                       "All settings stay editable. No training or search is launched by this button.")
-            st.checkbox("Include experimental CatBoost suggestions", key="lab_advice_experimental_choice",
-                        value=st.session_state.get("lab_advice_experimental", False),
-                        help="Try models whose improvement has not yet been established on held-out data.")
-            def apply_advice():
-                st.session_state["lab_advice_experimental"] = st.session_state["lab_advice_experimental_choice"]
-                request_suggestions(st.session_state)
-
-            advice_context["experimental_catboost"] = st.session_state.get("lab_advice_experimental", False)
+            st.caption("CatBoost ranks tested configurations for compatible data. "
+                       "Suggest keeps the starting settings when the evidence is weak. "
+                       "All settings stay editable.")
             st.button("Suggest settings", icon=":material/auto_awesome:",
                       key="lab_advice_apply",
                       help="Replace editable settings with fresh suggestions. Keeps the selected "
                            "profile, protocol and target derivative; clears imported settings YAML.",
-                      on_click=apply_advice)
+                      on_click=request_suggestions, args=(st.session_state,))
             from support.discovery_lab.lab_settings import render_settings
             from support.discovery_lab import pysindy_method
 
