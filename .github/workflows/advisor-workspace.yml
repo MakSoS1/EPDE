@@ -1,0 +1,27 @@
+name: Advisor development workspace
+on:
+  push:
+    branches: [feat/catboost-advisor-public-results]
+    paths: [.github/workflows/advisor-workspace.yml]
+permissions:
+  contents: read
+jobs:
+  workspace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Export exact source snapshot and offline UI dependencies
+        run: |
+          mkdir -p "$RUNNER_TEMP/advisor-workspace/wheels"
+          git archive --format=tar.gz --output="$RUNNER_TEMP/advisor-workspace/source.tar.gz" HEAD
+          git rev-parse HEAD > "$RUNNER_TEMP/advisor-workspace/revision.txt"
+          python -m pip download --only-binary=:all: --dest "$RUNNER_TEMP/advisor-workspace/wheels" streamlit==1.65.0 pysindy==2.1.0 dill pyyaml pytest-subtests
+      - uses: actions/upload-artifact@v4
+        with:
+          name: advisor-workspace
+          path: ${{ runner.temp }}/advisor-workspace/
+          retention-days: 3
