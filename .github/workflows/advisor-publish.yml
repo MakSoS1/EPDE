@@ -58,7 +58,6 @@ jobs:
           needle='      - name: Report actual deployment status, not just a local build'
           step='      - id: examples\n        name: Verify public examples, four-method Compare and mobile without running searches\n        timeout-minutes: 6\n        working-directory: projects/pic/browser_demo\n        env:\n          STREAMLIT_URL: https://epde-explorer-demo.streamlit.app/\n        run: |\n          set -o pipefail\n          node smoke_public_results.mjs 2>&1 | tee /tmp/cloud-examples.log\n'
           assert needle in text;text=text.replace(needle,step+needle,1)
-          # Construct expressions at runtime; the current workflow must not evaluate them.
           expression=lambda name:'$'+'{{ '+name+' }}'
           env_line='          PUBLIC: '+expression('steps.public.outcome')
           assert env_line in text
@@ -101,12 +100,10 @@ jobs:
           uv pip install --python projects/pic/.venv/bin/python catboost==1.2.8 pytest
       - name: Retire only temporary transport files and commit reproducible sources
         run: |
-          python3 - <<'PY'
+          projects/pic/.venv/bin/python - <<'PY'
           import subprocess,pathlib,yaml
           files=subprocess.check_output(['git','ls-files','.github/advisor-*.b64','.github/workflows/advisor-*.yml'],text=True).splitlines()
           files=[p for p in files if p!='.github/workflows/advisor-campaign.yml']
-          # The verified source snapshot contains an older copy of this temporary workflow.
-          # No product source or user data is removed.
           if files:subprocess.run(['git','rm','-f','--',*files],check=True)
           for p in pathlib.Path('.github/workflows').glob('*.yml'):
               yaml.safe_load(p.read_text())
