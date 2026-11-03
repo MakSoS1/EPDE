@@ -1,0 +1,45 @@
+name: Complete the frozen EPDE advisor campaign
+on:
+  push:
+    branches: [feat/catboost-advisor-public-results]
+    paths: [.github/workflows/advisor-resume.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  resume:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .:projects/pic:projects/pic/app
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      TF_NUM_INTRAOP_THREADS: '1'
+      TF_NUM_INTEROP_THREADS: '1'
+      ADVISOR_SOURCE_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/download-artifact@v4
+        with:
+          name: advisor-sweep-epde
+          run-id: 41616907595
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/advisor-epde
+      - name: Restore the exact locked scientific environment
+        run: uv sync --project projects/pic --extra cpu --extra app --locked
+      - name: Resume only missing results, retaining successes and timeouts
+        run: |
+          projects/pic/.venv/bin/python projects/pic/scripts/advisor_campaign.py --method epde --workers 2 --timeout 75 --output "$RUNNER_TEMP/advisor-epde"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: advisor-sweep-epde-complete
+          path: ${{ runner.temp }}/advisor-epde/
+          retention-days: 30
+          if-no-files-found: error
