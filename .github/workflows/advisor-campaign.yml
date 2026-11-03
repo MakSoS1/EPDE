@@ -1,0 +1,43 @@
+name: CatBoost advisor — frozen native scientific sweep
+on:
+  push:
+    branches: [feat/catboost-advisor-public-results]
+    paths: [.github/workflows/advisor-campaign.yml]
+permissions:
+  contents: read
+jobs:
+  sweep:
+    strategy:
+      fail-fast: false
+      matrix:
+        method: [epde, pdecomp, deepmod, discover]
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: .:projects/pic:projects/pic/app
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      TF_NUM_INTRAOP_THREADS: '1'
+      TF_NUM_INTEROP_THREADS: '1'
+      STREAMLIT_BROWSER_GATHER_USAGE_STATS: 'false'
+      ADVISOR_SOURCE_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+      - name: Install the exact native CPU environment
+        run: uv sync --project projects/pic --extra cpu --extra app --locked
+      - name: Run frozen configurations with isolated native frameworks
+        run: |
+          projects/pic/.venv/bin/python projects/pic/scripts/advisor_campaign.py \
+            --method '${{ matrix.method }}' --workers 2 --timeout 75 \
+            --output "$RUNNER_TEMP/advisor-${{ matrix.method }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: advisor-sweep-${{ matrix.method }}
+          path: ${{ runner.temp }}/advisor-${{ matrix.method }}/
+          retention-days: 14
+          if-no-files-found: error
