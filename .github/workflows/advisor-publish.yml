@@ -1,0 +1,184 @@
+name: Final CatBoost and public results verification
+on:
+  push:
+    branches: [feat/catboost-advisor-public-results]
+    paths: [.github/workflows/advisor-publish.yml]
+permissions:
+  contents: write
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: .:projects/pic:projects/pic/app
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      TF_NUM_INTRAOP_THREADS: '1'
+      TF_NUM_INTEROP_THREADS: '1'
+      STREAMLIT_BROWSER_GATHER_USAGE_STATS: 'false'
+      EPDE_TEST_NATIVE_METHODS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          artifact-ids: '13231096936'
+          run-id: 41636580471
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/completed
+      - name: Restore audited scientific build and fix version-aware browser assertion
+        run: |
+          python3 - <<'PY'
+          import hashlib,os,pathlib,tarfile
+          archive=next(pathlib.Path(os.environ['RUNNER_TEMP'],'completed').rglob('advisor-final-source.tar.gz'))
+          assert hashlib.sha256(archive.read_bytes()).hexdigest()=='8901567821fe9b6571ddc3ecb9ea32c6563b06d78eafd479976ae89f16247df7'
+          with tarfile.open(archive) as tar:
+              members=[m for m in tar.getmembers() if m.isfile() and '__pycache__' not in m.name and not m.name.endswith('.pyc')]
+              for member in members:
+                  name=pathlib.PurePosixPath(member.name)
+                  assert not name.is_absolute() and '..' not in name.parts and '.git' not in name.parts
+              tar.extractall('.',members=members,filter='data')
+          p=pathlib.Path('projects/pic/browser_demo/smoke_native_methods.mjs')
+          text=p.read_text();old="&& item.version === 'starting-settings-v1'))"
+          new="""&& (item.version === 'starting-settings-v1'
+                    || (item.version === 'catboost-starting-settings-v1'
+                      && item.learned?.applied === true && item.learned?.engine === 'CatBoost'
+                      && /^[a-f0-9]{64}$/.test(item.learned?.model_sha256 || '')))))"""
+          assert text.count(old)==1;p.write_text(text.replace(old,new))
+          p=pathlib.Path('projects/pic/app/support/discovery_lab/starting_settings.py');text=p.read_text()
+          text=text.replace('Kept the pinned sparse optimizer and library settings. The archive has no compatible parameter sweep for the current PySINDy implementation.', 'Kept the pinned sparse optimizer and library settings in the rule baseline; validated CatBoost selection is checked separately.')
+          text=text.replace('No compatible archived tuning runs are available for this method; the suggestion uses its profile and input/resource rules.', 'This fallback uses the method profile and input/resource rules; CatBoost evidence and eligibility are checked separately.')
+          p.write_text(text)
+          p=pathlib.Path('.github/workflows/streamlit-native-methods.yml');text=p.read_text()
+          p.write_text(text.replace('--locked --with pytest python', '--locked --with pytest --with catboost==1.2.8 python'))
+          p=pathlib.Path('.github/workflows/advisor-campaign.yml');text=p.read_text()
+          start=text.index('on:');end=text.index('permissions:')
+          p.write_text(text[:start]+'on:\n  workflow_dispatch:\n'+text[end:])
+          p=pathlib.Path('.github/workflows/demo-public-cloud-smoke.yml');text=p.read_text()
+          needle='      - name: Report actual deployment status, not just a local build'
+          step='''      - id: examples
+                  name: Verify public examples, four-method Compare and mobile without running searches
+                  timeout-minutes: 6
+                  working-directory: projects/pic/browser_demo
+                  env:
+                    STREAMLIT_URL: https://epde-explorer-demo.streamlit.app/
+                  run: |
+                    set -o pipefail
+                    node smoke_public_results.mjs 2>&1 | tee /tmp/cloud-examples.log
+          '''
+          import textwrap
+          step=textwrap.dedent(step)
+          step='\n'.join('      '+line if line else line for line in step.splitlines())+'\n'
+          # Keep YAML indentation explicit rather than relying on heredoc dedent.
+          step='      - id: examples\n        name: Verify public examples, four-method Compare and mobile without running searches\n        timeout-minutes: 6\n        working-directory: projects/pic/browser_demo\n        env:\n          STREAMLIT_URL: https://epde-explorer-demo.streamlit.app/\n        run: |\n          set -o pipefail\n          node smoke_public_results.mjs 2>&1 | tee /tmp/cloud-examples.log\n'
+          assert needle in text;text=text.replace(needle,step+needle,1)
+          text=text.replace('          PUBLIC: ${{ steps.public.outcome }}','          PUBLIC: ${{ steps.public.outcome }}\n          PUBLIC_EXAMPLES: ${{ steps.examples.outcome }}')
+          text=text.replace("            'portable_export':exported,", "            'portable_export':exported,\n            'public_results':os.environ.get('PUBLIC_EXAMPLES'),")
+          text=text.replace("'verified':os.environ.get('PUBLIC')=='success' and os.environ.get('NATIVE_PUBLIC')=='success',", "'verified':os.environ.get('PUBLIC')=='success' and os.environ.get('NATIVE_PUBLIC')=='success' and os.environ.get('PUBLIC_EXAMPLES')=='success' and bool(exported) and exported['repository']['revision']==os.environ['GITHUB_SHA'],")
+          text=text.replace('            /tmp/cloud-native.log','            /tmp/cloud-native.log\n            /tmp/cloud-examples.log\n            projects/pic/browser_demo/.cache/public-results/')
+          p.write_text(text)
+          PY
+      - name: Guard both rule and learned provenance, never accept missing model identity
+        run: |
+          cat > projects/pic/browser_demo/test_starting_provenance.mjs <<'JS'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          const source=fs.readFileSync(new URL('smoke_native_methods.mjs',import.meta.url),'utf8');
+          const start=source.indexOf('record.starting_suggestions?.some(');
+          assert.ok(start>=0);
+          let p=start+'record.starting_suggestions?.some('.length,depth=1,end=p;
+          for(;end<source.length;end++){if(source[end]==='(')depth++;if(source[end]===')'&&!--depth)break;}
+          const check=new Function('item','job','return ('+source.slice(p,end)+')(item)');
+          const job={method:'deepmod'};
+          const rule={method:'deepmod',version:'starting-settings-v1'};
+          const learned={method:'deepmod',version:'catboost-starting-settings-v1',learned:{engine:'CatBoost',applied:true,model_sha256:'a'.repeat(64)}};
+          assert.equal(check(rule,job),true);
+          assert.equal(check(learned,job),true);
+          assert.equal(check({...learned,learned:{...learned.learned,model_sha256:''}},job),false);
+          assert.equal(check({...learned,learned:{...learned.learned,applied:false}},job),false);
+          assert.equal(check({...learned,method:'epde'},job),false);
+          assert.equal(check({method:'deepmod',version:'unknown'},job),false);
+          console.log('RULE_AND_CATBOOST_PROVENANCE_PASS');
+          JS
+          node projects/pic/browser_demo/test_starting_provenance.mjs
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+      - name: Install locked CPU science and offline model verification dependencies
+        run: |
+          uv sync --project projects/pic --extra cpu --extra app --locked
+          uv pip install --python projects/pic/.venv/bin/python catboost==1.2.8 pytest
+      - name: Retire transport files and commit reproducible sources
+        run: |
+          python3 - <<'PY'
+          import subprocess,pathlib
+          files=subprocess.check_output(['git','ls-files','.github/advisor-*.b64','.github/workflows/advisor-*.yml'],text=True).splitlines()
+          files=[p for p in files if p!='.github/workflows/advisor-campaign.yml']
+          if files:subprocess.run(['git','rm','--',*files],check=True)
+          p=pathlib.Path('docs/superpowers/plans/2026-11-03-catboost-public-results.md')
+          text=p.read_text()
+          text+='\n## Recovery verification\nThe complete 512-run campaign and trained models were recovered by archive checksum. A stale browser assertion accepted only rule-based provenance; it now accepts CatBoost only with an applied flag and a 64-character model checksum. Publication is gated by the complete scientific suite and actual four-method/Public results Chromium flows.\n'
+          p.write_text(text)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add README.md docs/superpowers projects/pic/README.md projects/pic/app projects/pic/scripts projects/pic/tests projects/pic/browser_demo projects/pic/experiments/advisor_v1 projects/pic/public_results .github/workflows
+          git diff --cached --check
+          git commit -m 'feat(explorer): trained CatBoost advisor and curated public four-method results'
+      - name: Full scientific and application regression suite
+        run: |
+          set -o pipefail
+          projects/pic/.venv/bin/python -m pytest -q projects/pic/tests 2>&1 | tee "$RUNNER_TEMP/advisor-publish-tests.log"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Chromium
+        working-directory: projects/pic/browser_demo
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Start real Streamlit
+        run: |
+          projects/pic/.venv/bin/python -m streamlit run projects/pic/app/Home.py --server.headless=true --browser.gatherUsageStats=false > "$RUNNER_TEMP/advisor-publish-server.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/advisor-publish.pid"
+          for n in $(seq 1 45); do
+            curl --fail --silent http://127.0.0.1:8501/_stcore/health && exit 0
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/advisor-publish-server.log"
+          exit 1
+      - name: Actual catalog, four-method training and read-only public examples
+        working-directory: projects/pic/browser_demo
+        env:
+          NATIVE_UI_ALL_METHODS: '1'
+        run: |
+          set -o pipefail
+          node test_starting_provenance.mjs
+          node smoke_catalog_restart.mjs 2>&1 | tee "$RUNNER_TEMP/advisor-publish-catalog.log"
+          node smoke_native_methods.mjs 2>&1 | tee "$RUNNER_TEMP/advisor-publish-native.log"
+          node smoke_public_results.mjs 2>&1 | tee "$RUNNER_TEMP/advisor-publish-examples.log"
+      - name: Publish verified feature commit without force
+        run: git push origin HEAD:refs/heads/feat/catboost-advisor-public-results
+      - name: Stop Streamlit
+        if: always()
+        run: |
+          if [[ -f "$RUNNER_TEMP/advisor-publish.pid" ]]; then kill "$(cat "$RUNNER_TEMP/advisor-publish.pid")" 2>/dev/null || true; fi
+      - name: Save exact revision and source
+        if: always()
+        run: |
+          git rev-parse HEAD > "$RUNNER_TEMP/advisor-publish-revision.txt"
+          git archive HEAD --format=tar.gz --output="$RUNNER_TEMP/advisor-publish-source.tar.gz"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: advisor-publish-verification
+          path: |
+            ${{ runner.temp }}/advisor-publish-*.log
+            ${{ runner.temp }}/advisor-publish-revision.txt
+            ${{ runner.temp }}/advisor-publish-source.tar.gz
+            projects/pic/browser_demo/.cache/public-results/
+            projects/pic/browser_demo/.cache/native-ui/
+            projects/pic/browser_demo/.cache/catalog-restart/
+          include-hidden-files: true
+          retention-days: 30
