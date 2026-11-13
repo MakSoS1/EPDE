@@ -1,0 +1,113 @@
+{
+  "base_revision": "8690035e90b234b34ed5a2fb0bb8e4a814dcbdf7",
+  "branch": "research/multisample-2026-11-13",
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "packages": {
+    "numpy": "2.3.5",
+    "scipy": "1.17.0",
+    "scikit-learn": "1.8.0",
+    "pandas": "2.2.3",
+    "matplotlib": "3.10.8",
+    "seaborn": "0.13.2",
+    "psutil": "7.2.2",
+    "torch": "2.15.0+cpu",
+    "sympy": "1.14.0",
+    "deepxde": "1.15.1",
+    "scikit-optimize": "0.10.2",
+    "dill": "0.4.1",
+    "pytest": "9.2.0",
+    "pytest-timeout": "2.4.0",
+    "pysindy": "2.1.0",
+    "derivative": "0.6.3",
+    "importlib-metadata": "8.7.1",
+    "zipp": "3.23.0"
+  },
+  "baseline_unit": {
+    "tests": 2608,
+    "counts": {
+      "passed": 2603,
+      "failed": 5
+    },
+    "failures": [
+      "tests.unit.test_lr_free_solve.TestTheShippedSolveIsPinned::test_the_prediction_and_loss_are_bitwise_unchanged[adam+lbfgs]",
+      "tests.unit.test_lr_free_solve.TestTheShippedSolveIsPinned::test_the_prediction_and_loss_are_bitwise_unchanged[lbfgs-only]",
+      "tests.unit.test_lr_free_solve.TestTheS1PathIsPinned::test_the_affine_input_solve_is_unchanged",
+      "tests.unit.test_lr_free_solve.TestThePeriodicEmbedding::test_it_is_inert_without_a_periodic_axis",
+      "tests.unit.test_lr_free_solve.TestTheScaleInvariantObservationLoss::test_the_default_path_is_the_s1_pin"
+    ]
+  },
+  "final_unit": {
+    "tests": 2708,
+    "counts": {
+      "passed": 2703,
+      "failed": 5
+    },
+    "failures": [
+      "tests.unit.test_lr_free_solve.TestTheShippedSolveIsPinned::test_the_prediction_and_loss_are_bitwise_unchanged[adam+lbfgs]",
+      "tests.unit.test_lr_free_solve.TestTheShippedSolveIsPinned::test_the_prediction_and_loss_are_bitwise_unchanged[lbfgs-only]",
+      "tests.unit.test_lr_free_solve.TestTheS1PathIsPinned::test_the_affine_input_solve_is_unchanged",
+      "tests.unit.test_lr_free_solve.TestThePeriodicEmbedding::test_it_is_inert_without_a_periodic_axis",
+      "tests.unit.test_lr_free_solve.TestTheScaleInvariantObservationLoss::test_the_default_path_is_the_s1_pin"
+    ]
+  },
+  "baseline_test_outcomes_unchanged": true,
+  "new_multisample_test_cases": 96,
+  "new_modules": {
+    "test_collection_health": 4,
+    "test_multisample_api": 20,
+    "test_multisample_domain": 35,
+    "test_multisample_fill": 4,
+    "test_multisample_fit": 37
+  },
+  "pic_baseline": {
+    "tests": 88,
+    "counts": {
+      "passed": 88
+    },
+    "failures": []
+  },
+  "pic_feature": {
+    "tests": 88,
+    "counts": {
+      "passed": 88
+    },
+    "failures": []
+  },
+  "pic_subtests_passed": 23,
+  "repository_pytest_collection_errors": 3,
+  "system_tests_collected": 0,
+  "source_manifest_verified": "2a3f34e3db8db4d9883fa3fe95c72178965a5920ecc622fdd6a3de68bd002a90",
+  "evidence_sha256": {
+    "active-domain-red.log": "55758fa58071d0ae3aff1bb45690233ed80664b075a0801d6f2be70f4cfcb86c",
+    "api-red.log": "f7c495a5e7df71b308f645f6f399aec2cc6ba8ef98654aaaf28d16fcbc23941e",
+    "baseline-complete-env.log": "3cee337800c0cf844f08e77df00cafee981fda9f2ff6444b8444c08678eeff79",
+    "baseline-complete-env.xml": "9df10f3f44e4f4dcf2587bd277fad63f041d578000572f4ce8cd0521467f796e",
+    "baseline-pic-project-final.log": "f25a6c6cad0398dbe028110c19fbdd38747f8188f950f67b0801fc9d2fa6e773",
+    "baseline-pic-project-final.xml": "aabadb614c0f41aba996f975153763518367c8b2d3b00b7859f444998ca39d48",
+    "baseline-repository-collection.log": "5850f9543357744c10299db31e3bbaa8af554f9e95324cda1b29900bfc25cebd",
+    "config-physical-green.log": "36e1d5ce19bd96dcf61dd8bfb0805e740d44291cfb8ac3545aff194e8086839d",
+    "config-physical-red.log": "4fc881e54f3eecf3c11aadc44fdaf9e974da8dfba299568473ba89e9e0c5b08e",
+    "constancy-final-green.log": "2f4fc4ba1a324c6ad17616bd85636a908f570168944c39bb5f191f51012ccf06",
+    "constancy-invalid-red.log": "94828be55626a16b57966299368c167ff86b92f6b6f2a26dce313ef4b4190f0f",
+    "constancy-lifecycle-red.log": "4dd8823cc4aaa9eade29a83dfd2498c7dd4c54ee1e542bdd9f4924f0e2638178",
+    "feature-historical-pin-comparison.log": "ffa5e49507068f62e16247179a97b77fd56f958b1a0c4533b74ed99543c80fb4",
+    "feature-historical-pin-comparison.xml": "5aa001b7956533474db66a8877ff57c39e445fdadcbfadd3cdf09f3640e6af33",
+    "fill-red.log": "d90d4775e8a01c5dc008d90de2fb38ccde7d56c4da0b3ba73b4ebfe8b1acb05b",
+    "fill-targeted-green.log": "da8a89d91e07c0687a730bf3983409428b12dede206b96efff5d17068f6f78b5",
+    "final-unit.log": "55d3dead3716547028aec8871766c3bc2d9fe3db41511098dafb7f77f5a54f79",
+    "final-unit.xml": "a234027df285f82e0a1eec760f68359ace2539816f84cc206066dce8d8f94307",
+    "multisample-adapter-lifecycle.log": "537f47f5e238ca90ca14f0a00861faa400baeff91f316869f8d3a82e887e0ee8",
+    "multisample-adapter-lifecycle.xml": "a511c9f507a882ad101dbfa423d5a164b401a29981b9dcbf35b9e64975046c3d",
+    "multisample_red.log": "fc01142aa22559322e8340db15b14ebb11800f9b64fd2dee4c58eecb86023cde",
+    "multisample_regressions.log": "83223bd4858fa923f6339c38afbb1322b77ad983a2096cf9234a5a2b27e672a6",
+    "pic-project-final.log": "a6ed5c2b8162585d65c532c4e29f82db4a74040bd66c1bc51cc8d8df97b96765",
+    "pic-project-final.xml": "ba326f4826e20ebb61b9af2fdadc067037f1bf006140669f8fff98b7b55f1af3",
+    "pysindy-final-installed-versions.log": "27798f96b1e35e8b67aa8d02938c5dfec79bddad2b57d05104c428f810359687",
+    "report-example.log": "69ec51cc89cf791a3bd1c50fb626fd32fca79ac0a39f7cfdba1935e45fe826e0",
+    "repository-pytest-final.log": "319e34dc4430aff5acc95344c59eba7061c544afd44b7f0f220b48f81269d3c8",
+    "system-tests-discovery.log": "9d17863dbaff196c68f4dd0e60ee54ad13620827002f52dd3aaa0f1d9d979c62"
+  },
+  "additional_automatic_collection_checks": 4,
+  "total_added_test_cases": 100
+}

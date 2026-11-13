@@ -1,0 +1,92 @@
+/workspace/scratch/7d7e1a7a20b3/EPDE/epde/structure/main_structures.py:652: EPDEUsageWarning: Equation.__init__: no unique term in 100 attempts at slot 3; pool may be exhausted -- stopping with a shorter equation.
+  warnings.warn(
+/workspace/scratch/7d7e1a7a20b3/EPDE/epde/operators/multiobjective/moeadd_specific.py:1193: EPDEUsageWarning: Initial population: 8 systems, 4 distinct. The pool yielded no further system in 100 attempts, so 4 slots hold copies.
+  warnings.warn(
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f9e4de43b30>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f9e4de43b30>
+Set domain <epde.structure.domain.Domain object at 0x7f9e4f248920> with inner shape of [77]
+Set domain <epde.structure.domain.Domain object at 0x7f9e4f73a480> with inner shape of [147]
+Set domain <epde.structure.domain.Domain object at 0x7f9e4de43a40> with inner shape of [297]
+Deriv orders after definition [[0]]
+Deriv orders after definition [[0]]
+Deriv orders after definition [[0]]
+Added trajectory 7 to exist. traj: dict_keys([])
+Added trajectory 19 to exist. traj: dict_keys([7])
+Added trajectory 31 to exist. traj: dict_keys([7, 19])
+The cardinality of defined token pool is [1 1]
+Among them, the pool contains [1 1]
+No du/dx0 data in cache for constancy check. Functionality of eval-d token check TBD.
+self.vars_demand_equation {'u'}
+[0.96464796 0.73623597]
+[1.99428576e-15 7.65796891e-14]
+[0.64658533 1.34179442]
+[0.64658533 1.34179442]
+[1.99428576e-15 7.65796891e-14]
+[1.08527868e-15 7.88618142e-14]
+[1.99428576e-15 7.65796891e-14]
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+The optimization has been conducted.

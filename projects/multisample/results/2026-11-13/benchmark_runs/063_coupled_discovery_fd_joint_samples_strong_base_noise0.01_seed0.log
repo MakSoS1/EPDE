@@ -1,0 +1,84 @@
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f53f3438950>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f53f3438950>
+Set domain <epde.structure.domain.Domain object at 0x7f53f3fa7290> with inner shape of [97]
+Set domain <epde.structure.domain.Domain object at 0x7f53f3d4c3e0> with inner shape of [169]
+Deriv orders after definition [[0]]
+Deriv orders after definition [[0]]
+Deriv orders after definition [[0]]
+Deriv orders after definition [[0]]
+Added trajectory 7 to exist. traj: dict_keys([])
+Added trajectory 19 to exist. traj: dict_keys([7])
+The cardinality of defined token pool is [1 1 1 1]
+Among them, the pool contains [1 1 1 1]
+No du/dx0 data in cache for constancy check. Functionality of eval-d token check TBD.
+No dv/dx0 data in cache for constancy check. Functionality of eval-d token check TBD.
+self.vars_demand_equation {'u', 'v'}
+[0.20953294 0.28330707 0.03406926 0.08833778]
+[0.28617084 0.20282682 0.07684002 0.05760061]
+[0.9919184  0.28330707 6.7826085  0.08833778]
+[0.9919184  0.20282682 6.7826085  0.05760061]
+[0.20953294 0.20282682 0.03406926 0.05760061]
+[0.28617084 0.28330707 0.07684002 0.08833778]
+[ 0.20953294  0.95211489  0.03406926 10.57318582]
+[ 0.28617084  0.95211489  0.07684002 10.57318582]
+[ 0.9919184   0.95211489  6.7826085  10.57318582]
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+The optimization has been conducted.

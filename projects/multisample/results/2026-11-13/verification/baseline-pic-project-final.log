@@ -1,0 +1,87 @@
+......................................................... [ 64%]
+...............................                                  [100%]
+=============================== warnings summary ===============================
+../../../../opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14
+  /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+tests/test_baseline.py::PreprocessingTests::test_default_fit_uses_supplied_derivatives_instead_of_redifferentiating
+tests/test_baseline.py::PreprocessingTests::test_default_fit_uses_supplied_derivatives_instead_of_redifferentiating
+tests/test_baseline.py::PreprocessingTests::test_explicit_independent_differentiation_remains_available
+tests/test_baseline.py::PreprocessingTests::test_explicit_independent_differentiation_remains_available
+  /workspace/scratch/7d7e1a7a20b3/epde-venv/lib/python3.12/site-packages/pysindy/optimizers/stlsq.py:224: UserWarning: Sparsity parameter is too big (23.71373705661655) and eliminated all coefficients
+    warnings.warn(
+
+tests/test_baseline.py::PreprocessingTests::test_default_fit_uses_supplied_derivatives_instead_of_redifferentiating
+tests/test_baseline.py::PreprocessingTests::test_default_fit_uses_supplied_derivatives_instead_of_redifferentiating
+tests/test_baseline.py::PreprocessingTests::test_explicit_independent_differentiation_remains_available
+tests/test_baseline.py::PreprocessingTests::test_explicit_independent_differentiation_remains_available
+  /workspace/scratch/7d7e1a7a20b3/epde-venv/lib/python3.12/site-packages/pysindy/optimizers/stlsq.py:224: UserWarning: Sparsity parameter is too big (31.622776601683793) and eliminated all coefficients
+    warnings.warn(
+
+tests/test_baseline.py::PreprocessingTests::test_default_fit_uses_supplied_derivatives_instead_of_redifferentiating
+tests/test_baseline.py::PreprocessingTests::test_default_fit_uses_supplied_derivatives_instead_of_redifferentiating
+tests/test_baseline.py::PreprocessingTests::test_explicit_independent_differentiation_remains_available
+tests/test_baseline.py::PreprocessingTests::test_explicit_independent_differentiation_remains_available
+  /workspace/scratch/7d7e1a7a20b3/epde-venv/lib/python3.12/site-packages/pysindy/optimizers/stlsq.py:224: UserWarning: Sparsity parameter is too big (42.169650342858226) and eliminated all coefficients
+    warnings.warn(
+
+tests/test_baseline.py::PreprocessingTests::test_default_fit_uses_supplied_derivatives_instead_of_redifferentiating
+tests/test_baseline.py::PreprocessingTests::test_default_fit_uses_supplied_derivatives_instead_of_redifferentiating
+tests/test_baseline.py::PreprocessingTests::test_explicit_independent_differentiation_remains_available
+tests/test_baseline.py::PreprocessingTests::test_explicit_independent_differentiation_remains_available
+  /workspace/scratch/7d7e1a7a20b3/epde-venv/lib/python3.12/site-packages/pysindy/optimizers/stlsq.py:224: UserWarning: Sparsity parameter is too big (56.23413251903491) and eliminated all coefficients
+    warnings.warn(
+
+tests/test_baseline.py::PreprocessingTests::test_default_fit_uses_supplied_derivatives_instead_of_redifferentiating
+tests/test_baseline.py::PreprocessingTests::test_default_fit_uses_supplied_derivatives_instead_of_redifferentiating
+tests/test_baseline.py::PreprocessingTests::test_explicit_independent_differentiation_remains_available
+tests/test_baseline.py::PreprocessingTests::test_explicit_independent_differentiation_remains_available
+  /workspace/scratch/7d7e1a7a20b3/epde-venv/lib/python3.12/site-packages/pysindy/optimizers/stlsq.py:224: UserWarning: Sparsity parameter is too big (74.98942093324558) and eliminated all coefficients
+    warnings.warn(
+
+tests/test_baseline.py::PreprocessingTests::test_default_fit_uses_supplied_derivatives_instead_of_redifferentiating
+tests/test_baseline.py::PreprocessingTests::test_default_fit_uses_supplied_derivatives_instead_of_redifferentiating
+tests/test_baseline.py::PreprocessingTests::test_explicit_independent_differentiation_remains_available
+tests/test_baseline.py::PreprocessingTests::test_explicit_independent_differentiation_remains_available
+  /workspace/scratch/7d7e1a7a20b3/epde-venv/lib/python3.12/site-packages/pysindy/optimizers/stlsq.py:224: UserWarning: Sparsity parameter is too big (100.0) and eliminated all coefficients
+    warnings.warn(
+
+tests/test_baseline.py::PreprocessingTests::test_default_fit_uses_supplied_derivatives_instead_of_redifferentiating
+tests/test_baseline.py::PreprocessingTests::test_explicit_independent_differentiation_remains_available
+  /workspace/scratch/7d7e1a7a20b3/epde-venv/lib/python3.12/site-packages/pysindy/optimizers/stlsq.py:224: UserWarning: Sparsity parameter is too big (5.62341325190349) and eliminated all coefficients
+    warnings.warn(
+
+tests/test_baseline.py::PreprocessingTests::test_default_fit_uses_supplied_derivatives_instead_of_redifferentiating
+tests/test_baseline.py::PreprocessingTests::test_explicit_independent_differentiation_remains_available
+  /workspace/scratch/7d7e1a7a20b3/epde-venv/lib/python3.12/site-packages/pysindy/optimizers/stlsq.py:224: UserWarning: Sparsity parameter is too big (7.498942093324558) and eliminated all coefficients
+    warnings.warn(
+
+tests/test_baseline.py::PreprocessingTests::test_default_fit_uses_supplied_derivatives_instead_of_redifferentiating
+tests/test_baseline.py::PreprocessingTests::test_explicit_independent_differentiation_remains_available
+  /workspace/scratch/7d7e1a7a20b3/epde-venv/lib/python3.12/site-packages/pysindy/optimizers/stlsq.py:224: UserWarning: Sparsity parameter is too big (10.0) and eliminated all coefficients
+    warnings.warn(
+
+tests/test_baseline.py::PreprocessingTests::test_default_fit_uses_supplied_derivatives_instead_of_redifferentiating
+tests/test_baseline.py::PreprocessingTests::test_explicit_independent_differentiation_remains_available
+  /workspace/scratch/7d7e1a7a20b3/epde-venv/lib/python3.12/site-packages/pysindy/optimizers/stlsq.py:224: UserWarning: Sparsity parameter is too big (13.33521432163324) and eliminated all coefficients
+    warnings.warn(
+
+tests/test_baseline.py::PreprocessingTests::test_default_fit_uses_supplied_derivatives_instead_of_redifferentiating
+tests/test_baseline.py::PreprocessingTests::test_explicit_independent_differentiation_remains_available
+  /workspace/scratch/7d7e1a7a20b3/epde-venv/lib/python3.12/site-packages/pysindy/optimizers/stlsq.py:224: UserWarning: Sparsity parameter is too big (17.78279410038923) and eliminated all coefficients
+    warnings.warn(
+
+tests/test_optimizer_demo.py::OptimizerDemoTests::test_live_run_observes_epochs_and_recovers_the_known_oscillator
+  /workspace/scratch/7d7e1a7a20b3/EPDE-baseline/epde/operators/multiobjective/moeadd_specific.py:1193: EPDEUsageWarning: Initial population: 4 systems, 3 distinct. The pool yielded no further system in 100 attempts, so 1 slots hold copies.
+    warnings.warn(
+
+tests/test_pic_tools.py::DerivativeTests::test_nonuniform_fd_uses_coordinates
+  /workspace/scratch/7d7e1a7a20b3/EPDE-baseline/epde/preprocessing/deriv_calculators.py:172: EPDEUsageWarning: FD accuracy 4: axis 0 has 121 samples on an uneven grid; the five-point stencil needs five evenly spaced samples, so this axis takes the second-order rule.
+    grad = self._grad(data, grids[dim_idx], dim_idx)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+88 passed, 37 warnings, 23 subtests passed in 9.98s

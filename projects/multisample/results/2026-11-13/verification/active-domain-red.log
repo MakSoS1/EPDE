@@ -1,0 +1,60 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+______________ test_active_geometry_ignores_unused_cached_domains ______________
+
+    def test_active_geometry_ignores_unused_cached_domains():
+        obj = search()
+        obj.createDomain(np.linspace(0, 5, 30), ID=55)
+        T, X = np.meshgrid(np.linspace(0, 4, 25), np.linspace(0, 3, 30), indexing='ij')
+        domain = obj.createDomain([T, X], ID=66)[1]
+        u = np.exp(-T) * np.cos(X)
+        derivatives = np.column_stack([-u.ravel(), (-np.exp(-T) * np.sin(X)).ravel()])
+        trajectory = obj.createTrajectory({'u': u}, domain, cache_id=99, derivs=derivatives)[1]
+        obj.create_pool([trajectory], max_deriv_order=(1, 1))
+>       assert global_var.samples_manager.ndim == 2
+E       assert 1 == 2
+E        +  where 1 = <epde.structure.domain.TrajectoriesManager object at 0x7f4a66868800>.ndim
+E        +    where <epde.structure.domain.TrajectoriesManager object at 0x7f4a66868800> = global_var.samples_manager
+
+tests/unit/test_multisample_api.py:128: AssertionError
+----------------------------- Captured stdout call -----------------------------
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f4a65133ef0>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f4a65133ef0>
+Set domain <epde.structure.domain.Domain object at 0x7f4a65d62fc0> with inner shape of [24]
+Set domain <epde.structure.domain.Domain object at 0x7f4a65d62fc0> with inner shape of [19 24]
+Deriv orders after definition [[0], [1]]
+Added trajectory 99 to exist. traj: dict_keys([])
+The cardinality of defined token pool is [1 2]
+Among them, the pool contains [1 2]
+No du/dx0 data in cache for constancy check. Functionality of eval-d token check TBD.
+No du/dx1 data in cache for constancy check. Functionality of eval-d token check TBD.
+___________ test_nonuniform_one_dimensional_grid_reports_its_measure ___________
+
+    def test_nonuniform_one_dimensional_grid_reports_its_measure():
+        obj = search()
+        t = np.linspace(0, 2, 40) ** 2
+>       with pytest.warns(global_var.EPDEUsageWarning, match='not uniformly sampled'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT WARN. No warnings of type (<class 'epde.globals.EPDEUsageWarning'>,) were emitted.
+E        Emitted warnings: [].
+
+tests/unit/test_multisample_api.py:135: Failed
+----------------------------- Captured stdout call -----------------------------
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f4a65117fb0>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f4a65117fb0>
+Set domain <epde.structure.domain.Domain object at 0x7f4a65116240> with inner shape of [34]
+=============================== warnings summary ===============================
+../../../../opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14
+  /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/unit/test_multisample_api.py::test_active_geometry_ignores_unused_cached_domains
+FAILED tests/unit/test_multisample_api.py::test_nonuniform_one_dimensional_grid_reports_its_measure
+2 failed, 15 deselected, 1 warning in 0.16s

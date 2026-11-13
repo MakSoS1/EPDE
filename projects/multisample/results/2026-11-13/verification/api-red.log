@@ -1,0 +1,280 @@
+F..FFFFFFFFFFFF                                                          [100%]
+=================================== FAILURES ===================================
+____________ test_joint_configuration_is_explicit_and_serializable _____________
+
+    def test_joint_configuration_is_explicit_and_serializable():
+        default = load_search_config()
+>       assert default.objectives.multisample_mode == 'mean'
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'ObjectivesConfig' object has no attribute 'multisample_mode'
+
+tests/unit/test_multisample_api.py:24: AttributeError
+_ test_invalid_multisample_config_is_refused[overrides2-plain.*assignment|assignment.*plain] _
+
+overrides = {'multisample_mode': 'joint', 'system_rps_mode': 'repair'}
+match = 'plain.*assignment|assignment.*plain'
+
+    @pytest.mark.parametrize('overrides, match', [
+        ({'multisample_mode': 'typo'}, 'multisample_mode'),
+        ({'multisample_weighting': 'typo'}, 'multisample_weighting'),
+        ({'multisample_mode': 'joint', 'system_rps_mode': 'repair'}, 'plain.*assignment|assignment.*plain'),
+    ])
+    def test_invalid_multisample_config_is_refused(overrides, match):
+>       with pytest.raises(ValueError, match=match):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'plain.*assignment|assignment.*plain'
+E         Actual message: "Unknown search-config parameter(s) ['multisample_mode']. Valid parameters, by group: {'domain': ['boundary_width', 'evaluation_form', 'evaluation_stride', 'time_axis', 'weak_window_gate', 'weak_window_products'], 'evolution': ['PBI_penalty', 'complementary_mating_prob', 'director_params', 'early_stopping_patience', 'engine', 'neighbors_number', 'niching', 'operators', 'planned_duplicates', 'population_size', 'solution_params', 'subregion_mating_limitation', 'training_epochs'], 'objectives': ['anchor_on_residual', 'complexity_metric', 'discrepancy_metric', 'instability_metric', 'multiobjective_mode', 'second_objective', 'single_objective_metric', 'sparsity_cls', 'sparsity_kwargs'], 'preprocessing': ['default_preprocessor_type', 'max_deriv_order', 'preprocessor_kwargs'], 'runtime': ['free_tensor_cache_after_fit', 'memory_for_cache', 'verbose_params'], 'search_space': ['data_fun_pow', 'deriv_fun_pow', 'equation_factors_max_number', 'equation_terms_max_number', 'rps_amplification_cap', 'system_rps_mode', 'system_rps_params', 'tokens'], 'solver': ['basis_config', 'cache_params', 'compiling_params', 'deepxde_config', 'device', 'early_stopping_params', 'error_metric', 'fourier_params', 'mode', 'optimizer_params', 'pinn_loss_mult', 'plotting_params', 'solver_backend', 'training_params', 'use_adaptive_lambdas', 'use_cache', 'use_fourier', 'use_solver']}."
+
+tests/unit/test_multisample_api.py:39: AssertionError
+_______________ test_empty_sample_list_is_rejected_before_build ________________
+
+    def test_empty_sample_list_is_rejected_before_build():
+        obj = search()
+>       with pytest.raises(ValueError, match='at least one|empty'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'at least one|empty'
+E         Actual message: 'create_pool() was given raw arrays, which is the pre-domain_refactor form, but this search has no domain to attach them to. Either pass coordinate_tensors=... to EpdeSearch (the old form), or build the data with createDomain/createTrajectory (the current one).'
+
+tests/unit/test_multisample_api.py:45: AssertionError
+----------------------------- Captured stdout call -----------------------------
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f9d408b28d0>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f9d408b28d0>
+______________ test_records_must_have_the_same_variables[names0] _______________
+
+names = ('v',)
+
+    @pytest.mark.parametrize('names', [('v',), ('u', 'v')])
+    def test_records_must_have_the_same_variables(names):
+        obj = search()
+        a, b = sample(obj), sample(obj, 1, names)
+>       with pytest.raises(ValueError, match='variable'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/unit/test_multisample_api.py:53: Failed
+----------------------------- Captured stdout call -----------------------------
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f9d408b3740>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f9d408b3740>
+Set domain <epde.structure.domain.Domain object at 0x7f9d408b3470> with inner shape of [74]
+Set domain <epde.structure.domain.Domain object at 0x7f9d41762e40> with inner shape of [74]
+Deriv orders after definition [[0]]
+Deriv orders after definition [[0]]
+Added trajectory 0 to exist. traj: dict_keys([])
+Added trajectory 1 to exist. traj: dict_keys([0])
+The cardinality of defined token pool is [1 1]
+Among them, the pool contains [1 1]
+No u data in cache for constancy check. Functionality of eval-d token check TBD.
+No du/dx0 data in cache for constancy check. Functionality of eval-d token check TBD.
+______________ test_records_must_have_the_same_variables[names1] _______________
+
+names = ('u', 'v')
+
+    @pytest.mark.parametrize('names', [('v',), ('u', 'v')])
+    def test_records_must_have_the_same_variables(names):
+        obj = search()
+        a, b = sample(obj), sample(obj, 1, names)
+>       with pytest.raises(ValueError, match='variable'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/unit/test_multisample_api.py:53: Failed
+----------------------------- Captured stdout call -----------------------------
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f9d408d9010>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f9d408d9010>
+Set domain <epde.structure.domain.Domain object at 0x7f9d408d9a60> with inner shape of [74]
+Set domain <epde.structure.domain.Domain object at 0x7f9d408d9ca0> with inner shape of [74]
+Deriv orders after definition [[0]]
+Deriv orders after definition [[0]]
+Deriv orders after definition [[0]]
+Added trajectory 0 to exist. traj: dict_keys([])
+Added trajectory 1 to exist. traj: dict_keys([0])
+The cardinality of defined token pool is [1 1]
+Among them, the pool contains [1 1]
+__________ test_variable_order_cannot_silently_change_derivative_ids ___________
+
+    def test_variable_order_cannot_silently_change_derivative_ids():
+        obj = search()
+        a, b = sample(obj, names=('u', 'v')), sample(obj, 1, ('v', 'u'))
+>       with pytest.raises(ValueError, match='variable.*order|same.*variables'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/unit/test_multisample_api.py:61: Failed
+----------------------------- Captured stdout call -----------------------------
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f9d408dbbf0>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f9d408dbbf0>
+Set domain <epde.structure.domain.Domain object at 0x7f9d408db9e0> with inner shape of [74]
+Set domain <epde.structure.domain.Domain object at 0x7f9d408dcd70> with inner shape of [74]
+Deriv orders after definition [[0]]
+Deriv orders after definition [[0]]
+Deriv orders after definition [[0]]
+Deriv orders after definition [[0]]
+Added trajectory 0 to exist. traj: dict_keys([])
+Added trajectory 1 to exist. traj: dict_keys([0])
+The cardinality of defined token pool is [1 1 1 1]
+Among them, the pool contains [1 1 1 1]
+______________ test_repeated_sample_is_not_silently_deduplicated _______________
+
+    def test_repeated_sample_is_not_silently_deduplicated():
+        obj = search()
+        a = sample(obj)
+>       with pytest.raises(ValueError, match='duplicate|Duplicate'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/unit/test_multisample_api.py:68: Failed
+----------------------------- Captured stdout call -----------------------------
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f9d408de1e0>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f9d408de1e0>
+Set domain <epde.structure.domain.Domain object at 0x7f9d408deae0> with inner shape of [74]
+Deriv orders after definition [[0]]
+Deriv orders after definition [[0]]
+Added trajectory 0 to exist. traj: dict_keys([])
+Added trajectory 0 to exist. traj: dict_keys([0])
+In check shapes:  [74] <class 'numpy.ndarray'> (74,) <class 'tuple'>
+The cardinality of defined token pool is [1 1]
+Among them, the pool contains [1 1]
+___________ test_invalid_field_is_rejected_with_sample_context[nan] ____________
+
+value = nan
+
+    @pytest.mark.parametrize('value', [np.nan, np.inf, -np.inf])
+    def test_invalid_field_is_rejected_with_sample_context(value):
+        obj = search()
+        a = sample(obj, 7)
+        a._entries[0].raw_tensor[25] = value
+>       with pytest.raises(ValueError, match='7.*u|u.*7'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/unit/test_multisample_api.py:77: Failed
+----------------------------- Captured stdout call -----------------------------
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f9d40923920>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f9d40923920>
+Set domain <epde.structure.domain.Domain object at 0x7f9d409206e0> with inner shape of [74]
+Deriv orders after definition [[0]]
+Added trajectory 7 to exist. traj: dict_keys([])
+The cardinality of defined token pool is [1 1]
+Among them, the pool contains [1 1]
+No du/dx0 data in cache for constancy check. Functionality of eval-d token check TBD.
+___________ test_invalid_field_is_rejected_with_sample_context[inf] ____________
+
+value = inf
+
+    @pytest.mark.parametrize('value', [np.nan, np.inf, -np.inf])
+    def test_invalid_field_is_rejected_with_sample_context(value):
+        obj = search()
+        a = sample(obj, 7)
+        a._entries[0].raw_tensor[25] = value
+>       with pytest.raises(ValueError, match='7.*u|u.*7'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/unit/test_multisample_api.py:77: Failed
+----------------------------- Captured stdout call -----------------------------
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f9d409217c0>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f9d409217c0>
+Set domain <epde.structure.domain.Domain object at 0x7f9d40922240> with inner shape of [74]
+Deriv orders after definition [[0]]
+Added trajectory 7 to exist. traj: dict_keys([])
+The cardinality of defined token pool is [1 1]
+Among them, the pool contains [1 1]
+No du/dx0 data in cache for constancy check. Functionality of eval-d token check TBD.
+___________ test_invalid_field_is_rejected_with_sample_context[-inf] ___________
+
+value = -inf
+
+    @pytest.mark.parametrize('value', [np.nan, np.inf, -np.inf])
+    def test_invalid_field_is_rejected_with_sample_context(value):
+        obj = search()
+        a = sample(obj, 7)
+        a._entries[0].raw_tensor[25] = value
+>       with pytest.raises(ValueError, match='7.*u|u.*7'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/unit/test_multisample_api.py:77: Failed
+----------------------------- Captured stdout call -----------------------------
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f9d40923800>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f9d40923800>
+Set domain <epde.structure.domain.Domain object at 0x7f9d409235f0> with inner shape of [74]
+Deriv orders after definition [[0]]
+Added trajectory 7 to exist. traj: dict_keys([])
+The cardinality of defined token pool is [1 1]
+Among them, the pool contains [1 1]
+No du/dx0 data in cache for constancy check. Functionality of eval-d token check TBD.
+___________ test_conflicting_domain_id_cannot_reuse_old_coordinates ____________
+
+    def test_conflicting_domain_id_cannot_reuse_old_coordinates():
+        obj = search()
+        old = obj.createDomain(np.arange(20.0), ID=7)[1]
+>       with pytest.raises(ValueError, match='[Dd]omain.*7|ID.*7'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/unit/test_multisample_api.py:84: Failed
+----------------------------- Captured stdout call -----------------------------
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f9d409237a0>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f9d409237a0>
+Set domain <epde.structure.domain.Domain object at 0x7f9d40922d80> with inner shape of [14]
+Set domain <epde.structure.domain.Domain object at 0x7f9d40923230> with inner shape of [14]
+___________ test_multisample_adapter_uses_independent_fd_derivatives ___________
+
+    def test_multisample_adapter_uses_independent_fd_derivatives():
+        grids = [np.linspace(0, 3, 70), np.linspace(10, 14, 90)]
+        records = [(t, np.exp(-0.4 * (t - t[0]))) for t in grids]
+>       obj = epde.EpdeMultisample(records, default_preprocessor_type='FD', boundary_width=3,
+                                  system_rps_mode='plain', engine='nsga2',
+                                  verbose_params={'show_iter_idx': False})
+E       TypeError: EpdeMultisample.__init__() got an unexpected keyword argument 'default_preprocessor_type'
+
+tests/unit/test_multisample_api.py:92: TypeError
+______ test_multisample_adapter_supports_systems_and_analytic_derivatives ______
+
+    def test_multisample_adapter_supports_systems_and_analytic_derivatives():
+        records, derivs = [], []
+        for n, initial in [(75, 1.0), (95, 2.0)]:
+            t = np.linspace(0, 4, n)
+            u, v = initial * np.exp(-t), initial * np.exp(-2 * t)
+            records.append((t, {'u': u, 'v': v}))
+            derivs.append({'u': (-u)[:, None], 'v': (-2 * v)[:, None]})
+>       obj = epde.EpdeMultisample(default_preprocessor_type='FD', boundary_width=3,
+                                  verbose_params={'show_iter_idx': False})
+E       TypeError: EpdeMultisample.__init__() got an unexpected keyword argument 'default_preprocessor_type'
+
+tests/unit/test_multisample_api.py:110: TypeError
+=============================== warnings summary ===============================
+../../../../opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14
+  /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/unit/test_multisample_api.py::test_joint_configuration_is_explicit_and_serializable
+FAILED tests/unit/test_multisample_api.py::test_invalid_multisample_config_is_refused[overrides2-plain.*assignment|assignment.*plain]
+FAILED tests/unit/test_multisample_api.py::test_empty_sample_list_is_rejected_before_build
+FAILED tests/unit/test_multisample_api.py::test_records_must_have_the_same_variables[names0]
+FAILED tests/unit/test_multisample_api.py::test_records_must_have_the_same_variables[names1]
+FAILED tests/unit/test_multisample_api.py::test_variable_order_cannot_silently_change_derivative_ids
+FAILED tests/unit/test_multisample_api.py::test_repeated_sample_is_not_silently_deduplicated
+FAILED tests/unit/test_multisample_api.py::test_invalid_field_is_rejected_with_sample_context[nan]
+FAILED tests/unit/test_multisample_api.py::test_invalid_field_is_rejected_with_sample_context[inf]
+FAILED tests/unit/test_multisample_api.py::test_invalid_field_is_rejected_with_sample_context[-inf]
+FAILED tests/unit/test_multisample_api.py::test_conflicting_domain_id_cannot_reuse_old_coordinates
+FAILED tests/unit/test_multisample_api.py::test_multisample_adapter_uses_independent_fd_derivatives
+FAILED tests/unit/test_multisample_api.py::test_multisample_adapter_supports_systems_and_analytic_derivatives
+13 failed, 2 passed, 1 warning in 0.14s

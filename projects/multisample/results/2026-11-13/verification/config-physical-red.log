@@ -1,0 +1,32 @@
+...F                                                                     [100%]
+=================================== FAILURES ===================================
+_ test_invalid_multisample_config_is_refused[overrides3-physical|lasso|refit] __
+
+overrides = {'multisample_mode': 'joint', 'system_rps_mode': 'assignment', 'sparsity_cls': 'lasso'}
+match = 'physical|lasso|refit'
+
+    @pytest.mark.parametrize('overrides, match', [
+        ({'multisample_mode': 'typo'}, 'multisample_mode'),
+        ({'multisample_weighting': 'typo'}, 'multisample_weighting'),
+        ({'multisample_mode': 'joint', 'system_rps_mode': 'repair'}, 'plain.*assignment|assignment.*plain'),
+        ({'multisample_mode': 'joint', 'system_rps_mode': 'assignment',
+          'sparsity_cls': 'lasso'}, 'physical|lasso|refit'),
+    ])
+    def test_invalid_multisample_config_is_refused(overrides, match):
+>       with pytest.raises(ValueError, match=match):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/unit/test_multisample_api.py:41: Failed
+=============================== warnings summary ===============================
+../../../../opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14
+  /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/unit/test_multisample_api.py::test_invalid_multisample_config_is_refused[overrides3-physical|lasso|refit]
+1 failed, 3 passed, 14 deselected, 1 warning in 0.08s

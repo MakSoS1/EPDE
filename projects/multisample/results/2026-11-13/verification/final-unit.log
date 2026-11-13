@@ -1,0 +1,429 @@
+........................................................................ [  2%]
+........................................................................ [  5%]
+........................................................................ [  7%]
+........................................................................ [ 10%]
+........................................................................ [ 13%]
+........................................................................ [ 15%]
+........................................................................ [ 18%]
+........................................................................ [ 21%]
+........................................................................ [ 23%]
+........................................................................ [ 26%]
+........................................................................ [ 29%]
+........................................................................ [ 31%]
+........................................................................ [ 34%]
+........................................................................ [ 37%]
+.................FF...........................................F.F....... [ 39%]
+.........F.............................................................. [ 42%]
+........................................................................ [ 45%]
+........................................................................ [ 47%]
+........................................................................ [ 50%]
+........................................................................ [ 53%]
+........................................................................ [ 55%]
+........................................................................ [ 58%]
+........................................................................ [ 61%]
+........................................................................ [ 63%]
+........................................................................ [ 66%]
+........................................................................ [ 69%]
+........................................................................ [ 71%]
+........................................................................ [ 74%]
+........................................................................ [ 77%]
+........................................................................ [ 79%]
+........................................................................ [ 82%]
+........................................................................ [ 85%]
+........................................................................ [ 87%]
+........................................................................ [ 90%]
+........................................................................ [ 93%]
+........................................................................ [ 95%]
+........................................................................ [ 98%]
+............................................                             [100%]
+=================================== FAILURES ===================================
+_ TestTheShippedSolveIsPinned.test_the_prediction_and_loss_are_bitwise_unchanged[adam+lbfgs] _
+
+self = <test_lr_free_solve.TestTheShippedSolveIsPinned object at 0x7f563da1bb90>
+name = 'adam+lbfgs'
+fitted = <epde.interface.interface.EpdeSearch object at 0x7f56345cc440>
+solve_on_cpu = <module 'epde.integrate.deepxde_integration' from '/workspace/scratch/7d7e1a7a20b3/EPDE/epde/integrate/deepxde_integration.py'>
+
+    @pytest.mark.parametrize('name', sorted(PIN_CONFIGS))
+    def test_the_prediction_and_loss_are_bitwise_unchanged(self, name, fitted,   # noqa: F811
+                                                            solve_on_cpu):
+        solution, loss, adapter = _solve(solve_on_cpu, fitted, PIN_CONFIGS[name])
+        assert np.isfinite(solution).all() and np.isfinite(loss)
+        digest = _digest(solution, loss)
+        print(f'PIN {name} {digest} loss={loss!r} exit={adapter.last_lbfgs_exit}')
+        assert PIN_DIGESTS[name] is not None, f'capture: {name} -> {digest}'
+>       assert digest == PIN_DIGESTS[name]
+E       AssertionError: assert '51405a754d1aa60d0519935c' == '6f9cc57457ed66c62a35fddb'
+E         
+E         - 6f9cc57457ed66c62a35fddb
+E         + 51405a754d1aa60d0519935c
+
+tests/unit/test_lr_free_solve.py:88: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f5635f0da60>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f5635f0ee70>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f5635f0ee70>
+Set domain <epde.structure.domain.Domain object at 0x7f56345ccf50> with inner shape of [80]
+Set domain <epde.structure.domain.Domain object at 0x7f56345ccfe0> with inner shape of [80]
+Deriv orders after definition [[0], [0, 0]]
+Deriv orders after definition [[0], [0, 0]]
+Added trajectory 0 to exist. traj: dict_keys([])
+Added trajectory 1 to exist. traj: dict_keys([0])
+The cardinality of defined token pool is [1 2]
+Among them, the pool contains [1 2]
+self.vars_demand_equation {'u'}
+Creating new equation, sparsity value 1.0
+New solution accepted, confirmed 1/4 solutions.
+Creating new equation, sparsity value 1.0
+New solution accepted, confirmed 2/4 solutions.
+Creating new equation, sparsity value 1.0
+New solution accepted, confirmed 3/4 solutions.
+Creating new equation, sparsity value 1.0
+Creating new equation, sparsity value 1.0
+Creating new equation, sparsity value 1.0
+Creating new equation, sparsity value 1.0
+Creating new equation, sparsity value 1.0
+Creating new equation, sparsity value 1.0
+Creating new equation, sparsity value 1.0
+Creating new equation, sparsity value 1.0
+Creating new equation, sparsity value 1.0
+Creating new equation, sparsity value 1.0
+Creating new equation, sparsity value 1.0
+Creating new equation, sparsity value 1.0
+Creating new equation, sparsity value 1.0
+Creating new equation, sparsity value 1.0
+Creating new equation, sparsity value 1.0
+New solution accepted, confirmed 4/4 solutions.
+The optimization has been conducted.
+---------------------------- Captured stderr setup -----------------------------
+Using backend: pytorch
+Other supported backends: tensorflow.compat.v1, tensorflow, jax, paddle.
+paddle supports more examples now and is recommended.
+----------------------------- Captured stdout call -----------------------------
+Compiling model...
+'compile' took 0.000135 s
+
+Compiling model...
+'compile' took 0.000098 s
+
+Training model...
+
+Step      Train loss              Test loss               Test metric
+0         [1.49e-01, 1.84e-01]    [1.54e-01, 1.84e-01]    []  
+20        [1.30e-01, 1.65e-01]    [1.34e-01, 1.65e-01]    []  
+
+Best model at step 20:
+  train loss: 2.95e-01
+  test loss: 2.98e-01
+  test metric: []
+
+'train' took 0.053358 s
+
+Compiling model...
+'compile' took 0.000076 s
+
+Training model...
+
+Step      Train loss              Test loss               Test metric
+20        [1.30e-01, 1.65e-01]    [1.34e-01, 1.65e-01]    []  
+40        [2.03e-03, 3.01e-02]    [1.95e-03, 3.01e-02]    []  
+
+Best model at step 40:
+  train loss: 3.21e-02
+  test loss: 3.21e-02
+  test metric: []
+
+'train' took 0.063771 s
+
+PIN adam+lbfgs 51405a754d1aa60d0519935c loss=0.03214060657767653 exit={'reason': 'maxiter', 'iterations': 20}
+_ TestTheShippedSolveIsPinned.test_the_prediction_and_loss_are_bitwise_unchanged[lbfgs-only] _
+
+self = <test_lr_free_solve.TestTheShippedSolveIsPinned object at 0x7f563da1bd10>
+name = 'lbfgs-only'
+fitted = <epde.interface.interface.EpdeSearch object at 0x7f56345cc440>
+solve_on_cpu = <module 'epde.integrate.deepxde_integration' from '/workspace/scratch/7d7e1a7a20b3/EPDE/epde/integrate/deepxde_integration.py'>
+
+    @pytest.mark.parametrize('name', sorted(PIN_CONFIGS))
+    def test_the_prediction_and_loss_are_bitwise_unchanged(self, name, fitted,   # noqa: F811
+                                                            solve_on_cpu):
+        solution, loss, adapter = _solve(solve_on_cpu, fitted, PIN_CONFIGS[name])
+        assert np.isfinite(solution).all() and np.isfinite(loss)
+        digest = _digest(solution, loss)
+        print(f'PIN {name} {digest} loss={loss!r} exit={adapter.last_lbfgs_exit}')
+        assert PIN_DIGESTS[name] is not None, f'capture: {name} -> {digest}'
+>       assert digest == PIN_DIGESTS[name]
+E       AssertionError: assert 'eb998099465c55ba0d820e55' == '361e35ab2ff3ef152e604911'
+E         
+E         - 361e35ab2ff3ef152e604911
+E         + eb998099465c55ba0d820e55
+
+tests/unit/test_lr_free_solve.py:88: AssertionError
+----------------------------- Captured stdout call -----------------------------
+Compiling model...
+'compile' took 0.000079 s
+
+Compiling model...
+'compile' took 0.000120 s
+
+Training model...
+
+Step      Train loss              Test loss               Test metric
+0         [1.49e-01, 1.84e-01]    [1.54e-01, 1.84e-01]    []  
+20        [2.72e-03, 2.97e-02]    [2.70e-03, 2.97e-02]    []  
+
+Best model at step 20:
+  train loss: 3.24e-02
+  test loss: 3.24e-02
+  test metric: []
+
+'train' took 0.053940 s
+
+PIN lbfgs-only eb998099465c55ba0d820e55 loss=0.03243679416218881 exit={'reason': 'maxiter', 'iterations': 20}
+________ TestTheS1PathIsPinned.test_the_affine_input_solve_is_unchanged ________
+
+self = <test_lr_free_solve.TestTheS1PathIsPinned object at 0x7f563d8478c0>
+fitted = <epde.interface.interface.EpdeSearch object at 0x7f56345cc440>
+solve_on_cpu = <module 'epde.integrate.deepxde_integration' from '/workspace/scratch/7d7e1a7a20b3/EPDE/epde/integrate/deepxde_integration.py'>
+
+    def test_the_affine_input_solve_is_unchanged(self, fitted, solve_on_cpu):      # noqa: F811
+        solution, loss, _ = _solve(solve_on_cpu, fitted,
+                                   dict(LBFGS_ONLY, input_transform='affine'))
+        digest = _digest(solution, loss)
+        print(f'S1PIN {digest}')
+        assert S1_PIN is not None, f'capture: {digest}'
+>       assert digest == S1_PIN
+E       AssertionError: assert 'fe51316668985afa067e7120' == 'c28c0dc36d3b02622e576293'
+E         
+E         - c28c0dc36d3b02622e576293
+E         + fe51316668985afa067e7120
+
+tests/unit/test_lr_free_solve.py:417: AssertionError
+----------------------------- Captured stdout call -----------------------------
+Compiling model...
+'compile' took 0.000079 s
+
+Compiling model...
+'compile' took 0.000077 s
+
+Training model...
+
+Step      Train loss              Test loss               Test metric
+0         [1.78e-01, 6.02e-01]    [1.60e-01, 6.02e-01]    []  
+20        [1.07e-01, 9.01e-02]    [9.79e-02, 9.01e-02]    []  
+
+Best model at step 20:
+  train loss: 1.97e-01
+  test loss: 1.88e-01
+  test metric: []
+
+'train' took 0.129248 s
+
+S1PIN fe51316668985afa067e7120
+______ TestThePeriodicEmbedding.test_it_is_inert_without_a_periodic_axis _______
+
+self = <test_lr_free_solve.TestThePeriodicEmbedding object at 0x7f563d847e00>
+fitted = <epde.interface.interface.EpdeSearch object at 0x7f56345cc440>
+solve_on_cpu = <module 'epde.integrate.deepxde_integration' from '/workspace/scratch/7d7e1a7a20b3/EPDE/epde/integrate/deepxde_integration.py'>
+
+    def test_it_is_inert_without_a_periodic_axis(self, fitted, solve_on_cpu):   # noqa: F811
+        """The 1-D fixture has no spatial axis, so the embedding must change
+        nothing: bitwise the affine-input (S1) pin."""
+        solution, loss, _ = _solve(solve_on_cpu, fitted,
+                                   dict(LBFGS_ONLY, input_transform='affine',
+                                        periodic_embedding='auto'))
+>       assert _digest(solution, loss) == S1_PIN
+E       AssertionError: assert 'fe51316668985afa067e7120' == 'c28c0dc36d3b02622e576293'
+E         
+E         - c28c0dc36d3b02622e576293
+E         + fe51316668985afa067e7120
+
+tests/unit/test_lr_free_solve.py:450: AssertionError
+----------------------------- Captured stdout call -----------------------------
+Compiling model...
+'compile' took 0.000104 s
+
+Compiling model...
+'compile' took 0.000080 s
+
+Training model...
+
+Step      Train loss              Test loss               Test metric
+0         [1.78e-01, 6.02e-01]    [1.60e-01, 6.02e-01]    []  
+20        [1.07e-01, 9.01e-02]    [9.79e-02, 9.01e-02]    []  
+
+Best model at step 20:
+  train loss: 1.97e-01
+  test loss: 1.88e-01
+  test metric: []
+
+'train' took 0.051202 s
+
+___ TestTheScaleInvariantObservationLoss.test_the_default_path_is_the_s1_pin ___
+
+self = <test_lr_free_solve.TestTheScaleInvariantObservationLoss object at 0x7f563d86d8e0>
+fitted = <epde.interface.interface.EpdeSearch object at 0x7f56345cc440>
+solve_on_cpu = <module 'epde.integrate.deepxde_integration' from '/workspace/scratch/7d7e1a7a20b3/EPDE/epde/integrate/deepxde_integration.py'>
+
+    def test_the_default_path_is_the_s1_pin(self, fitted, solve_on_cpu):         # noqa: F811
+        solution, loss, _ = _solve(solve_on_cpu, fitted, dict(LBFGS_ONLY, input_transform='affine',
+                                                              obs_loss='mse'))
+>       assert _digest(solution, loss) == S1_PIN
+E       AssertionError: assert 'fe51316668985afa067e7120' == 'c28c0dc36d3b02622e576293'
+E         
+E         - c28c0dc36d3b02622e576293
+E         + fe51316668985afa067e7120
+
+tests/unit/test_lr_free_solve.py:721: AssertionError
+----------------------------- Captured stdout call -----------------------------
+Compiling model...
+'compile' took 0.000077 s
+
+Compiling model...
+'compile' took 0.000138 s
+
+Training model...
+
+Step      Train loss              Test loss               Test metric
+0         [1.78e-01, 6.02e-01]    [1.60e-01, 6.02e-01]    []  
+20        [1.07e-01, 9.01e-02]    [9.79e-02, 9.01e-02]    []  
+
+Best model at step 20:
+  train loss: 1.97e-01
+  test loss: 1.88e-01
+  test metric: []
+
+'train' took 0.061290 s
+
+=============================== warnings summary ===============================
+../../../../opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14
+  /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+tests/unit/test_assignment_rps.py: 28 warnings
+tests/unit/test_divisor_scrub.py: 5 warnings
+tests/unit/test_duplicate_equation_guard.py: 26 warnings
+tests/unit/test_lr_free_solve.py: 27 warnings
+tests/unit/test_plain_mode.py: 70 warnings
+tests/unit/test_rps_repair_contract.py: 74 warnings
+tests/unit/test_rps_single_equation_paths.py: 8 warnings
+tests/unit/test_search_plumbing_fixes.py: 2 warnings
+tests/unit/test_selected_terms_cap.py: 16 warnings
+tests/unit/test_soeq_copy.py: 4 warnings
+tests/unit/test_solver_path.py: 5 warnings
+tests/unit/test_subset_screen.py: 80 warnings
+tests/unit/test_system_redundancy.py: 20 warnings
+tests/unit/test_target_term_rule.py: 39 warnings
+  /workspace/scratch/7d7e1a7a20b3/EPDE/epde/structure/main_structures.py:600: DeprecationWarning: The 'terms_number' metaparameter key is deprecated; use 'max_terms_number'. The legacy key was normalized automatically.
+    _normalize_metaparameters(metaparameters)   # legacy 'terms_number' -> 'max_terms_number'
+
+tests/unit/test_auto_settings.py::TestAutoDimensionality::test_frequencies_from_data_look_along_every_axis
+  /workspace/scratch/7d7e1a7a20b3/EPDE/epde/interface/prepared_tokens.py:272: EPDEUsageWarning: freq_from_data: no spectral peak along axis 0; that axis gets no frequency.
+    return dominant_frequencies(trajectories, axes=self._freq_axes, n=self._freq_from_data,
+
+tests/unit/test_auto_settings.py::TestAutoPopulation::test_the_population_ends_where_the_pool_runs_out_of_new_systems[3]
+tests/unit/test_auto_settings.py::TestAutoPopulation::test_a_pool_drier_than_the_floor_fills_the_floor_with_duplicates
+  /workspace/scratch/7d7e1a7a20b3/EPDE/epde/operators/multiobjective/moeadd_specific.py:1207: EPDEUsageWarning: Initial population: 3 of 3 systems are on the first Pareto level, more than half, and the pool yields no further system.
+    warnings.warn(
+
+tests/unit/test_auto_settings.py::TestAutoPopulation::test_the_population_ends_where_the_pool_runs_out_of_new_systems[7]
+  /workspace/scratch/7d7e1a7a20b3/EPDE/epde/operators/multiobjective/moeadd_specific.py:1207: EPDEUsageWarning: Initial population: 7 of 7 systems are on the first Pareto level, more than half, and the pool yields no further system.
+    warnings.warn(
+
+tests/unit/test_auto_settings.py::TestAutoPopulation::test_a_pool_drier_than_the_floor_fills_the_floor_with_duplicates
+  /workspace/scratch/7d7e1a7a20b3/EPDE/epde/operators/multiobjective/moeadd_specific.py:1193: EPDEUsageWarning: Initial population: 3 systems, 1 distinct. The pool yielded no further system in 5 attempts, so 2 slots hold copies.
+    warnings.warn(
+
+tests/unit/test_dp_autoscale_loss.py::TestStatScoresDefaultsToRaw::test_het
+  /workspace/scratch/7d7e1a7a20b3/epde-venv/lib/python3.12/site-packages/_pytest/fixtures.py:1392: PytestRemovedIn10Warning: Class-scoped fixtures defined as instance methods are deprecated.
+  Instance attributes set in the 'stat_scores' fixture will NOT be visible to test methods,
+  as each test gets a new instance while the fixture runs only once per class.
+  Use a @classmethod decorator below @pytest.fixture and set attributes on cls instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#class-scoped-fixture-as-instance-method
+    fixturefunc = resolve_fixture_function(fixturedef, request)
+
+tests/unit/test_intercept_scoring_rule.py::TestRuleOneGramMetrics::test_vcoef_cold_path_scores_the_intercept_iff_it_survived[True]
+  /workspace/scratch/7d7e1a7a20b3/EPDE/epde/operators/common/stability.py:1030: EPDEUsageWarning: vcoef: could not resolve the varying-coefficient basis from the Taylor microscale of 'u' on trajectory 0 (grid (40, 30)): no samples manager, the field lookup failed, or the field is constant along every axis. Falling back to the fixed resolution K=(3, 3).
+    setup = VaryingCoefSetup(X, target, sample_weights, grid_shape,
+
+tests/unit/test_keeprule_metric.py::TestGramIsBuiltOnlyWhenNeeded::test_explicit_vcoef_still_builds_the_vc_machinery
+  /workspace/scratch/7d7e1a7a20b3/EPDE/epde/operators/common/sparsity.py:299: EPDEUsageWarning: vcoef: could not resolve the varying-coefficient basis from the Taylor microscale of the cached primary variables on trajectory 0 (grid (120,)): no samples manager, the field lookup failed, or the field is constant along every axis. Falling back to the fixed resolution K=(3,).
+    gram_setup = VaryingCoefSetup(
+
+tests/unit/test_lr_free_solve.py::TestTheLrFreeOptimisers::test_dog_takes_the_distance_over_gradients_step
+  /workspace/scratch/7d7e1a7a20b3/epde-venv/lib/python3.12/site-packages/torch/utils/_device.py:122: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+  Consider using tensor.detach() first. (Triggered internally at /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:820.)
+    return func(*args, **kwargs)
+
+tests/unit/test_multisample_api.py::test_multisample_adapter_fits_constructor_records_with_the_real_optimizer
+tests/unit/test_multisample_api.py::test_multisample_adapter_refit_and_replacement_use_the_current_records
+  /workspace/scratch/7d7e1a7a20b3/EPDE/epde/operators/multiobjective/moeadd_specific.py:1193: EPDEUsageWarning: Initial population: 4 systems, 1 distinct. The pool yielded no further system in 100 attempts, so 3 slots hold copies.
+    warnings.warn(
+
+tests/unit/test_multisample_api.py::test_multisample_adapter_fits_constructor_records_with_the_real_optimizer
+tests/unit/test_multisample_api.py::test_multisample_adapter_refit_and_replacement_use_the_current_records
+  /workspace/scratch/7d7e1a7a20b3/EPDE/epde/operators/multiobjective/moeadd_specific.py:1207: EPDEUsageWarning: Initial population: 4 of 4 systems are on the first Pareto level, more than half, and the pool yields no further system.
+    warnings.warn(
+
+tests/unit/test_multisample_domain.py::TestSampleRowGeometry::test_two_samples_can_share_a_multidimensional_domain[stride1]
+  /workspace/scratch/7d7e1a7a20b3/EPDE/epde/structure/domain.py:358: EPDEUsageWarning: Domain 4 evaluates on a sub-lattice of its interior box (17, 27): every (2, 3) points, shape (9, 9), 81 of 459 rows.
+    self.setBoundaries(0 if self._boundary_auto else boundary)
+
+tests/unit/test_nsga_engine.py::TestEndToEnd::test_a_short_run_reports_the_truth_through_the_usual_accessors[plain]
+tests/unit/test_nsga_engine.py::TestEndToEnd::test_a_short_run_reports_the_truth_through_the_usual_accessors[repair]
+  /workspace/scratch/7d7e1a7a20b3/EPDE/epde/structure/main_structures.py:652: EPDEUsageWarning: Equation.__init__: no unique term in 100 attempts at slot 3; pool may be exhausted -- stopping with a shorter equation.
+    warnings.warn(
+
+tests/unit/test_nsga_engine.py::TestEndToEnd::test_a_short_run_reports_the_truth_through_the_usual_accessors[plain]
+  /workspace/scratch/7d7e1a7a20b3/EPDE/epde/operators/multiobjective/moeadd_specific.py:1193: EPDEUsageWarning: Initial population: 8 systems, 6 distinct. The pool yielded no further system in 100 attempts, so 2 slots hold copies.
+    warnings.warn(
+
+tests/unit/test_nsga_engine.py::TestEndToEnd::test_a_short_run_reports_the_truth_through_the_usual_accessors[plain]
+  /workspace/scratch/7d7e1a7a20b3/EPDE/epde/operators/multiobjective/moeadd_specific.py:1207: EPDEUsageWarning: Initial population: 5 of 8 systems are on the first Pareto level, more than half, and the pool yields no further system.
+    warnings.warn(
+
+tests/unit/test_nsga_engine.py::TestEndToEnd::test_a_short_run_reports_the_truth_through_the_usual_accessors[repair]
+  /workspace/scratch/7d7e1a7a20b3/EPDE/epde/operators/multiobjective/moeadd_specific.py:1193: EPDEUsageWarning: Initial population: 8 systems, 1 distinct. The pool yielded no further system in 100 attempts, so 7 slots hold copies.
+    warnings.warn(
+
+tests/unit/test_nsga_engine.py::TestEndToEnd::test_a_short_run_reports_the_truth_through_the_usual_accessors[repair]
+  /workspace/scratch/7d7e1a7a20b3/EPDE/epde/operators/multiobjective/moeadd_specific.py:1207: EPDEUsageWarning: Initial population: 8 of 8 systems are on the first Pareto level, more than half, and the pool yields no further system.
+    warnings.warn(
+
+tests/unit/test_plain_factor_moves.py::test_a_one_factor_fit_never_builds_a_two_factor_term
+  /workspace/scratch/7d7e1a7a20b3/EPDE/epde/operators/multiobjective/moeadd_specific.py:1207: EPDEUsageWarning: Initial population: 16 of 20 systems are on the first Pareto level, more than half, and the pool yields no further system.
+    warnings.warn(
+
+tests/unit/test_solver_forms.py::TestItRunsAtAll::test_the_default_call_returns_forms[True]
+tests/unit/test_solver_forms.py::TestItRunsAtAll::test_explicit_grids_are_accepted[True]
+  /workspace/scratch/7d7e1a7a20b3/EPDE/epde/operators/multiobjective/moeadd_specific.py:1193: EPDEUsageWarning: Initial population: 6 systems, 3 distinct. The pool yielded no further system in 100 attempts, so 3 slots hold copies.
+    warnings.warn(
+
+tests/unit/test_sparsity_interval.py::TestDefaultRealSystems::test_a_default_system_has_only_the_alpha_gene
+tests/unit/test_sparsity_interval.py::TestRetiredBudget::test_a_budget_system_is_stripped_with_a_warning
+tests/unit/test_sparsity_interval.py::TestRetiredBudget::test_a_system_without_it_is_not_touched
+  /workspace/scratch/7d7e1a7a20b3/EPDE/epde/structure/main_structures.py:652: EPDEUsageWarning: Equation.__init__: no unique term in 100 attempts at slot 2; pool may be exhausted -- stopping with a shorter equation.
+    warnings.warn(
+
+tests/unit/test_universal_reproducibility.py::test_the_exchange_coin_follows_the_numpy_seed
+tests/unit/test_universal_reproducibility.py::test_the_exchange_coin_follows_the_numpy_seed
+tests/unit/test_universal_search.py::test_plain_nsga2_runs_the_universal_search_on_a_system
+  /workspace/scratch/7d7e1a7a20b3/EPDE/epde/operators/multiobjective/moeadd_specific.py:1207: EPDEUsageWarning: Initial population: 14 of 18 systems are on the first Pareto level, more than half, and the pool yields no further system.
+    warnings.warn(
+
+tests/unit/test_universal_reproducibility.py::test_a_second_fit_equals_a_fresh_search
+tests/unit/test_universal_reproducibility.py::test_a_second_fit_equals_a_fresh_search
+  /workspace/scratch/7d7e1a7a20b3/EPDE/epde/operators/multiobjective/moeadd_specific.py:1202: EPDEUsageWarning: Initial population extended from 8 to 31 systems so that at most half are on the first Pareto level (15 of 31).
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/unit/test_lr_free_solve.py::TestTheShippedSolveIsPinned::test_the_prediction_and_loss_are_bitwise_unchanged[adam+lbfgs]
+FAILED tests/unit/test_lr_free_solve.py::TestTheShippedSolveIsPinned::test_the_prediction_and_loss_are_bitwise_unchanged[lbfgs-only]
+FAILED tests/unit/test_lr_free_solve.py::TestTheS1PathIsPinned::test_the_affine_input_solve_is_unchanged
+FAILED tests/unit/test_lr_free_solve.py::TestThePeriodicEmbedding::test_it_is_inert_without_a_periodic_axis
+FAILED tests/unit/test_lr_free_solve.py::TestTheScaleInvariantObservationLoss::test_the_default_path_is_the_s1_pin
+5 failed, 2703 passed, 436 warnings in 373.33s (0:06:13)

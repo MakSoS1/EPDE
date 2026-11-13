@@ -1,0 +1,92 @@
+/workspace/scratch/7d7e1a7a20b3/EPDE/epde/operators/multiobjective/moeadd_specific.py:1193: EPDEUsageWarning: Initial population: 8 systems, 5 distinct. The pool yielded no further system in 100 attempts, so 3 slots hold copies.
+  warnings.warn(
+/workspace/scratch/7d7e1a7a20b3/EPDE/epde/operators/common/fill_prune.py:623: EPDEUsageWarning: plain mode fill_probability: the fill-and-prune move handles one trajectory; with 2 it is skipped (the drawn move runs).
+  key = _trajectory_key()
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7fa53d48b890>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7fa53d48b890>
+Set domain <epde.structure.domain.Domain object at 0x7fa53d48bcb0> with inner shape of [27 37]
+Set domain <epde.structure.domain.Domain object at 0x7fa53d48bd70> with inner shape of [19 49]
+Deriv orders after definition [[0], [1], [1, 1]]
+Deriv orders after definition [[0], [1], [1, 1]]
+Added trajectory 7 to exist. traj: dict_keys([])
+Added trajectory 19 to exist. traj: dict_keys([7])
+The cardinality of defined token pool is [1 3]
+Among them, the pool contains [1 3]
+No du/dx0 data in cache for constancy check. Functionality of eval-d token check TBD.
+No du/dx1 data in cache for constancy check. Functionality of eval-d token check TBD.
+No d^2u/dx1^2 data in cache for constancy check. Functionality of eval-d token check TBD.
+self.vars_demand_equation {'u'}
+[3.78323733e-01 3.47456151e+12]
+[1.00000000e+00 7.71221305e+13]
+[3.78323733e-01 1.50342701e-16]
+[3.71676267e-01 1.50342701e-16]
+[3.71676267e-01 6.73827073e+12]
+[3.71676267e-01 3.47456151e+12]
+[3.78323733e-01 1.50342701e-16]
+[3.78323733e-01 1.50342701e-16]
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+The optimization has been conducted.

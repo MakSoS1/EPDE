@@ -1,0 +1,23 @@
+/workspace/scratch/7d7e1a7a20b3/EPDE/epde/operators/multiobjective/moeadd_specific.py:1135: EPDEUsageWarning: InitialParetoLevelSorting: search-space collapse at candidate 5 after 100 attempts (5 unique systems placed of 8 requested). Stopping the search; placed candidates are accessible via pareto_levels.levels[0].
+  warnings.warn(
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f07db378b60>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f07db378b60>
+Set domain <epde.structure.domain.Domain object at 0x7f07db67ecc0> with inner shape of [27 37]
+Set domain <epde.structure.domain.Domain object at 0x7f07db09bda0> with inner shape of [19 49]
+Deriv orders after definition [[0], [1], [1, 1]]
+Deriv orders after definition [[0], [1], [1, 1]]
+Added trajectory 7 to exist. traj: dict_keys([])
+Added trajectory 19 to exist. traj: dict_keys([7])
+The cardinality of defined token pool is [1 3]
+Among them, the pool contains [1 3]
+No du/dx0 data in cache for constancy check. Functionality of eval-d token check TBD.
+No du/dx1 data in cache for constancy check. Functionality of eval-d token check TBD.
+No d^2u/dx1^2 data in cache for constancy check. Functionality of eval-d token check TBD.
+self.vars_demand_equation {'u'}
+[3.71676267e-01 6.73827073e+12]
+[3.78323733e-01 1.50342701e-16]
+[3.78323733e-01 6.73827073e+12]
+[3.71676267e-01 1.50342701e-16]
+[1.00000000e+00 7.71221305e+13]
+The optimization has been conducted.

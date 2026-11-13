@@ -1,0 +1,14 @@
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7fbaed90aab0>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7fbaed90aab0>
+Set domain <epde.structure.domain.Domain object at 0x7fbaedb59490> with inner shape of [27 37]
+Set domain <epde.structure.domain.Domain object at 0x7fbaed695a00> with inner shape of [19 49]
+Deriv orders after definition [[0], [1], [1, 1]]
+Deriv orders after definition [[0], [1], [1, 1]]
+Added trajectory 7 to exist. traj: dict_keys([])
+Added trajectory 19 to exist. traj: dict_keys([7])
+The cardinality of defined token pool is [1 3]
+Among them, the pool contains [1 3]
+No du/dx0 data in cache for constancy check. Functionality of eval-d token check TBD.
+No du/dx1 data in cache for constancy check. Functionality of eval-d token check TBD.
+No d^2u/dx1^2 data in cache for constancy check. Functionality of eval-d token check TBD.

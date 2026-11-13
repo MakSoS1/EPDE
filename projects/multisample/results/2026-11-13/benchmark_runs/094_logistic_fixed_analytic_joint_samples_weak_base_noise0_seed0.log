@@ -1,0 +1,19 @@
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7ff7282c35c0>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7ff7282c35c0>
+Set domain <epde.structure.domain.Domain object at 0x7ff728220740> with inner shape of [77]
+Set domain <epde.structure.domain.Domain object at 0x7ff729ce8b00> with inner shape of [147]
+Set domain <epde.structure.domain.Domain object at 0x7ff7282c3bf0> with inner shape of [297]
+Deriv orders after definition [[0]]
+Deriv orders after definition [[0]]
+Deriv orders after definition [[0]]
+Added trajectory 7 to exist. traj: dict_keys([])
+Added trajectory 19 to exist. traj: dict_keys([7])
+Added trajectory 31 to exist. traj: dict_keys([7, 19])
+The cardinality of defined token pool is [1 1]
+Among them, the pool contains [1 1]
+No du/dx0 data in cache for constancy check. Functionality of eval-d token check TBD.
+Weak-form windows (0.2 s):
+  trajectory 7, slot u: WindowPlan(j=5, q=(6,), m=(16,), s=(1,), cut=(0,), rows=(49,), score=5.35e-32, kept=0.98)
+  trajectory 19, slot u: WindowPlan(j=6, q=(7,), m=(16,), s=(2,), cut=(0,), rows=(60,), score=3.71e-32, kept=1.00)
+  trajectory 31, slot u: WindowPlan(j=4, q=(5,), m=(8,), s=(4,), cut=(0,), rows=(72,), score=1.47e-26, kept=1.00)

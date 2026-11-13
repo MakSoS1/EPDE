@@ -1,0 +1,18 @@
+/workspace/scratch/7d7e1a7a20b3/EPDE/projects/multisample/benchmark.py:296: EPDEUsageWarning: boundary_width 2 of domain 7 is narrower than the edge reach of its preprocessing, [2, 4] samples per end, on axes [1]: the derivatives kept there come from the edge treatment (one-sided stencils) rather than the scheme itself. boundary_width='auto' excludes them.
+  search.create_pool(trajectories, max_deriv_order=case["orders"],
+/workspace/scratch/7d7e1a7a20b3/EPDE/projects/multisample/benchmark.py:296: EPDEUsageWarning: boundary_width 2 of domain 19 is narrower than the edge reach of its preprocessing, [2, 4] samples per end, on axes [1]: the derivatives kept there come from the edge treatment (one-sided stencils) rather than the scheme itself. boundary_width='auto' excludes them.
+  search.create_pool(trajectories, max_deriv_order=case["orders"],
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7fc7fc741d60>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7fc7fc741d60>
+Set domain <epde.structure.domain.Domain object at 0x7fc7fd5c8740> with inner shape of [27 37]
+Set domain <epde.structure.domain.Domain object at 0x7fc7fc1e1c70> with inner shape of [19 49]
+Deriv orders after definition [[0], [1], [1, 1]]
+Deriv orders after definition [[0], [1], [1, 1]]
+Added trajectory 7 to exist. traj: dict_keys([])
+Added trajectory 19 to exist. traj: dict_keys([7])
+The cardinality of defined token pool is [1 3]
+Among them, the pool contains [1 3]
+No du/dx0 data in cache for constancy check. Functionality of eval-d token check TBD.
+No du/dx1 data in cache for constancy check. Functionality of eval-d token check TBD.
+No d^2u/dx1^2 data in cache for constancy check. Functionality of eval-d token check TBD.

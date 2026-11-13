@@ -1,0 +1,21 @@
+....................                                                     [100%]
+=============================== warnings summary ===============================
+../../../../opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14
+  /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+tests/unit/test_multisample_api.py::test_multisample_adapter_fits_constructor_records_with_the_real_optimizer
+tests/unit/test_multisample_api.py::test_multisample_adapter_refit_and_replacement_use_the_current_records
+  /workspace/scratch/7d7e1a7a20b3/EPDE/epde/operators/multiobjective/moeadd_specific.py:1193: EPDEUsageWarning: Initial population: 4 systems, 1 distinct. The pool yielded no further system in 100 attempts, so 3 slots hold copies.
+    warnings.warn(
+
+tests/unit/test_multisample_api.py::test_multisample_adapter_fits_constructor_records_with_the_real_optimizer
+tests/unit/test_multisample_api.py::test_multisample_adapter_refit_and_replacement_use_the_current_records
+  /workspace/scratch/7d7e1a7a20b3/EPDE/epde/operators/multiobjective/moeadd_specific.py:1207: EPDEUsageWarning: Initial population: 4 of 4 systems are on the first Pareto level, more than half, and the pool yields no further system.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+20 passed, 5 warnings in 2.31s

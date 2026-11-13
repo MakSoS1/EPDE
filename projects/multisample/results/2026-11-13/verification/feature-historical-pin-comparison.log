@@ -1,0 +1,274 @@
+FF.FFF                                                                   [100%]
+=================================== FAILURES ===================================
+_ TestTheShippedSolveIsPinned.test_the_prediction_and_loss_are_bitwise_unchanged[adam+lbfgs] _
+
+self = <test_lr_free_solve.TestTheShippedSolveIsPinned object at 0x7f4c9946ef30>
+name = 'adam+lbfgs'
+fitted = <epde.interface.interface.EpdeSearch object at 0x7f4c986e3170>
+solve_on_cpu = <module 'epde.integrate.deepxde_integration' from '/workspace/scratch/7d7e1a7a20b3/EPDE/epde/integrate/deepxde_integration.py'>
+
+    @pytest.mark.parametrize('name', sorted(PIN_CONFIGS))
+    def test_the_prediction_and_loss_are_bitwise_unchanged(self, name, fitted,   # noqa: F811
+                                                            solve_on_cpu):
+        solution, loss, adapter = _solve(solve_on_cpu, fitted, PIN_CONFIGS[name])
+        assert np.isfinite(solution).all() and np.isfinite(loss)
+        digest = _digest(solution, loss)
+        print(f'PIN {name} {digest} loss={loss!r} exit={adapter.last_lbfgs_exit}')
+        assert PIN_DIGESTS[name] is not None, f'capture: {name} -> {digest}'
+>       assert digest == PIN_DIGESTS[name]
+E       AssertionError: assert '51405a754d1aa60d0519935c' == '6f9cc57457ed66c62a35fddb'
+E         
+E         - 6f9cc57457ed66c62a35fddb
+E         + 51405a754d1aa60d0519935c
+
+tests/unit/test_lr_free_solve.py:88: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f4c977ca480>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f4c9a7ed460>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f4c9a7ed460>
+Set domain <epde.structure.domain.Domain object at 0x7f4c983c8140> with inner shape of [80]
+Set domain <epde.structure.domain.Domain object at 0x7f4c977ce180> with inner shape of [80]
+Deriv orders after definition [[0], [0, 0]]
+Deriv orders after definition [[0], [0, 0]]
+Added trajectory 0 to exist. traj: dict_keys([])
+Added trajectory 1 to exist. traj: dict_keys([0])
+The cardinality of defined token pool is [1 2]
+Among them, the pool contains [1 2]
+self.vars_demand_equation {'u'}
+Creating new equation, sparsity value 1.0
+New solution accepted, confirmed 1/4 solutions.
+Creating new equation, sparsity value 1.0
+Creating new equation, sparsity value 1.0
+Creating new equation, sparsity value 1.0
+Creating new equation, sparsity value 1.0
+New solution accepted, confirmed 2/4 solutions.
+Creating new equation, sparsity value 1.0
+New solution accepted, confirmed 3/4 solutions.
+Creating new equation, sparsity value 1.0
+New solution accepted, confirmed 4/4 solutions.
+The optimization has been conducted.
+---------------------------- Captured stderr setup -----------------------------
+Using backend: pytorch
+Other supported backends: tensorflow.compat.v1, tensorflow, jax, paddle.
+paddle supports more examples now and is recommended.
+----------------------------- Captured stdout call -----------------------------
+Compiling model...
+'compile' took 1.689759 s
+
+Compiling model...
+'compile' took 0.000127 s
+
+Training model...
+
+Step      Train loss              Test loss               Test metric
+0         [1.49e-01, 1.84e-01]    [1.54e-01, 1.84e-01]    []  
+20        [1.30e-01, 1.65e-01]    [1.34e-01, 1.65e-01]    []  
+
+Best model at step 20:
+  train loss: 2.95e-01
+  test loss: 2.98e-01
+  test metric: []
+
+'train' took 0.046405 s
+
+Compiling model...
+'compile' took 0.000099 s
+
+Training model...
+
+Step      Train loss              Test loss               Test metric
+20        [1.30e-01, 1.65e-01]    [1.34e-01, 1.65e-01]    []  
+40        [2.03e-03, 3.01e-02]    [1.95e-03, 3.01e-02]    []  
+
+Best model at step 40:
+  train loss: 3.21e-02
+  test loss: 3.21e-02
+  test metric: []
+
+'train' took 0.055200 s
+
+PIN adam+lbfgs 51405a754d1aa60d0519935c loss=0.03214060657767653 exit={'reason': 'maxiter', 'iterations': 20}
+_ TestTheShippedSolveIsPinned.test_the_prediction_and_loss_are_bitwise_unchanged[lbfgs-only] _
+
+self = <test_lr_free_solve.TestTheShippedSolveIsPinned object at 0x7f4c97d31f40>
+name = 'lbfgs-only'
+fitted = <epde.interface.interface.EpdeSearch object at 0x7f4c986e3170>
+solve_on_cpu = <module 'epde.integrate.deepxde_integration' from '/workspace/scratch/7d7e1a7a20b3/EPDE/epde/integrate/deepxde_integration.py'>
+
+    @pytest.mark.parametrize('name', sorted(PIN_CONFIGS))
+    def test_the_prediction_and_loss_are_bitwise_unchanged(self, name, fitted,   # noqa: F811
+                                                            solve_on_cpu):
+        solution, loss, adapter = _solve(solve_on_cpu, fitted, PIN_CONFIGS[name])
+        assert np.isfinite(solution).all() and np.isfinite(loss)
+        digest = _digest(solution, loss)
+        print(f'PIN {name} {digest} loss={loss!r} exit={adapter.last_lbfgs_exit}')
+        assert PIN_DIGESTS[name] is not None, f'capture: {name} -> {digest}'
+>       assert digest == PIN_DIGESTS[name]
+E       AssertionError: assert 'eb998099465c55ba0d820e55' == '361e35ab2ff3ef152e604911'
+E         
+E         - 361e35ab2ff3ef152e604911
+E         + eb998099465c55ba0d820e55
+
+tests/unit/test_lr_free_solve.py:88: AssertionError
+----------------------------- Captured stdout call -----------------------------
+Compiling model...
+'compile' took 0.000106 s
+
+Compiling model...
+'compile' took 0.000095 s
+
+Training model...
+
+Step      Train loss              Test loss               Test metric
+0         [1.49e-01, 1.84e-01]    [1.54e-01, 1.84e-01]    []  
+20        [2.72e-03, 2.97e-02]    [2.70e-03, 2.97e-02]    []  
+
+Best model at step 20:
+  train loss: 3.24e-02
+  test loss: 3.24e-02
+  test metric: []
+
+'train' took 0.049390 s
+
+PIN lbfgs-only eb998099465c55ba0d820e55 loss=0.03243679416218881 exit={'reason': 'maxiter', 'iterations': 20}
+________ TestTheS1PathIsPinned.test_the_affine_input_solve_is_unchanged ________
+
+self = <test_lr_free_solve.TestTheS1PathIsPinned object at 0x7f4c977cd190>
+fitted = <epde.interface.interface.EpdeSearch object at 0x7f4c986e3170>
+solve_on_cpu = <module 'epde.integrate.deepxde_integration' from '/workspace/scratch/7d7e1a7a20b3/EPDE/epde/integrate/deepxde_integration.py'>
+
+    def test_the_affine_input_solve_is_unchanged(self, fitted, solve_on_cpu):      # noqa: F811
+        solution, loss, _ = _solve(solve_on_cpu, fitted,
+                                   dict(LBFGS_ONLY, input_transform='affine'))
+        digest = _digest(solution, loss)
+        print(f'S1PIN {digest}')
+        assert S1_PIN is not None, f'capture: {digest}'
+>       assert digest == S1_PIN
+E       AssertionError: assert 'fe51316668985afa067e7120' == 'c28c0dc36d3b02622e576293'
+E         
+E         - c28c0dc36d3b02622e576293
+E         + fe51316668985afa067e7120
+
+tests/unit/test_lr_free_solve.py:417: AssertionError
+----------------------------- Captured stdout call -----------------------------
+Compiling model...
+'compile' took 0.000077 s
+
+Compiling model...
+'compile' took 0.000079 s
+
+Training model...
+
+Step      Train loss              Test loss               Test metric
+0         [1.78e-01, 6.02e-01]    [1.60e-01, 6.02e-01]    []  
+20        [1.07e-01, 9.01e-02]    [9.79e-02, 9.01e-02]    []  
+
+Best model at step 20:
+  train loss: 1.97e-01
+  test loss: 1.88e-01
+  test metric: []
+
+'train' took 0.052473 s
+
+S1PIN fe51316668985afa067e7120
+______ TestThePeriodicEmbedding.test_it_is_inert_without_a_periodic_axis _______
+
+self = <test_lr_free_solve.TestThePeriodicEmbedding object at 0x7f4c977cd670>
+fitted = <epde.interface.interface.EpdeSearch object at 0x7f4c986e3170>
+solve_on_cpu = <module 'epde.integrate.deepxde_integration' from '/workspace/scratch/7d7e1a7a20b3/EPDE/epde/integrate/deepxde_integration.py'>
+
+    def test_it_is_inert_without_a_periodic_axis(self, fitted, solve_on_cpu):   # noqa: F811
+        """The 1-D fixture has no spatial axis, so the embedding must change
+        nothing: bitwise the affine-input (S1) pin."""
+        solution, loss, _ = _solve(solve_on_cpu, fitted,
+                                   dict(LBFGS_ONLY, input_transform='affine',
+                                        periodic_embedding='auto'))
+>       assert _digest(solution, loss) == S1_PIN
+E       AssertionError: assert 'fe51316668985afa067e7120' == 'c28c0dc36d3b02622e576293'
+E         
+E         - c28c0dc36d3b02622e576293
+E         + fe51316668985afa067e7120
+
+tests/unit/test_lr_free_solve.py:450: AssertionError
+----------------------------- Captured stdout call -----------------------------
+Compiling model...
+'compile' took 0.000205 s
+
+Compiling model...
+'compile' took 0.000135 s
+
+Training model...
+
+Step      Train loss              Test loss               Test metric
+0         [1.78e-01, 6.02e-01]    [1.60e-01, 6.02e-01]    []  
+20        [1.07e-01, 9.01e-02]    [9.79e-02, 9.01e-02]    []  
+
+Best model at step 20:
+  train loss: 1.97e-01
+  test loss: 1.88e-01
+  test metric: []
+
+'train' took 0.057508 s
+
+___ TestTheScaleInvariantObservationLoss.test_the_default_path_is_the_s1_pin ___
+
+self = <test_lr_free_solve.TestTheScaleInvariantObservationLoss object at 0x7f4c977cede0>
+fitted = <epde.interface.interface.EpdeSearch object at 0x7f4c986e3170>
+solve_on_cpu = <module 'epde.integrate.deepxde_integration' from '/workspace/scratch/7d7e1a7a20b3/EPDE/epde/integrate/deepxde_integration.py'>
+
+    def test_the_default_path_is_the_s1_pin(self, fitted, solve_on_cpu):         # noqa: F811
+        solution, loss, _ = _solve(solve_on_cpu, fitted, dict(LBFGS_ONLY, input_transform='affine',
+                                                              obs_loss='mse'))
+>       assert _digest(solution, loss) == S1_PIN
+E       AssertionError: assert 'fe51316668985afa067e7120' == 'c28c0dc36d3b02622e576293'
+E         
+E         - c28c0dc36d3b02622e576293
+E         + fe51316668985afa067e7120
+
+tests/unit/test_lr_free_solve.py:721: AssertionError
+----------------------------- Captured stdout call -----------------------------
+Compiling model...
+'compile' took 0.000108 s
+
+Compiling model...
+'compile' took 0.000079 s
+
+Training model...
+
+Step      Train loss              Test loss               Test metric
+0         [1.78e-01, 6.02e-01]    [1.60e-01, 6.02e-01]    []  
+20        [1.07e-01, 9.01e-02]    [9.79e-02, 9.01e-02]    []  
+
+Best model at step 20:
+  train loss: 1.97e-01
+  test loss: 1.88e-01
+  test metric: []
+
+'train' took 0.054317 s
+
+=============================== warnings summary ===============================
+../../../../opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14
+  /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+tests/unit/test_lr_free_solve.py::TestTheShippedSolveIsPinned::test_the_prediction_and_loss_are_bitwise_unchanged[lbfgs-only]
+tests/unit/test_lr_free_solve.py::TestTheShippedSolveIsPinned::test_a_repeat_in_the_same_process_is_bitwise_equal
+tests/unit/test_lr_free_solve.py::TestTheShippedSolveIsPinned::test_a_repeat_in_the_same_process_is_bitwise_equal
+tests/unit/test_lr_free_solve.py::TestTheS1PathIsPinned::test_the_affine_input_solve_is_unchanged
+tests/unit/test_lr_free_solve.py::TestThePeriodicEmbedding::test_it_is_inert_without_a_periodic_axis
+tests/unit/test_lr_free_solve.py::TestTheScaleInvariantObservationLoss::test_the_default_path_is_the_s1_pin
+  /workspace/scratch/7d7e1a7a20b3/EPDE/epde/structure/main_structures.py:600: DeprecationWarning: The 'terms_number' metaparameter key is deprecated; use 'max_terms_number'. The legacy key was normalized automatically.
+    _normalize_metaparameters(metaparameters)   # legacy 'terms_number' -> 'max_terms_number'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/unit/test_lr_free_solve.py::TestTheShippedSolveIsPinned::test_the_prediction_and_loss_are_bitwise_unchanged[adam+lbfgs]
+FAILED tests/unit/test_lr_free_solve.py::TestTheShippedSolveIsPinned::test_the_prediction_and_loss_are_bitwise_unchanged[lbfgs-only]
+FAILED tests/unit/test_lr_free_solve.py::TestTheS1PathIsPinned::test_the_affine_input_solve_is_unchanged
+FAILED tests/unit/test_lr_free_solve.py::TestThePeriodicEmbedding::test_it_is_inert_without_a_periodic_axis
+FAILED tests/unit/test_lr_free_solve.py::TestTheScaleInvariantObservationLoss::test_the_default_path_is_the_s1_pin
+5 failed, 1 passed, 59 deselected, 7 warnings in 2.57s

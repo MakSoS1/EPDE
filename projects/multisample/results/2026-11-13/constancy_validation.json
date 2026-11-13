@@ -1,0 +1,523 @@
+{
+  "validation": "Current-source pool constancy check after benchmark campaign; no optimization reruns",
+  "checked_preprocessing_configurations": 16,
+  "all_expected_tokens_retained": true,
+  "cases": [
+    {
+      "scenario": "affine",
+      "derivatives": "analytic",
+      "noise": 0.0,
+      "density": null,
+      "retained_labels": [
+        "du/dx0",
+        "u"
+      ],
+      "expected_labels": [
+        "du/dx0",
+        "u"
+      ],
+      "global_ranges": {
+        "du/dx0": [
+          -1.3312316847548638,
+          0.37295752796237935
+        ],
+        "u": [
+          0.0386321029108867,
+          2.473188121078377
+        ]
+      }
+    },
+    {
+      "scenario": "logistic",
+      "derivatives": "analytic",
+      "noise": 0.0,
+      "density": null,
+      "retained_labels": [
+        "du/dx0",
+        "u"
+      ],
+      "expected_labels": [
+        "du/dx0",
+        "u"
+      ],
+      "global_ranges": {
+        "du/dx0": [
+          -1.2875848106371586,
+          0.5999970443293007
+        ],
+        "u": [
+          0.11203547663115423,
+          2.7736895682151554
+        ]
+      },
+      "additional_power_ranges": {
+        "u^2": [
+          0.010000000000000002,
+          7.839999999999999
+        ]
+      }
+    },
+    {
+      "scenario": "coupled",
+      "derivatives": "analytic",
+      "noise": 0.0,
+      "density": null,
+      "retained_labels": [
+        "du/dx0",
+        "dv/dx0",
+        "u",
+        "v"
+      ],
+      "expected_labels": [
+        "du/dx0",
+        "dv/dx0",
+        "u",
+        "v"
+      ],
+      "global_ranges": {
+        "du/dx0": [
+          -1.154395815885269,
+          1.929193754916395
+        ],
+        "dv/dx0": [
+          -1.5808091744806578,
+          0.8433448741125643
+        ],
+        "u": [
+          -0.7949588104413133,
+          1.4900376121676455
+        ],
+        "v": [
+          -1.0882771053553524,
+          1.9611908105052902
+        ]
+      }
+    },
+    {
+      "scenario": "reaction_diffusion",
+      "derivatives": "analytic",
+      "noise": 0.0,
+      "density": null,
+      "retained_labels": [
+        "d^2u/dx1^2",
+        "du/dx0",
+        "du/dx1",
+        "u"
+      ],
+      "expected_labels": [
+        "d^2u/dx1^2",
+        "du/dx0",
+        "du/dx1",
+        "u"
+      ],
+      "global_ranges": {
+        "d^2u/dx1^2": [
+          -2.4923116966578993,
+          2.492311696657898
+        ],
+        "du/dx0": [
+          -0.37384675449868493,
+          0.37384675449868476
+        ],
+        "du/dx1": [
+          -1.2553084603592057,
+          1.2553084603592057
+        ],
+        "u": [
+          -0.9607894391523232,
+          0.9607894391523232
+        ]
+      }
+    },
+    {
+      "scenario": "logistic",
+      "derivatives": "fd",
+      "noise": 0.0,
+      "density": null,
+      "retained_labels": [
+        "du/dx0",
+        "u"
+      ],
+      "expected_labels": [
+        "du/dx0",
+        "u"
+      ],
+      "global_ranges": {
+        "du/dx0": [
+          -1.2875847646637888,
+          0.5999967856115117
+        ],
+        "u": [
+          0.11203547663115423,
+          2.7736895682151554
+        ]
+      },
+      "additional_power_ranges": {
+        "u^2": [
+          0.010000000000000002,
+          7.839999999999999
+        ]
+      }
+    },
+    {
+      "scenario": "logistic",
+      "derivatives": "fd",
+      "noise": 0.01,
+      "density": null,
+      "retained_labels": [
+        "du/dx0",
+        "u"
+      ],
+      "expected_labels": [
+        "du/dx0",
+        "u"
+      ],
+      "global_ranges": {
+        "du/dx0": [
+          -1.5986715372036775,
+          0.7905001067852296
+        ],
+        "u": [
+          0.1154879514470032,
+          2.7712480521709955
+        ]
+      },
+      "additional_power_ranges": {
+        "u^2": [
+          0.01013602002576616,
+          7.853114784229585
+        ]
+      }
+    },
+    {
+      "scenario": "logistic",
+      "derivatives": "fd",
+      "noise": 0.05,
+      "density": null,
+      "retained_labels": [
+        "du/dx0",
+        "u"
+      ],
+      "expected_labels": [
+        "du/dx0",
+        "u"
+      ],
+      "global_ranges": {
+        "du/dx0": [
+          -3.461246783311933,
+          2.681089123212277
+        ],
+        "u": [
+          0.1109850740453516,
+          2.7614819879943555
+        ]
+      },
+      "additional_power_ranges": {
+        "u^2": [
+          0.01046437413354176,
+          7.905683521821716
+        ]
+      }
+    },
+    {
+      "scenario": "coupled",
+      "derivatives": "fd",
+      "noise": 0.0,
+      "density": null,
+      "retained_labels": [
+        "du/dx0",
+        "dv/dx0",
+        "u",
+        "v"
+      ],
+      "expected_labels": [
+        "du/dx0",
+        "dv/dx0",
+        "u",
+        "v"
+      ],
+      "global_ranges": {
+        "du/dx0": [
+          -1.1543957175894006,
+          1.9291936593461871
+        ],
+        "dv/dx0": [
+          -1.5808090426884231,
+          0.8433448033181461
+        ],
+        "u": [
+          -0.7949588104413133,
+          1.4900376121676455
+        ],
+        "v": [
+          -1.0882771053553524,
+          1.9611908105052902
+        ]
+      }
+    },
+    {
+      "scenario": "coupled",
+      "derivatives": "fd",
+      "noise": 0.01,
+      "density": null,
+      "retained_labels": [
+        "du/dx0",
+        "dv/dx0",
+        "u",
+        "v"
+      ],
+      "expected_labels": [
+        "du/dx0",
+        "dv/dx0",
+        "u",
+        "v"
+      ],
+      "global_ranges": {
+        "du/dx0": [
+          -1.5879608549877386,
+          2.0913883426397075
+        ],
+        "dv/dx0": [
+          -2.041586727240367,
+          1.417113141773538
+        ],
+        "u": [
+          -0.8034204224054905,
+          1.4924811592775058
+        ],
+        "v": [
+          -1.091218023084918,
+          1.9672279263939707
+        ]
+      }
+    },
+    {
+      "scenario": "coupled",
+      "derivatives": "fd",
+      "noise": 0.05,
+      "density": null,
+      "retained_labels": [
+        "du/dx0",
+        "dv/dx0",
+        "u",
+        "v"
+      ],
+      "expected_labels": [
+        "du/dx0",
+        "dv/dx0",
+        "u",
+        "v"
+      ],
+      "global_ranges": {
+        "du/dx0": [
+          -3.33021211834153,
+          3.4633843881010513
+        ],
+        "dv/dx0": [
+          -4.223889101387926,
+          3.724985940387681
+        ],
+        "u": [
+          -0.8689158768341801,
+          1.5411885714060443
+        ],
+        "v": [
+          -1.1093514895094145,
+          1.991376389948693
+        ]
+      }
+    },
+    {
+      "scenario": "reaction_diffusion",
+      "derivatives": "fd",
+      "noise": 0.0,
+      "density": null,
+      "retained_labels": [
+        "d^2u/dx1^2",
+        "du/dx0",
+        "du/dx1",
+        "u"
+      ],
+      "expected_labels": [
+        "d^2u/dx1^2",
+        "du/dx0",
+        "du/dx1",
+        "u"
+      ],
+      "global_ranges": {
+        "d^2u/dx1^2": [
+          -2.491748975725169,
+          2.491748975725164
+        ],
+        "du/dx0": [
+          -0.3738466441517069,
+          0.3738466441517072
+        ],
+        "du/dx1": [
+          -1.2551667388751357,
+          1.255166738875149
+        ],
+        "u": [
+          -0.9607894391523232,
+          0.9607894391523232
+        ]
+      }
+    },
+    {
+      "scenario": "reaction_diffusion",
+      "derivatives": "fd",
+      "noise": 0.01,
+      "density": null,
+      "retained_labels": [
+        "d^2u/dx1^2",
+        "du/dx0",
+        "du/dx1",
+        "u"
+      ],
+      "expected_labels": [
+        "d^2u/dx1^2",
+        "du/dx0",
+        "du/dx1",
+        "u"
+      ],
+      "global_ranges": {
+        "d^2u/dx1^2": [
+          -2.9248168586738035,
+          2.860737481054591
+        ],
+        "du/dx0": [
+          -0.511607590809616,
+          0.4151318068664653
+        ],
+        "du/dx1": [
+          -1.2844825911994364,
+          1.2476451756515998
+        ],
+        "u": [
+          -0.9631006053117368,
+          0.9603851773060625
+        ]
+      }
+    },
+    {
+      "scenario": "reaction_diffusion",
+      "derivatives": "fd",
+      "noise": 0.05,
+      "density": null,
+      "retained_labels": [
+        "d^2u/dx1^2",
+        "du/dx0",
+        "du/dx1",
+        "u"
+      ],
+      "expected_labels": [
+        "d^2u/dx1^2",
+        "du/dx0",
+        "du/dx1",
+        "u"
+      ],
+      "global_ranges": {
+        "d^2u/dx1^2": [
+          -4.6570883904684255,
+          4.870147681390239
+        ],
+        "du/dx0": [
+          -1.6826446276617029,
+          1.0648750894663457
+        ],
+        "du/dx1": [
+          -1.4020120687000162,
+          1.363450379793328
+        ],
+        "u": [
+          -0.9723452699493915,
+          0.9587681299210198
+        ]
+      }
+    },
+    {
+      "scenario": "contradictory",
+      "derivatives": "analytic",
+      "noise": 0.0,
+      "density": null,
+      "retained_labels": [
+        "du/dx0",
+        "u"
+      ],
+      "expected_labels": [
+        "du/dx0",
+        "u"
+      ],
+      "global_ranges": {
+        "du/dx0": [
+          -0.967216100482006,
+          -0.05147460670170076
+        ],
+        "u": [
+          0.05147460670170076,
+          0.967216100482006
+        ]
+      }
+    },
+    {
+      "scenario": "density",
+      "derivatives": "analytic",
+      "noise": 0.0,
+      "density": "coarse",
+      "retained_labels": [
+        "d^2u/dx0^2",
+        "du/dx0",
+        "u"
+      ],
+      "expected_labels": [
+        "d^2u/dx0^2",
+        "du/dx0",
+        "u"
+      ],
+      "global_ranges": {
+        "d^2u/dx0^2": [
+          -4.0,
+          4.0
+        ],
+        "du/dx0": [
+          -2.0,
+          2.0
+        ],
+        "u": [
+          -1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "scenario": "density",
+      "derivatives": "analytic",
+      "noise": 0.0,
+      "density": "refined",
+      "retained_labels": [
+        "d^2u/dx0^2",
+        "du/dx0",
+        "u"
+      ],
+      "expected_labels": [
+        "d^2u/dx0^2",
+        "du/dx0",
+        "u"
+      ],
+      "global_ranges": {
+        "d^2u/dx0^2": [
+          -4.0,
+          4.0
+        ],
+        "du/dx0": [
+          -2.0,
+          2.0
+        ],
+        "u": [
+          -1.0,
+          1.0
+        ]
+      }
+    }
+  ]
+}

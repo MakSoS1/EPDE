@@ -1,0 +1,51 @@
+
+==================================== ERRORS ====================================
+______________ ERROR collecting projects/pic/data/dp/fno_test.py _______________
+projects/pic/data/dp/fno_test.py:75: in <module>
+    _data = np.load(DATA_PATH)
+            ^^^^^^^^^^^^^^^^^^
+/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/numpy/lib/_npyio_impl.py:454: in load
+    fid = stack.enter_context(open(os.fspath(file), "rb"))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: './dp.npz'
+________ ERROR collecting projects/robot/epde_u/test_invariant_terms.py ________
+ImportError while importing test module '/workspace/scratch/7d7e1a7a20b3/EPDE/projects/robot/epde_u/test_invariant_terms.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+projects/robot/epde_u/test_invariant_terms.py:29: in <module>
+    from epde.operators.common import invariant_terms as IT
+E   ImportError: cannot import name 'invariant_terms' from 'epde.operators.common' (/workspace/scratch/7d7e1a7a20b3/EPDE/epde/operators/common/__init__.py)
+_________________________ ERROR collecting tests/unit __________________________
+../epde-venv/lib/python3.12/site-packages/pluggy/_manager.py:254: in register
+    hook._maybe_apply_history(hookimpl)
+../epde-venv/lib/python3.12/site-packages/pluggy/_caller.py:269: in _maybe_apply_history
+    res = self._hookexec(self.name, [method], kwargs, False)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../epde-venv/lib/python3.12/site-packages/pluggy/_manager.py:183: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/unit/conftest.py:12: in pytest_addoption
+    parser.addoption("--path", action="store")
+../epde-venv/lib/python3.12/site-packages/_pytest/config/argparsing.py:206: in addoption
+    self._anonymous.addoption(*opts, **attrs)
+../epde-venv/lib/python3.12/site-packages/_pytest/config/argparsing.py:458: in addoption
+    raise ValueError(f"option names {conflict} already added")
+E   ValueError: option names {'--path'} already added
+=============================== warnings summary ===============================
+../../../../opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14
+  /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR projects/pic/data/dp/fno_test.py - FileNotFoundError: [Errno 2] No such...
+ERROR projects/robot/epde_u/test_invariant_terms.py
+ERROR tests/unit - ValueError: option names {'--path'} already added
+!!!!!!!!!!!!!!!!!!! Interrupted: 3 errors during collection !!!!!!!!!!!!!!!!!!!!
+1 warning, 3 errors in 3.81s

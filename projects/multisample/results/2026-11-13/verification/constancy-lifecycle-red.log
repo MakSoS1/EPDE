@@ -1,0 +1,156 @@
+F.FFF                                                                    [100%]
+=================================== FAILURES ===================================
+_ TestSampleTokenConstancy.test_record_specific_constants_remain_available[ids0] _
+
+self = <test_multisample_domain.TestSampleTokenConstancy object at 0x7f09cb2e7d40>
+ids = (0, 1)
+
+    @pytest.mark.parametrize('ids', [(0, 1), (7, 19)])
+    def test_record_specific_constants_remain_available(self, ids):
+        search = _search(system_rps_mode='plain', multisample_mode='joint')
+        family = self.family()
+        samples = [self.record(search, family, key, p)
+                   for key, p in zip(ids, [1., 2.])]
+    
+        search.create_pool(samples, additional_tokens=[family], max_deriv_order=(1,))
+    
+>       assert 'p' in family.token_family.tokens
+E       AssertionError: assert 'p' in []
+E        +  where [] = <epde.interface.token_family.TokenFamily object at 0x7f09cd212a50>.tokens
+E        +    where <epde.interface.token_family.TokenFamily object at 0x7f09cd212a50> = <epde.interface.prepared_tokens.CacheStoredTokens object at 0x7f09cbeda240>.token_family
+
+tests/unit/test_multisample_domain.py:313: AssertionError
+----------------------------- Captured stdout call -----------------------------
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f09cb2e6ff0>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f09cb2e6ff0>
+Set domain <epde.structure.domain.Domain object at 0x7f09cb2e81d0> with inner shape of [80]
+Set domain <epde.structure.domain.Domain object at 0x7f09cb2e8980> with inner shape of [80]
+Deriv orders after definition [[0]]
+Deriv orders after definition [[0]]
+Added trajectory 0 to exist. traj: dict_keys([])
+Added trajectory 1 to exist. traj: dict_keys([0])
+The cardinality of defined token pool is [1 1 1]
+Among them, the pool contains [1 1 1]
+Function p is assumed to be constant in the studied domain.                     Removed from the equaton search.
+Deleting ('p', (1.0,)) from all memory dicts in cache.
+_ TestSampleTokenConstancy.test_inactive_values_neither_block_pruning_nor_get_deleted[ids0] _
+
+self = <test_multisample_domain.TestSampleTokenConstancy object at 0x7f09cb2e8320>
+ids = (0, 1)
+
+    @pytest.mark.parametrize('ids', [(0, 1), (7, 19)])
+    def test_inactive_values_neither_block_pruning_nor_get_deleted(self, ids):
+        search = _search()
+        family = self.family()
+        inactive = self.record(search, family, 55, np.linspace(1., 2., 80))
+        inactive.build(max_deriv_order=(1,))
+        before = inactive.get(('p', (1.0,))).copy()
+        samples = [self.record(search, family, key, 3.) for key in ids]
+    
+        search.create_pool(samples, additional_tokens=[family], max_deriv_order=(1,))
+    
+>       assert 'p' not in next(f.tokens for f in search.pool.families if f.ftype == 'source')
+E       AssertionError: assert 'p' not in ['p']
+E        +  where ['p'] = next(<generator object TestSampleTokenConstancy.test_inactive_values_neither_block_pruning_nor_get_deleted.<locals>.<genexpr> at 0x7f09cb0bae90>)
+
+tests/unit/test_multisample_domain.py:328: AssertionError
+----------------------------- Captured stdout call -----------------------------
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f09cb2e99a0>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f09cb2e99a0>
+Set domain <epde.structure.domain.Domain object at 0x7f09cb2eb3e0> with inner shape of [80]
+Deriv orders after definition [[0]]
+Set domain <epde.structure.domain.Domain object at 0x7f09cb2eb6e0> with inner shape of [80]
+Set domain <epde.structure.domain.Domain object at 0x7f09cb2eb890> with inner shape of [80]
+Deriv orders after definition [[0]]
+Deriv orders after definition [[0]]
+Added trajectory 0 to exist. traj: dict_keys([])
+Added trajectory 1 to exist. traj: dict_keys([0])
+The cardinality of defined token pool is [1 1 1]
+Among them, the pool contains [1 1 1]
+_ TestSampleTokenConstancy.test_inactive_values_neither_block_pruning_nor_get_deleted[ids1] _
+
+self = <test_multisample_domain.TestSampleTokenConstancy object at 0x7f09cb2e8500>
+ids = (7, 19)
+
+    @pytest.mark.parametrize('ids', [(0, 1), (7, 19)])
+    def test_inactive_values_neither_block_pruning_nor_get_deleted(self, ids):
+        search = _search()
+        family = self.family()
+        inactive = self.record(search, family, 55, np.linspace(1., 2., 80))
+        inactive.build(max_deriv_order=(1,))
+        before = inactive.get(('p', (1.0,))).copy()
+        samples = [self.record(search, family, key, 3.) for key in ids]
+    
+        search.create_pool(samples, additional_tokens=[family], max_deriv_order=(1,))
+    
+>       assert 'p' not in next(f.tokens for f in search.pool.families if f.ftype == 'source')
+E       AssertionError: assert 'p' not in ['p']
+E        +  where ['p'] = next(<generator object TestSampleTokenConstancy.test_inactive_values_neither_block_pruning_nor_get_deleted.<locals>.<genexpr> at 0x7f09cb2112f0>)
+
+tests/unit/test_multisample_domain.py:328: AssertionError
+----------------------------- Captured stdout call -----------------------------
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f09cb2e8bc0>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f09cb2e8bc0>
+Set domain <epde.structure.domain.Domain object at 0x7f09cb2ed550> with inner shape of [80]
+Deriv orders after definition [[0]]
+Set domain <epde.structure.domain.Domain object at 0x7f09cb2ec230> with inner shape of [80]
+Set domain <epde.structure.domain.Domain object at 0x7f09cb2ec410> with inner shape of [80]
+Deriv orders after definition [[0]]
+Deriv orders after definition [[0]]
+Added trajectory 7 to exist. traj: dict_keys([])
+Added trajectory 19 to exist. traj: dict_keys([7])
+The cardinality of defined token pool is [1 1 1]
+Among them, the pool contains [1 1 1]
+No du/dx0 data in cache for constancy check. Functionality of eval-d token check TBD.
+No p data in cache for constancy check. Functionality of eval-d token check TBD.
+_ TestSampleTokenConstancy.test_changing_the_active_set_restores_declared_tokens _
+
+self = <test_multisample_domain.TestSampleTokenConstancy object at 0x7f09cb2e87a0>
+
+    def test_changing_the_active_set_restores_declared_tokens(self):
+        search = _search()
+        family = self.family()
+        first = self.record(search, family, 0, 1.)
+        second = self.record(search, family, 1, 2.)
+    
+        for samples, retained in [([first], False), ([first, second], True), ([first], False)]:
+            search.create_pool(samples, additional_tokens=[family], max_deriv_order=(1,))
+            active_labels = next(f.tokens for f in search.pool.families if f.ftype == 'source')
+            assert ('p' in active_labels) is retained
+>           assert family.token_family.tokens == ['p']
+E           AssertionError: assert [] == ['p']
+E             
+E             Right contains one more item: 'p'
+E             Use -v to get more diff
+
+tests/unit/test_multisample_domain.py:344: AssertionError
+----------------------------- Captured stdout call -----------------------------
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f09cb2ed4f0>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f09cb2ed4f0>
+Set domain <epde.structure.domain.Domain object at 0x7f09cb2ee150> with inner shape of [80]
+Set domain <epde.structure.domain.Domain object at 0x7f09cb2ee210> with inner shape of [80]
+Deriv orders after definition [[0]]
+Added trajectory 0 to exist. traj: dict_keys([])
+The cardinality of defined token pool is [1 1 1]
+Among them, the pool contains [1 1 1]
+Function p is assumed to be constant in the studied domain.                     Removed from the equaton search.
+Deleting ('p', (1.0,)) from all memory dicts in cache.
+=============================== warnings summary ===============================
+../../../../opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14
+  /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/unit/test_multisample_domain.py::TestSampleTokenConstancy::test_record_specific_constants_remain_available[ids0]
+FAILED tests/unit/test_multisample_domain.py::TestSampleTokenConstancy::test_inactive_values_neither_block_pruning_nor_get_deleted[ids0]
+FAILED tests/unit/test_multisample_domain.py::TestSampleTokenConstancy::test_inactive_values_neither_block_pruning_nor_get_deleted[ids1]
+FAILED tests/unit/test_multisample_domain.py::TestSampleTokenConstancy::test_changing_the_active_set_restores_declared_tokens
+4 failed, 1 passed, 27 deselected, 1 warning in 0.12s

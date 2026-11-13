@@ -1,0 +1,139 @@
+projects/pic/tests/test_application.py::ApplicationTests::test_coefficient_and_heldout_trajectory
+projects/pic/tests/test_application.py::ApplicationTests::test_short_segments_are_rejected
+projects/pic/tests/test_application.py::ApplicationTests::test_test_changes_do_not_change_training_coefficient
+projects/pic/tests/test_baseline.py::SupportTests::test_support_classifier_does_not_use_truth
+projects/pic/tests/test_baseline.py::SupportTests::test_unrepresentable_problems_stop_before_preprocessing_or_fit
+projects/pic/tests/test_baseline.py::PreprocessingTests::test_default_fit_uses_supplied_derivatives_instead_of_redifferentiating
+projects/pic/tests/test_baseline.py::PreprocessingTests::test_explicit_independent_differentiation_remains_available
+projects/pic/tests/test_baseline.py::PreprocessingTests::test_independent_differentiation_rejects_supplied_derivative_protocol
+projects/pic/tests/test_baseline.py::PreprocessingTests::test_native_smoothed_fields_and_derivatives_reach_the_fit
+projects/pic/tests/test_baseline.py::PreprocessingTests::test_unknown_differentiation_is_rejected
+projects/pic/tests/test_baseline.py::TransportLibraryTests::test_out_of_plane_transport_is_available_from_the_actual_loader
+projects/pic/tests/test_baseline.py::TransportLibraryTests::test_out_of_plane_transport_is_available_on_a_small_fixture
+projects/pic/tests/test_campaign_report.py::CampaignReportTests::test_changed_manifest_is_preserved_and_rejected
+projects/pic/tests/test_campaign_report.py::CampaignReportTests::test_crash_replaces_stale_output_with_planned_metadata
+projects/pic/tests/test_campaign_report.py::CampaignReportTests::test_distinct_noise_values_have_distinct_run_paths
+projects/pic/tests/test_campaign_report.py::CampaignReportTests::test_finished_rejects_another_identity
+projects/pic/tests/test_campaign_report.py::CampaignReportTests::test_identity_tracks_source_data_config_and_dependencies
+projects/pic/tests/test_campaign_report.py::CampaignReportTests::test_manifest_pending_and_unsupported_do_not_count_as_failures
+projects/pic/tests/test_campaign_report.py::CampaignReportTests::test_ranking_uses_same_supported_datasets_for_each_variant
+projects/pic/tests/test_campaign_report.py::CampaignReportTests::test_timeout_keeps_planned_metadata
+projects/pic/tests/test_campaign_report.py::CampaignReportTests::test_timeout_kills_run_when_process_table_is_refused
+projects/pic/tests/test_campaign_report.py::CampaignReportTests::test_timeout_only_dataset_and_variant_stay_in_ranking
+projects/pic/tests/test_heldout.py::HeldoutTests::test_constant_interval_has_json_safe_undefined_r2
+projects/pic/tests/test_heldout.py::HeldoutTests::test_future_mutation_cannot_change_training_selection_or_forecast
+projects/pic/tests/test_heldout.py::HeldoutTests::test_highest_derivative_can_be_reoriented_without_refitting
+projects/pic/tests/test_heldout.py::HeldoutTests::test_runner_builds_search_only_after_split_and_closes_it
+projects/pic/tests/test_heldout.py::HeldoutTests::test_supplied_derivatives_are_rejected_before_slicing
+projects/pic/tests/test_heldout.py::LifecycleTests::test_fit_failure_closes_search_before_exception_propagates
+projects/pic/tests/test_library_regressions.py::TrigonometricLibraryTests::test_configured_duffing_has_standalone_cosine_in_both_libraries
+projects/pic/tests/test_library_regressions.py::TrigonometricLibraryTests::test_library_honors_meaningful_flag_with_default_false
+projects/pic/tests/test_metrics.py::CoefficientParsingTests::test_scientific_notation_plus_is_not_a_term_separator
+projects/pic/tests/test_metrics.py::CoefficientParsingTests::test_system_decoration_does_not_change_coefficients
+projects/pic/tests/test_metrics.py::CoefficientParsingTests::test_target_flip_and_equation_permutation_keep_zero_error
+projects/pic/tests/test_metrics.py::CoefficientParsingTests::test_zero_scientific_coefficient_does_not_create_structural_term
+projects/pic/tests/test_metrics.py::CompromiseTests::test_all_invalid_has_no_selection
+projects/pic/tests/test_metrics.py::CompromiseTests::test_finite_extreme_values_still_choose_smallest_objective
+projects/pic/tests/test_metrics.py::CompromiseTests::test_inconsistent_dimensions_have_no_defined_compromise
+projects/pic/tests/test_metrics.py::CompromiseTests::test_malformed_vectors_are_excluded
+projects/pic/tests/test_metrics.py::CompromiseTests::test_missing_vector_is_excluded_without_changing_original_index
+projects/pic/tests/test_metrics.py::CompromiseTests::test_nonfinite_candidates_never_beat_valid_candidates
+projects/pic/tests/test_metrics.py::CompromiseTests::test_normalization_and_ties_preserve_original_order
+projects/pic/tests/test_metrics.py::CompromiseTests::test_scoring_all_invalid_keeps_front_metrics_without_selected_metrics
+projects/pic/tests/test_notebooks.py::CacheTests::test_identity_and_arguments_must_match
+projects/pic/tests/test_notebooks.py::CacheTests::test_stale_cache_recomputes_and_stores_new_identity
+projects/pic/tests/test_notebooks.py::CacheTests::test_timeout_does_not_keep_old_success
+projects/pic/tests/test_notebooks.py::CacheSafetyTests::test_child_identity_cannot_be_relabelled
+projects/pic/tests/test_notebooks.py::CacheSafetyTests::test_distinct_noise_values_have_distinct_cache_paths
+projects/pic/tests/test_notebooks.py::CacheSafetyTests::test_pending_identity_mismatch_is_rejected
+projects/pic/tests/test_notebooks.py::CacheSafetyTests::test_retry_cannot_promote_previous_attempt_output
+projects/pic/tests/test_notebooks.py::NotebookTests::test_every_dataset_is_documented
+projects/pic/tests/test_notebooks.py::NotebookTests::test_prose_has_no_code_names
+projects/pic/tests/test_optimizer_demo.py::OptimizerDemoTests::test_live_run_observes_epochs_and_recovers_the_known_oscillator
+projects/pic/tests/test_pic_tools.py::DerivativeTests::test_bad_derivative_stack_shape_is_rejected
+projects/pic/tests/test_pic_tools.py::DerivativeTests::test_fd_matches_epde_with_noise
+projects/pic/tests/test_pic_tools.py::DerivativeTests::test_noise_on_supplied_derivatives_is_rejected
+projects/pic/tests/test_pic_tools.py::DerivativeTests::test_nonfinite_observation_is_rejected
+projects/pic/tests/test_pic_tools.py::DerivativeTests::test_nonuniform_fd_uses_coordinates
+projects/pic/tests/test_pic_tools.py::DerivativeTests::test_poly_matches_epde_with_smoothing
+projects/pic/tests/test_pic_tools.py::DerivativeTests::test_replacing_fields_with_supplied_derivatives_is_rejected
+projects/pic/tests/test_pic_tools.py::DerivativeTests::test_run_rejects_nonfinite_supplied_derivatives
+projects/pic/tests/test_pic_tools.py::DerivativeTests::test_same_size_derivative_axis_reordering_is_rejected
+projects/pic/tests/test_pic_tools.py::DerivativeTests::test_supplied_derivatives_are_used_for_every_variable
+projects/pic/tests/test_pic_tools.py::DerivativeTests::test_supplied_orders_are_checked_by_check_and_run
+projects/pic/tests/test_pic_tools.py::InterfaceTests::test_check_respects_variant_and_overrides
+projects/pic/tests/test_pic_tools.py::InterfaceTests::test_empty_interior_is_rejected
+projects/pic/tests/test_pic_tools.py::InterfaceTests::test_explicit_missing_config_is_rejected
+projects/pic/tests/test_pic_tools.py::InterfaceTests::test_largest_ocean_rectangle_has_only_finite_values
+projects/pic/tests/test_pic_tools.py::InterfaceTests::test_ocean_rectangle_rejects_empty_mask
+projects/pic/tests/test_pic_tools.py::InterfaceTests::test_omitted_boundary_uses_epde_default
+projects/pic/tests/test_pic_tools.py::InterfaceTests::test_scalar_derivative_order_must_be_an_integer
+projects/pic/tests/test_pic_tools.py::InterfaceTests::test_script_check_forwards_configuration
+projects/pic/tests/test_pic_tools.py::JHTDBTests::test_required_couplings_can_be_generated
+projects/pic/tests/test_reconstruction.py::ParseTests::test_compact_sum_keeps_scientific_exponent
+projects/pic/tests/test_reconstruction.py::ParseTests::test_system_brace_prefix
+projects/pic/tests/test_reconstruction.py::ParseTests::test_terms_constant_and_target
+projects/pic/tests/test_reconstruction.py::KnownLawTests::test_diffusion_uses_nearest_neighbour_second_derivative
+projects/pic/tests/test_reconstruction.py::KnownLawTests::test_explicit_heat_equation_is_solved_in_space
+projects/pic/tests/test_reconstruction.py::KnownLawTests::test_failed_integration_has_no_success_score
+projects/pic/tests/test_reconstruction.py::KnownLawTests::test_implicit_form_is_not_integrated
+projects/pic/tests/test_reconstruction.py::KnownLawTests::test_independent_baseline_does_not_build_native_polynomial_pipeline
+projects/pic/tests/test_reconstruction.py::KnownLawTests::test_ode_law_reproduces_the_data
+projects/pic/tests/test_reconstruction.py::KnownLawTests::test_pde_fields_have_interior_shape
+projects/pic/tests/test_reconstruction.py::KnownLawTests::test_pde_requires_a_finite_time_interval
+projects/pic/tests/test_reconstruction.py::KnownLawTests::test_system_is_integrated_jointly
+projects/pic/tests/test_reconstruction.py::KnownLawTests::test_time_tail_is_integrated_without_reanchoring
+projects/pic/tests/test_runner_identity.py::RunRecordTests::test_run_records_content_identity
+projects/pic/tests/test_runner_identity.py::RunRecordTests::test_supplied_derivative_noise_is_an_unsupported_protocol
+projects/pic/tests/test_runner_identity.py::RunRecordTests::test_unsupported_baseline_is_a_distinct_record
+
+==================================== ERRORS ====================================
+______________ ERROR collecting projects/pic/data/dp/fno_test.py _______________
+projects/pic/data/dp/fno_test.py:75: in <module>
+    _data = np.load(DATA_PATH)
+            ^^^^^^^^^^^^^^^^^^
+/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/numpy/lib/_npyio_impl.py:454: in load
+    fid = stack.enter_context(open(os.fspath(file), "rb"))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: './dp.npz'
+________ ERROR collecting projects/robot/epde_u/test_invariant_terms.py ________
+ImportError while importing test module '/workspace/scratch/7d7e1a7a20b3/EPDE-baseline/projects/robot/epde_u/test_invariant_terms.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+projects/robot/epde_u/test_invariant_terms.py:29: in <module>
+    from epde.operators.common import invariant_terms as IT
+E   ImportError: cannot import name 'invariant_terms' from 'epde.operators.common' (/workspace/scratch/7d7e1a7a20b3/EPDE-baseline/epde/operators/common/__init__.py)
+_________________________ ERROR collecting tests/unit __________________________
+../epde-venv/lib/python3.12/site-packages/pluggy/_manager.py:254: in register
+    hook._maybe_apply_history(hookimpl)
+../epde-venv/lib/python3.12/site-packages/pluggy/_caller.py:269: in _maybe_apply_history
+    res = self._hookexec(self.name, [method], kwargs, False)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../epde-venv/lib/python3.12/site-packages/pluggy/_manager.py:183: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/unit/conftest.py:12: in pytest_addoption
+    parser.addoption("--path", action="store")
+../epde-venv/lib/python3.12/site-packages/_pytest/config/argparsing.py:206: in addoption
+    self._anonymous.addoption(*opts, **attrs)
+../epde-venv/lib/python3.12/site-packages/_pytest/config/argparsing.py:458: in addoption
+    raise ValueError(f"option names {conflict} already added")
+E   ValueError: option names {'--path'} already added
+=============================== warnings summary ===============================
+../../../../opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14
+  /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR projects/pic/data/dp/fno_test.py - FileNotFoundError: [Errno 2] No such...
+ERROR projects/robot/epde_u/test_invariant_terms.py
+ERROR tests/unit - ValueError: option names {'--path'} already added
+!!!!!!!!!!!!!!!!!!! Interrupted: 3 errors during collection !!!!!!!!!!!!!!!!!!!!
+88 tests collected, 3 errors in 3.72s

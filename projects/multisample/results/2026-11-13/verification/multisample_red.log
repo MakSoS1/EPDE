@@ -1,0 +1,33 @@
+F
+=================================== FAILURES ===================================
+_ TestJointPhysicalFit.test_different_experiments_identify_a_locally_singular_law _
+
+self = <test_multisample_fit.TestJointPhysicalFit object at 0x7f969566b920>
+
+    def test_different_experiments_identify_a_locally_singular_law(self):
+        a = np.linspace(0.3, 2.0, 53)
+        b = np.linspace(0.7, 1.6, 79)
+        samples = [(31, np.column_stack([a, -a]), -0.3 * a, np.ones(a.size)),
+                   (7, np.column_stack([b, -4.0 * b]), -0.6 * b, np.ones(b.size))]
+>       disc, _, width, coefficients, full_rank = _table(samples, [3])
+                                                  ^^^^^^^^^^^^^^^^^^^^
+
+tests/unit/test_multisample_fit.py:34: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+samples = [(31, array([[ 0.3       , -0.3       ],
+       [ 0.33269231, -0.33269231],
+       [ 0.36538462, -0.36538462],
+       ..., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+       1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.]))]
+masks = [3], metric = 'wape', weighting = 'samples'
+
+    def _table(samples, masks, metric='wape', weighting='samples'):
+>       from epde.operators.common.multisample import joint_subset_table
+E       ModuleNotFoundError: No module named 'epde.operators.common.multisample'
+
+tests/unit/test_multisample_fit.py:16: ModuleNotFoundError
+=========================== short test summary info ============================
+FAILED tests/unit/test_multisample_fit.py::TestJointPhysicalFit::test_different_experiments_identify_a_locally_singular_law
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 1 warning in 0.08s

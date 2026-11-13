@@ -1,0 +1,19 @@
+........................................................................ [ 24%]
+........................................................................ [ 48%]
+........................................................................ [ 73%]
+........................................................................ [ 97%]
+.......                                                                  [100%]
+=============================== warnings summary ===============================
+../../../../opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14
+  /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+tests/unit/test_multisample_domain.py::TestSampleRowGeometry::test_two_samples_can_share_a_multidimensional_domain[stride1]
+  /workspace/scratch/7d7e1a7a20b3/EPDE/epde/structure/domain.py:358: EPDEUsageWarning: Domain 4 evaluates on a sub-lattice of its interior box (17, 27): every (2, 3) points, shape (9, 9), 81 of 459 rows.
+    self.setBoundaries(0 if self._boundary_auto else boundary)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+295 passed, 2 warnings in 1.86s

@@ -1,0 +1,84 @@
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f4f41a866f0>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7f4f41a866f0>
+Set domain <epde.structure.domain.Domain object at 0x7f4f41fdb320> with inner shape of [97]
+Set domain <epde.structure.domain.Domain object at 0x7f4f41420e60> with inner shape of [169]
+Deriv orders after definition [[0]]
+Deriv orders after definition [[0]]
+Deriv orders after definition [[0]]
+Deriv orders after definition [[0]]
+Added trajectory 7 to exist. traj: dict_keys([])
+Added trajectory 19 to exist. traj: dict_keys([7])
+The cardinality of defined token pool is [1 1 1 1]
+Among them, the pool contains [1 1 1 1]
+No du/dx0 data in cache for constancy check. Functionality of eval-d token check TBD.
+No dv/dx0 data in cache for constancy check. Functionality of eval-d token check TBD.
+self.vars_demand_equation {'u', 'v'}
+[2.35971568e-16 1.96727695e-01 9.91105346e-16 8.52867412e-02]
+[1.94280103e-01 2.14553353e-16 7.18649033e-02 6.66133815e-16]
+[0.99189629 0.19672769 6.77065421 0.08528674]
+[9.91896286e-01 2.51655704e-16 6.77065421e+00 5.33138348e-16]
+[2.35971568e-16 2.14553353e-16 9.91105346e-16 6.66133815e-16]
+[0.1942801  0.19672769 0.0718649  0.08528674]
+[2.68793652e-16 9.50254467e-01 9.34437712e-16 9.54121997e+00]
+[0.1942801  0.95025447 0.0718649  9.54121997]
+[0.99189629 0.95025447 6.77065421 9.54121997]
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+The optimization has been conducted.

@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="5" skipped="0" tests="6" time="2.575" timestamp="2026-11-13T11:36:11.975422+01:00" hostname="f3c0862d309a"><testcase classname="tests.unit.test_lr_free_solve.TestTheShippedSolveIsPinned" name="test_the_prediction_and_loss_are_bitwise_unchanged[adam+lbfgs]" time="2.073"><failure message="AssertionError: assert '51405a754d1aa60d0519935c' == '6f9cc57457ed66c62a35fddb'&#10;  &#10;  - 6f9cc57457ed66c62a35fddb&#10;  + 51405a754d1aa60d0519935c">self = &lt;test_lr_free_solve.TestTheShippedSolveIsPinned object at 0x7f4c9946ef30&gt;
+name = 'adam+lbfgs'
+fitted = &lt;epde.interface.interface.EpdeSearch object at 0x7f4c986e3170&gt;
+solve_on_cpu = &lt;module 'epde.integrate.deepxde_integration' from '/workspace/scratch/7d7e1a7a20b3/EPDE/epde/integrate/deepxde_integration.py'&gt;
+
+    @pytest.mark.parametrize('name', sorted(PIN_CONFIGS))
+    def test_the_prediction_and_loss_are_bitwise_unchanged(self, name, fitted,   # noqa: F811
+                                                            solve_on_cpu):
+        solution, loss, adapter = _solve(solve_on_cpu, fitted, PIN_CONFIGS[name])
+        assert np.isfinite(solution).all() and np.isfinite(loss)
+        digest = _digest(solution, loss)
+        print(f'PIN {name} {digest} loss={loss!r} exit={adapter.last_lbfgs_exit}')
+        assert PIN_DIGESTS[name] is not None, f'capture: {name} -&gt; {digest}'
+&gt;       assert digest == PIN_DIGESTS[name]
+E       AssertionError: assert '51405a754d1aa60d0519935c' == '6f9cc57457ed66c62a35fddb'
+E         
+E         - 6f9cc57457ed66c62a35fddb
+E         + 51405a754d1aa60d0519935c
+
+tests/unit/test_lr_free_solve.py:88: AssertionError</failure></testcase><testcase classname="tests.unit.test_lr_free_solve.TestTheShippedSolveIsPinned" name="test_the_prediction_and_loss_are_bitwise_unchanged[lbfgs-only]" time="0.065"><failure message="AssertionError: assert 'eb998099465c55ba0d820e55' == '361e35ab2ff3ef152e604911'&#10;  &#10;  - 361e35ab2ff3ef152e604911&#10;  + eb998099465c55ba0d820e55">self = &lt;test_lr_free_solve.TestTheShippedSolveIsPinned object at 0x7f4c97d31f40&gt;
+name = 'lbfgs-only'
+fitted = &lt;epde.interface.interface.EpdeSearch object at 0x7f4c986e3170&gt;
+solve_on_cpu = &lt;module 'epde.integrate.deepxde_integration' from '/workspace/scratch/7d7e1a7a20b3/EPDE/epde/integrate/deepxde_integration.py'&gt;
+
+    @pytest.mark.parametrize('name', sorted(PIN_CONFIGS))
+    def test_the_prediction_and_loss_are_bitwise_unchanged(self, name, fitted,   # noqa: F811
+                                                            solve_on_cpu):
+        solution, loss, adapter = _solve(solve_on_cpu, fitted, PIN_CONFIGS[name])
+        assert np.isfinite(solution).all() and np.isfinite(loss)
+        digest = _digest(solution, loss)
+        print(f'PIN {name} {digest} loss={loss!r} exit={adapter.last_lbfgs_exit}')
+        assert PIN_DIGESTS[name] is not None, f'capture: {name} -&gt; {digest}'
+&gt;       assert digest == PIN_DIGESTS[name]
+E       AssertionError: assert 'eb998099465c55ba0d820e55' == '361e35ab2ff3ef152e604911'
+E         
+E         - 361e35ab2ff3ef152e604911
+E         + eb998099465c55ba0d820e55
+
+tests/unit/test_lr_free_solve.py:88: AssertionError</failure></testcase><testcase classname="tests.unit.test_lr_free_solve.TestTheShippedSolveIsPinned" name="test_a_repeat_in_the_same_process_is_bitwise_equal" time="0.118" /><testcase classname="tests.unit.test_lr_free_solve.TestTheS1PathIsPinned" name="test_the_affine_input_solve_is_unchanged" time="0.070"><failure message="AssertionError: assert 'fe51316668985afa067e7120' == 'c28c0dc36d3b02622e576293'&#10;  &#10;  - c28c0dc36d3b02622e576293&#10;  + fe51316668985afa067e7120">self = &lt;test_lr_free_solve.TestTheS1PathIsPinned object at 0x7f4c977cd190&gt;
+fitted = &lt;epde.interface.interface.EpdeSearch object at 0x7f4c986e3170&gt;
+solve_on_cpu = &lt;module 'epde.integrate.deepxde_integration' from '/workspace/scratch/7d7e1a7a20b3/EPDE/epde/integrate/deepxde_integration.py'&gt;
+
+    def test_the_affine_input_solve_is_unchanged(self, fitted, solve_on_cpu):      # noqa: F811
+        solution, loss, _ = _solve(solve_on_cpu, fitted,
+                                   dict(LBFGS_ONLY, input_transform='affine'))
+        digest = _digest(solution, loss)
+        print(f'S1PIN {digest}')
+        assert S1_PIN is not None, f'capture: {digest}'
+&gt;       assert digest == S1_PIN
+E       AssertionError: assert 'fe51316668985afa067e7120' == 'c28c0dc36d3b02622e576293'
+E         
+E         - c28c0dc36d3b02622e576293
+E         + fe51316668985afa067e7120
+
+tests/unit/test_lr_free_solve.py:417: AssertionError</failure></testcase><testcase classname="tests.unit.test_lr_free_solve.TestThePeriodicEmbedding" name="test_it_is_inert_without_a_periodic_axis" time="0.074"><failure message="AssertionError: assert 'fe51316668985afa067e7120' == 'c28c0dc36d3b02622e576293'&#10;  &#10;  - c28c0dc36d3b02622e576293&#10;  + fe51316668985afa067e7120">self = &lt;test_lr_free_solve.TestThePeriodicEmbedding object at 0x7f4c977cd670&gt;
+fitted = &lt;epde.interface.interface.EpdeSearch object at 0x7f4c986e3170&gt;
+solve_on_cpu = &lt;module 'epde.integrate.deepxde_integration' from '/workspace/scratch/7d7e1a7a20b3/EPDE/epde/integrate/deepxde_integration.py'&gt;
+
+    def test_it_is_inert_without_a_periodic_axis(self, fitted, solve_on_cpu):   # noqa: F811
+        """The 1-D fixture has no spatial axis, so the embedding must change
+        nothing: bitwise the affine-input (S1) pin."""
+        solution, loss, _ = _solve(solve_on_cpu, fitted,
+                                   dict(LBFGS_ONLY, input_transform='affine',
+                                        periodic_embedding='auto'))
+&gt;       assert _digest(solution, loss) == S1_PIN
+E       AssertionError: assert 'fe51316668985afa067e7120' == 'c28c0dc36d3b02622e576293'
+E         
+E         - c28c0dc36d3b02622e576293
+E         + fe51316668985afa067e7120
+
+tests/unit/test_lr_free_solve.py:450: AssertionError</failure></testcase><testcase classname="tests.unit.test_lr_free_solve.TestTheScaleInvariantObservationLoss" name="test_the_default_path_is_the_s1_pin" time="0.066"><failure message="AssertionError: assert 'fe51316668985afa067e7120' == 'c28c0dc36d3b02622e576293'&#10;  &#10;  - c28c0dc36d3b02622e576293&#10;  + fe51316668985afa067e7120">self = &lt;test_lr_free_solve.TestTheScaleInvariantObservationLoss object at 0x7f4c977cede0&gt;
+fitted = &lt;epde.interface.interface.EpdeSearch object at 0x7f4c986e3170&gt;
+solve_on_cpu = &lt;module 'epde.integrate.deepxde_integration' from '/workspace/scratch/7d7e1a7a20b3/EPDE/epde/integrate/deepxde_integration.py'&gt;
+
+    def test_the_default_path_is_the_s1_pin(self, fitted, solve_on_cpu):         # noqa: F811
+        solution, loss, _ = _solve(solve_on_cpu, fitted, dict(LBFGS_ONLY, input_transform='affine',
+                                                              obs_loss='mse'))
+&gt;       assert _digest(solution, loss) == S1_PIN
+E       AssertionError: assert 'fe51316668985afa067e7120' == 'c28c0dc36d3b02622e576293'
+E         
+E         - c28c0dc36d3b02622e576293
+E         + fe51316668985afa067e7120
+
+tests/unit/test_lr_free_solve.py:721: AssertionError</failure></testcase></testsuite></testsuites>

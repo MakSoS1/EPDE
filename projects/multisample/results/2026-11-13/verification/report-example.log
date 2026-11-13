@@ -1,0 +1,42 @@
+/workspace/scratch/7d7e1a7a20b3/EPDE/epde/operators/multiobjective/moeadd_specific.py:1193: EPDEUsageWarning: Initial population: 4 systems, 1 distinct. The pool yielded no further system in 100 attempts, so 3 slots hold copies.
+  warnings.warn(
+/workspace/scratch/7d7e1a7a20b3/EPDE/epde/operators/multiobjective/moeadd_specific.py:1207: EPDEUsageWarning: Initial population: 4 of 4 systems are on the first Pareto level, more than half, and the pool yields no further system.
+  warnings.warn(
+Set self._mem_for_cache as 15
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7fc9dcda2c00>
+setting builder with <epde.optimizers.builder.StrategyBuilder object at 0x7fc9dcda2c00>
+Set domain <epde.structure.domain.Domain object at 0x7fc9de7cd7f0> with inner shape of [66]
+Set domain <epde.structure.domain.Domain object at 0x7fc9dc81d790> with inner shape of [90]
+Deriv orders after definition [[0]]
+Deriv orders after definition [[0]]
+Added trajectory 0 to exist. traj: dict_keys([])
+Added trajectory 1 to exist. traj: dict_keys([0])
+The cardinality of defined token pool is [1 1]
+Among them, the pool contains [1 1]
+self.vars_demand_equation {'u'}
+[9.35736655e-10 3.64291930e-16]
+[9.35736655e-10 3.64291930e-16]
+[9.35736655e-10 3.64291930e-16]
+[9.35736655e-10 3.64291930e-16]
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+Could not generate unique offspring
+The optimization has been conducted.
+
+front of the variable u
+
+-0.3999999995117188 * u{power: 1.0} = du/dx0{power: 1.0} , with objective function values of (9.357366545181925e-10, 3.642919303941374e-16) 
+
