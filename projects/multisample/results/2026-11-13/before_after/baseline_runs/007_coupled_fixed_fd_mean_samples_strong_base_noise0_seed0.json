@@ -1,0 +1,631 @@
+{
+  "spec": {
+    "scenario": "coupled",
+    "stage": "fixed",
+    "derivatives": "fd",
+    "noise": 0.0,
+    "seed": 0,
+    "multisample_mode": "mean",
+    "weighting": "samples",
+    "rps_mode": "plain",
+    "evaluation_form": "strong",
+    "population": 8,
+    "epochs": 4,
+    "run_id": "007_coupled_fixed_fd_mean_samples_strong_base_noise0_seed0"
+  },
+  "status": "ok",
+  "started_at": "2026-11-13T12:41:30.551135+00:00",
+  "models": [
+    {
+      "model_id": 0,
+      "equations": [
+        {
+          "variable": "u",
+          "text": "-0.19999975924625968 * u{power: 1.0} + 0.9999998408948045 * v{power: 1.0} = du/dx0{power: 1.0}",
+          "terms_in_zero_form": [
+            {
+              "key": "u",
+              "factors": {
+                "u": 1.0
+              },
+              "coefficient": -0.19999975924625968
+            },
+            {
+              "key": "v",
+              "factors": {
+                "v": 1.0
+              },
+              "coefficient": 0.9999998408948045
+            },
+            {
+              "key": "du/dx0",
+              "factors": {
+                "du/dx0": 1.0
+              },
+              "coefficient": -1.0
+            },
+            {
+              "key": "1",
+              "factors": {},
+              "coefficient": 0.0
+            }
+          ],
+          "target": "du/dx0{power: 1.0}",
+          "canonical_target": "du/dx0",
+          "canonical_coefficients": {
+            "u": -0.19999975924625968,
+            "v": 0.9999998408948045,
+            "1": 0.0
+          },
+          "canonical_reason": null,
+          "fitness": 1.7611481732718607e-07,
+          "instability": 2.877329548050923e-15,
+          "coefficient_error": 2.8297327052940205e-07,
+          "support_exact": true,
+          "coefficient_reason": null,
+          "training_fit_residuals": [
+            {
+              "sample_id": 7,
+              "rows": 97,
+              "rmse": 8.830385325731219e-08,
+              "relative_l2": 1.9169392086356398e-07
+            },
+            {
+              "sample_id": 19,
+              "rows": 169,
+              "rmse": 1.3703519376379843e-07,
+              "relative_l2": 1.693939984104261e-07
+            }
+          ],
+          "clean_training_residuals": [
+            {
+              "sample_id": 7,
+              "relative_l2": 3.039865156506467e-07,
+              "rmse": 1.3759191428490576e-07,
+              "normalization": "canonical target"
+            },
+            {
+              "sample_id": 19,
+              "relative_l2": 2.545395494156465e-07,
+              "rmse": 2.1081148605400662e-07,
+              "normalization": "canonical target"
+            }
+          ],
+          "holdout_residuals": [
+            {
+              "sample_id": 97,
+              "relative_l2": 2.685146230795904e-07,
+              "rmse": 1.9241779608323983e-07,
+              "normalization": "canonical target"
+            }
+          ]
+        },
+        {
+          "variable": "v",
+          "text": "-0.9999998408948039 * u{power: 1.0} + -0.19999975924625962 * v{power: 1.0} = dv/dx0{power: 1.0}",
+          "terms_in_zero_form": [
+            {
+              "key": "u",
+              "factors": {
+                "u": 1.0
+              },
+              "coefficient": -0.9999998408948039
+            },
+            {
+              "key": "v",
+              "factors": {
+                "v": 1.0
+              },
+              "coefficient": -0.19999975924625962
+            },
+            {
+              "key": "dv/dx0",
+              "factors": {
+                "dv/dx0": 1.0
+              },
+              "coefficient": -1.0
+            },
+            {
+              "key": "1",
+              "factors": {},
+              "coefficient": 0.0
+            }
+          ],
+          "target": "dv/dx0{power: 1.0}",
+          "canonical_target": "dv/dx0",
+          "canonical_coefficients": {
+            "u": -0.9999998408948039,
+            "v": -0.19999975924625962,
+            "1": 0.0
+          },
+          "canonical_reason": null,
+          "fitness": 1.9042888856943366e-07,
+          "instability": 2.6784144632380118e-15,
+          "coefficient_error": 2.8297327093495095e-07,
+          "support_exact": true,
+          "coefficient_reason": null,
+          "training_fit_residuals": [
+            {
+              "sample_id": 7,
+              "rows": 97,
+              "rmse": 7.336130595585681e-08,
+              "relative_l2": 1.7451242605093482e-07
+            },
+            {
+              "sample_id": 19,
+              "rows": 169,
+              "rmse": 1.6742978087661434e-07,
+              "relative_l2": 1.9637429704779383e-07
+            }
+          ],
+          "clean_training_residuals": [
+            {
+              "sample_id": 7,
+              "relative_l2": 2.585273783723225e-07,
+              "rmse": 1.1295187205012903e-07,
+              "normalization": "canonical target"
+            },
+            {
+              "sample_id": 19,
+              "relative_l2": 3.0782001562038574e-07,
+              "rmse": 2.601324875635556e-07,
+              "normalization": "canonical target"
+            }
+          ],
+          "holdout_residuals": [
+            {
+              "sample_id": 97,
+              "relative_l2": 3.0280404299217944e-07,
+              "rmse": 1.797772377694488e-07,
+              "normalization": "canonical target"
+            }
+          ]
+        }
+      ],
+      "training_selection_score": 1.8327185294830987e-07,
+      "heldout_rollout": {
+        "relative_l2": 7.331436642666862e-07,
+        "reason": null
+      },
+      "training_instability": 2.7778720056444674e-15
+    }
+  ],
+  "train_samples": [
+    {
+      "id": 7,
+      "shape": [
+        101
+      ],
+      "grid_ranges": [
+        [
+          0.0,
+          6.0,
+          101
+        ]
+      ],
+      "parameters": {
+        "initial": [
+          1.0,
+          0.0
+        ],
+        "decay": 0.2,
+        "frequency": 1.0
+      },
+      "noise_std": {
+        "u": 0.0,
+        "v": 0.0
+      }
+    },
+    {
+      "id": 19,
+      "shape": [
+        173
+      ],
+      "grid_ranges": [
+        [
+          10.0,
+          17.0,
+          173
+        ]
+      ],
+      "parameters": {
+        "initial": [
+          0.0,
+          2.0
+        ],
+        "decay": 0.2,
+        "frequency": 1.0
+      },
+      "noise_std": {
+        "u": 0.0,
+        "v": 0.0
+      }
+    }
+  ],
+  "heldout_samples": [
+    {
+      "id": 97,
+      "shape": [
+        137
+      ],
+      "grid_ranges": [
+        [
+          30.0,
+          36.5,
+          137
+        ]
+      ],
+      "parameters": {
+        "initial": [
+          1.3,
+          -0.8
+        ],
+        "decay": 0.2,
+        "frequency": 1.0
+      },
+      "noise_std": {
+        "u": 0.0,
+        "v": 0.0
+      }
+    }
+  ],
+  "fixture_evidence": {
+    "kind": "analytic_fixture_check_not_EPDE_fit",
+    "maximum_exact_law_residual": 0.0
+  },
+  "resolved_config": {
+    "domain": {
+      "boundary_width": 2,
+      "time_axis": 0,
+      "evaluation_stride": null,
+      "evaluation_form": "strong",
+      "weak_window_products": "off",
+      "weak_window_gate": "half_power"
+    },
+    "preprocessing": {
+      "default_preprocessor_type": "FD",
+      "preprocessor_kwargs": {},
+      "max_deriv_order": 1
+    },
+    "search_space": {
+      "data_fun_pow": 1,
+      "deriv_fun_pow": 1,
+      "equation_terms_max_number": 4,
+      "equation_factors_max_number": 1,
+      "rps_amplification_cap": 100.0,
+      "tokens": [],
+      "system_rps_mode": "plain",
+      "system_rps_params": {
+        "fill_probability": "auto",
+        "fill_beam_width": 1000,
+        "fill_top": 20,
+        "fill_prune_alpha": 0.3,
+        "fill_levels": "all",
+        "product_rule_decline": "auto",
+        "variable_order": "auto",
+        "variable_order_seed": null,
+        "plain_target": true,
+        "factor_move_probability": "auto",
+        "target_axes": 0
+      }
+    },
+    "objectives": {
+      "multiobjective_mode": true,
+      "discrepancy_metric": "l2_relative",
+      "second_objective": "instability",
+      "complexity_metric": "factors",
+      "instability_metric": "dyad",
+      "single_objective_metric": "discrepancy",
+      "anchor_on_residual": false,
+      "sparsity_cls": "epde.operators.common.sparsity.VWSRSparsity",
+      "sparsity_kwargs": {}
+    },
+    "solver": {
+      "use_solver": false,
+      "solver_backend": "autograd",
+      "device": "cpu",
+      "pinn_loss_mult": 0.0,
+      "error_metric": "rmse",
+      "deepxde_config": {
+        "net": [
+          64,
+          64,
+          64,
+          64
+        ],
+        "activation": "tanh",
+        "optimizer": "adam",
+        "lr": 0.0001,
+        "num_domain": 4000,
+        "num_test": 500,
+        "epochs": 2000,
+        "train_frac": 0.8,
+        "lbfgs_maxiter": 2000,
+        "loss_weight_mode": "gradient"
+      },
+      "basis_config": {
+        "train_frac": 0.8,
+        "energy": 0.99999,
+        "periodic": "auto",
+        "periodic_modes": "nyquist",
+        "nyquist_factor": 1.0,
+        "time_factor": 2.0,
+        "space_factor": 2.0,
+        "collocation_factor": 2,
+        "phys_weight_scale": 1.0,
+        "pde_loss": "mse",
+        "sinv_floor_rel": 0.0,
+        "start": "zero",
+        "precondition": "jacobi",
+        "refine": "spectral",
+        "refine_tol": 1e-10,
+        "refine_min_gain": 2.0,
+        "max_refinements": 3,
+        "lbfgs_maxiter": 4000,
+        "history_size": 100,
+        "gtol": 1e-08,
+        "ftol": 0.0,
+        "threads": null
+      },
+      "mode": "NN",
+      "use_cache": false,
+      "use_fourier": false,
+      "fourier_params": null,
+      "use_adaptive_lambdas": false,
+      "compiling_params": {},
+      "optimizer_params": {},
+      "cache_params": {},
+      "early_stopping_params": {},
+      "plotting_params": {},
+      "training_params": {}
+    },
+    "evolution": {
+      "population_size": 8,
+      "training_epochs": 4,
+      "early_stopping_patience": null,
+      "neighbors_number": 3,
+      "PBI_penalty": 5.0,
+      "subregion_mating_limitation": 0.9,
+      "solution_params": {},
+      "director_params": {
+        "variation_params": {},
+        "mutation_params": {},
+        "sorter_params": {},
+        "pareto_combiner_params": {},
+        "pareto_updater_params": {}
+      },
+      "operators": {
+        "MOEADDSelection": {
+          "delta": 0.9,
+          "parents_fraction": 0.2
+        },
+        "PopulationUpdater": {
+          "PBI_penalty": 5.0
+        },
+        "NSGASelection": {
+          "parents_fraction": 1.0
+        },
+        "AppendUpdater": {},
+        "SortingBasedNeighborSelector": {
+          "number_of_neighbors": 3
+        },
+        "ParetoLevelUpdater": {
+          "mutation_attempt_limit": 3,
+          "offspring_attempt_limit": 3
+        },
+        "InitialParetoLevelSorting": {
+          "uniqueness_attempt_limit": 100
+        },
+        "SolverFreeFitness": {
+          "penalty_coeff": 0.2
+        },
+        "SolverBasedFitness": {
+          "penalty_coeff": 0.2,
+          "pinn_loss_mult": 0.0,
+          "error_metric": "rmse",
+          "deepxde_config": {
+            "net": [
+              64,
+              64,
+              64,
+              64
+            ],
+            "activation": "tanh",
+            "optimizer": "adam",
+            "lr": 0.0001,
+            "num_domain": 4000,
+            "num_test": 500,
+            "epochs": 2000,
+            "train_frac": 0.8,
+            "lbfgs_maxiter": 2000,
+            "loss_weight_mode": "gradient"
+          },
+          "basis_config": {
+            "train_frac": 0.8,
+            "energy": 0.99999,
+            "periodic": "auto",
+            "periodic_modes": "nyquist",
+            "nyquist_factor": 1.0,
+            "time_factor": 2.0,
+            "space_factor": 2.0,
+            "collocation_factor": 2,
+            "phys_weight_scale": 1.0,
+            "pde_loss": "mse",
+            "sinv_floor_rel": 0.0,
+            "start": "zero",
+            "precondition": "jacobi",
+            "refine": "spectral",
+            "refine_tol": 1e-10,
+            "refine_min_gain": 2.0,
+            "max_refinements": 3,
+            "lbfgs_maxiter": 4000,
+            "history_size": 100,
+            "gtol": 1e-08,
+            "ftol": 0.0,
+            "threads": null
+          }
+        },
+        "DiscrepancyBasedFitnessWithCV": {
+          "penalty_coeff": 0.2
+        },
+        "PIC": {
+          "penalty_coeff": 0.2,
+          "pinn_loss_mult": 0.0
+        },
+        "DeepXDEBasedFitness": {
+          "penalty_coeff": 0.2,
+          "error_metric": "rmse",
+          "deepxde_config": {
+            "net": [
+              64,
+              64,
+              64,
+              64
+            ],
+            "activation": "tanh",
+            "optimizer": "adam",
+            "lr": 0.0001,
+            "num_domain": 4000,
+            "num_test": 500,
+            "epochs": 2000,
+            "train_frac": 0.8,
+            "lbfgs_maxiter": 2000,
+            "loss_weight_mode": "gradient"
+          }
+        },
+        "ParetoLevelsCrossover": {},
+        "ChromosomeCrossover": {
+          "equation_exchange_prob": 0.1
+        },
+        "MetaparamerCrossover": {
+          "metaparam_proportion": 0.05
+        },
+        "EquationCrossover": {
+          "crossover_probability": 1
+        },
+        "TermCrossover": {
+          "crossover_probability": 0.3
+        },
+        "TermParamCrossover": {
+          "term_param_proportion": 0.4
+        },
+        "SystemMutation": {
+          "indiv_mutation_prob": 1
+        },
+        "EquationMutation": {
+          "r_mutation": 0.6,
+          "n_added_terms": 12,
+          "term_addition_prob": 0.5
+        },
+        "MetaparameterMutation": {
+          "mean": 0.0,
+          "std": 1.0
+        },
+        "TermMutation": {},
+        "TermParameterMutation": {
+          "r_param_mutation": 0.2,
+          "multiplier": 0.1,
+          "strict_restrictions": 1
+        },
+        "LinRegCoeffCalc": {},
+        "LASSOBasedSparsity": {}
+      },
+      "niching": "auto",
+      "complementary_mating_prob": 0.0,
+      "engine": "nsga2",
+      "planned_duplicates": "fit"
+    },
+    "runtime": {
+      "memory_for_cache": 15,
+      "verbose_params": {
+        "show_iter_idx": false
+      },
+      "free_tensor_cache_after_fit": false
+    }
+  },
+  "fit_designs": {
+    "u": {
+      "individual_designs": {
+        "7": {
+          "rows": 97,
+          "columns": 2,
+          "rank": 2,
+          "singular_values": [
+            4.675713417947127,
+            3.796275585165452
+          ],
+          "condition_number": 1.2316580588138062,
+          "condition_reason": null
+        },
+        "19": {
+          "rows": 169,
+          "columns": 2,
+          "rank": 2,
+          "singular_values": [
+            11.62924018749343,
+            9.44637445008512
+          ],
+          "condition_number": 1.2310797384692538,
+          "condition_reason": null
+        }
+      },
+      "pooled_design": {
+        "rows": 266,
+        "columns": 2,
+        "rank": 2,
+        "singular_values": [
+          12.23684848012908,
+          10.535974617912188
+        ],
+        "condition_number": 1.1614348860830814,
+        "condition_reason": null
+      }
+    },
+    "v": {
+      "individual_designs": {
+        "7": {
+          "rows": 97,
+          "columns": 2,
+          "rank": 2,
+          "singular_values": [
+            4.675713417947127,
+            3.796275585165452
+          ],
+          "condition_number": 1.2316580588138062,
+          "condition_reason": null
+        },
+        "19": {
+          "rows": 169,
+          "columns": 2,
+          "rank": 2,
+          "singular_values": [
+            11.62924018749343,
+            9.44637445008512
+          ],
+          "condition_number": 1.2310797384692538,
+          "condition_reason": null
+        }
+      },
+      "pooled_design": {
+        "rows": 266,
+        "columns": 2,
+        "rank": 2,
+        "singular_values": [
+          12.23684848012908,
+          10.535974617912188
+        ],
+        "condition_number": 1.1614348860830814,
+        "condition_reason": null
+      }
+    }
+  },
+  "active_evaluation_form": "strong",
+  "truth_on_front": true,
+  "selected_model_id": 0,
+  "selection_rule": "lowest training instability among models within 0.001 relative training fitness of the best; holdout never used",
+  "elapsed_seconds": 2.091896291000012,
+  "finished_at": "2026-11-13T12:41:32.642986+00:00",
+  "wall_seconds_including_imports": 2.591107375003048,
+  "log_file": "projects/multisample/results/2026-11-13/before_after/baseline_runs/007_coupled_fixed_fd_mean_samples_strong_base_noise0_seed0.log",
+  "timeout_seconds": 45.0
+}

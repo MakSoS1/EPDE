@@ -17,6 +17,16 @@ python projects/multisample/benchmark.py --suite smoke --output projects/multisa
 python projects/multisample/benchmark.py --suite fixed --workers 3 --output projects/multisample/results/fixed.json
 python projects/multisample/benchmark.py --suite discovery --workers 3 --output projects/multisample/results/discovery.json
 python projects/multisample/benchmark.py --suite compatibility --workers 3 --output projects/multisample/results/compatibility.json
+python projects/multisample/benchmark.py --suite extended --workers 3 --output projects/multisample/results/extended.json
+```
+
+The `extended` suite adds heat and advection–diffusion laws whose single-mode records are each degenerate, a reaction–diffusion control whose records already carry two modes, 5% noise in the PDE search, the weak form inside the full search, and a real recording: one spinning robot from the 30-robot data in `projects/robot`, cut into 2 s windows (first minute for training, second minute held out).
+
+The same job definitions can run on another checkout, for example the commit before this work. Only mean-mode jobs exist there:
+
+```bash
+git worktree add --detach ../epde-before 8690035e90b234b34ed5a2fb0bb8e4a814dcbdf7
+python projects/multisample/benchmark.py --suite all --modes mean --epde-root ../epde-before --workers 3 --output projects/multisample/results/baseline.json
 ```
 
 The default smoke suite contains four fixed-structure jobs. The complete default matrix contains **98 jobs**: 32 fixed-structure jobs, 60 evolutionary discovery jobs, and six compatibility jobs. Discovery uses seeds `0,1,2,3,4`, a requested population of eight, and four epochs. EPDE may expand its initial population according to its own diversity rules; the hard timeout remains the resource bound.
@@ -82,7 +92,9 @@ The compatibility suite also tries two clean weak-form fixed-structure jobs. The
 
 ## Holdout and model selection
 
-Whole clean trajectories/fields with new initial conditions are held out. The selected model minimizes the mean training fitness among the returned candidates. The report keeps every returned model and never selects by coefficient error, support recovery, or holdout error.
+Whole clean trajectories/fields with new initial conditions are held out. Among the returned candidates, the selected model has the lowest mean training instability among those whose mean training fitness is within 0.1% of the best one. The report keeps every returned model, records whether the correct structure is anywhere on the returned front, and never selects by coefficient error, support recovery, or holdout error.
+
+The 98-job campaign below used the earlier rule, pure minimum training fitness. On noisy data that rule picks a copy of the correct equation with an extra intercept of order 1e-3: the two have equal fitness to six digits, while the extra coefficient is 20 to 70 times less stable. The `before_after` campaign uses the current rule.
 
 Canonicalization rewrites each equation against its scenario's first time derivative, or the second time derivative for the density control. A model lacking that linear derivative receives an explicit unavailable reason for canonical coefficient comparison. Active support uses the declared threshold `1e-8 * max(1, max(abs(coefficients)))`; this threshold is fixed before running any experiment. Extra terms contribute to coefficient error even when the true coefficient is zero.
 

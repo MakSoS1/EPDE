@@ -30,15 +30,50 @@ for _key in THREAD_KEYS:
     os.environ[_key] = "1"
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 os.environ.setdefault("MPLBACKEND", "Agg")
-REPO = Path(__file__).resolve().parents[2]
+# EPDE_BENCH_ROOT runs the same jobs against another EPDE checkout, e.g. the
+# commit before the multisample changes. The job definitions stay in this file.
+REPO = Path(os.environ.get("EPDE_BENCH_ROOT") or Path(__file__).resolve().parents[2]).resolve()
 sys.path.insert(0, str(REPO))
 
 import numpy as np
 
 SCHEMA_VERSION = 1
 SUPPORT_TOL = 1e-8
+# Model choice uses training numbers only: the lowest discrepancy, except that
+# a model within this relative margin of it with a lower instability wins.
+# Pure discrepancy ranking picks noise-fitted extra terms whose fit is equal
+# to six digits but whose coefficients are an order of magnitude less stable.
+SELECT_RTOL = 1e-3
 SCENARIOS = ("affine", "logistic", "coupled", "reaction_diffusion",
              "contradictory", "density")
+# Space-time laws in which every single-mode record is degenerate
+# (u_xx = -k^2 u), and a control whose records already carry two modes.
+PDE_SCENARIOS = ("reaction_diffusion", "heat", "advection_diffusion", "reaction_diffusion_rich")
+EXTRA_SCENARIOS = PDE_SCENARIOS[1:]
+TRUTH = {"affine": {"u": {"1": 0.4, "u": -0.7}},
+         "logistic": {"u": {"u": 1.2, "u^2": -0.6}},
+         "coupled": {"u": {"u": -0.2, "v": 1.0}, "v": {"u": -1.0, "v": -0.2}},
+         "reaction_diffusion": {"u": {"u": -0.2, "d^2u/dx1^2": 0.1}},
+         "reaction_diffusion_rich": {"u": {"u": -0.2, "d^2u/dx1^2": 0.1}},
+         "heat": {"u": {"d^2u/dx1^2": 0.1}},
+         "advection_diffusion": {"u": {"du/dx1": -0.5, "d^2u/dx1^2": 0.1}},
+         "contradictory": None, "density": None, "robot_heading": None}
+PDE_RECORDS = {
+    # (id, nt, nx, t0, x0, [(wavenumber, amplitude), ...]); id 97 is held out.
+    "reaction_diffusion": [(7, 31, 41, 0.0, -np.pi, [(1, 1.0)]),
+                           (19, 23, 53, 10.0, 4 * np.pi, [(2, 0.7)]),
+                           (97, 29, 47, 23.0, 8 * np.pi + 0.17, [(1, 0.8), (3, 0.4)])],
+    "heat": [(7, 31, 41, 0.0, -np.pi, [(1, 1.0)]),
+             (19, 23, 53, 10.0, 4 * np.pi, [(2, 0.7)]),
+             (97, 29, 47, 23.0, 8 * np.pi + 0.17, [(1, 0.8), (3, 0.4)])],
+    "advection_diffusion": [(7, 31, 41, 0.0, -np.pi, [(1, 1.0)]),
+                            (19, 23, 53, 10.0, 4 * np.pi, [(2, 0.7)]),
+                            (97, 29, 47, 23.0, 8 * np.pi + 0.17, [(1, 0.8), (3, 0.4)])],
+    # Each training record alone already identifies the law.
+    "reaction_diffusion_rich": [(7, 31, 41, 0.0, -np.pi, [(1, 1.0), (2, 0.5)]),
+                                (19, 23, 53, 10.0, 4 * np.pi, [(2, 0.7), (3, 0.3)]),
+                                (97, 29, 47, 23.0, 8 * np.pi + 0.17, [(1, 0.8), (3, 0.4)])],
+}
 
 
 def utc_now():
@@ -109,35 +144,47 @@ def make_case(spec):
     """Actual analytic solutions, with independent grids and held-out records."""
     name, noise = spec["scenario"], spec["noise"]
     rng = np.random.default_rng(spec["seed"])
-    orders = (1, 2) if name == "reaction_diffusion" else ((2,) if name == "density" else (1,))
+    orders = (1, 2) if name in PDE_SCENARIOS else ((2,) if name == "density" else (1,))
     variables = ["u", "v"] if name == "coupled" else ["u"]
     targets = {var: f"d{var}/dx0" for var in variables}
-    truth = {"affine": {"u": {"1": 0.4, "u": -0.7}},
-             "logistic": {"u": {"u": 1.2, "u^2": -0.6}},
-             "coupled": {"u": {"u": -0.2, "v": 1.0}, "v": {"u": -1.0, "v": -0.2}},
-             "reaction_diffusion": {"u": {"u": -0.2, "d^2u/dx1^2": 0.1}},
-             "contradictory": None, "density": None}[name]
+    truth = TRUTH[name]
     train, holdout = [], []
-    if name == "reaction_diffusion":
-        settings = [(7, 31, 41, 0.0, -np.pi, [(1, 1.0)]),
-                    (19, 23, 53, 10.0, 4 * np.pi, [(2, 0.7)]),
-                    (97, 29, 47, 23.0, 8 * np.pi + 0.17, [(1, 0.8), (3, 0.4)])]
-        for ident, nt, nx, start, left, modes in settings:
+    if name in PDE_SCENARIOS:
+        law = truth["u"]
+        rho, nu, speed = law.get("u", 0.0), law["d^2u/dx1^2"], -law.get("du/dx1", 0.0)
+        for ident, nt, nx, start, left, modes in PDE_RECORDS[name]:
             t, x = np.linspace(start, start + 2, nt), np.linspace(left, left + 2 * np.pi, nx)
             T, X = np.meshgrid(t - start, x, indexing="ij")
             u, dt, dx, dxx = (np.zeros_like(T) for _ in range(4))
             for k, amplitude in modes:
-                envelope = amplitude * np.exp((-0.2 - 0.1 * k * k) * T)
-                mode = envelope * np.sin(k * X)
+                envelope = amplitude * np.exp((rho - nu * k * k) * T)
+                phase = k * (X - speed * T)
+                mode = envelope * np.sin(phase)
+                mode_x = k * envelope * np.cos(phase)
                 u += mode
-                dt += (-0.2 - 0.1 * k * k) * mode
-                dx += k * envelope * np.cos(k * X)
+                dt += (rho - nu * k * k) * mode - speed * mode_x
+                dx += mode_x
                 dxx -= k * k * mode
             record = sample(ident, [t, x], {"u": u},
                             {"u": {"du/dx0": dt, "du/dx1": dx, "d^2u/dx1^2": dxx}},
                             orders, noise if ident != 97 else 0.0, rng,
-                            {"modes": modes, "rho": -0.2, "nu": 0.1})
+                            {"modes": modes, "rho": rho, "nu": nu, "speed": speed})
             (holdout if ident == 97 else train).append(record)
+    elif name == "robot_heading":
+        variables, targets = ["u", "v"], {"u": "du/dx0", "v": "dv/dx0"}
+        robot = load_robot()
+        truth = {"u": {"v": -robot["omega"]}, "v": {"u": robot["omega"]}}
+        # Training: 2 s windows from the first minute; held out: the second minute.
+        windows = [(i, 10.0 * i, i >= 6) for i in range(12)]
+        for index, start, held in windows:
+            mask = (robot["t"] >= start) & (robot["t"] < start + 2.0)
+            t, phi = robot["t"][mask], robot["phi"][mask]
+            u, v = np.cos(phi), np.sin(phi)
+            deriv = {"u": {"du/dx0": np.gradient(u, t)}, "v": {"dv/dx0": np.gradient(v, t)}}
+            record = sample(7 + 12 * index, [t], {"u": u, "v": v}, deriv, orders, 0.0, rng,
+                            {"window_start_s": start, "robot_index": robot["index"],
+                             "reference_spin_rad_s": robot["omega"]})
+            (holdout if held else train).append(record)
     elif name == "density":
         targets = {"u": "d^2u/dx0^2"}
         second_n = 256 if spec.get("density") == "refined" else 64
@@ -192,6 +239,31 @@ def make_case(spec):
             "boundary": 0 if name == "density" else 2}
 
 
+def load_robot(index=3):
+    """One spinning robot of the 30-robot recording kept in the repository.
+
+    The reference spin rate is the phase slope over the first minute, i.e. it
+    comes from training data only. It is a reference, not a ground truth:
+    contacts with other robots change the spin locally.
+    """
+    import glob, pickle
+    path = sorted(glob.glob(str(REPO / "projects" / "robot" / "data_00_330_[[]30_bots*.pickle")))[0]
+    with open(path, "rb") as stream:
+        frames = pickle.load(stream)
+    ids = sorted(int(entry[0]) for entry in frames[0])
+    column = {rid: k for k, rid in enumerate(ids)}
+    angle = np.empty(len(frames))
+    for row, frame in enumerate(frames):
+        for rid, degrees, _position in frame:
+            if column[int(rid)] == index:
+                angle[row] = degrees
+    t = np.arange(len(frames)) / 25.0
+    phi = np.unwrap(np.deg2rad(angle))
+    first = t < 60
+    return {"t": t, "phi": phi, "index": index, "file": Path(path).name,
+            "omega": float(np.polyfit(t[first], phi[first], 1)[0])}
+
+
 def describe_sample(record):
     return {"id": record["id"], "shape": list(next(iter(record["fields"].values())).shape),
             "grid_ranges": [[float(x[0]), float(x[-1]), len(x)] for x in record["axes"]],
@@ -239,10 +311,13 @@ def matrix_diagnostics(matrix):
 def fixture_evidence(case):
     """Analytic identities/rank proof, labelled independently of EPDE fits."""
     evidence = {"kind": "analytic_fixture_check_not_EPDE_fit"}
-    if case["name"] == "reaction_diffusion":
-        matrices = [np.column_stack([s["clean_tokens"]["u"].ravel(),
-                                    s["clean_tokens"]["d^2u/dx1^2"].ravel()])
+    if case["name"] in PDE_SCENARIOS:
+        # The fitted columns plus u: a single mode has u_xx = -k^2 u, so the
+        # law is not separable from a multiple of u on that record alone.
+        labels = ["u", "du/dx1", "d^2u/dx1^2"] if case["name"] == "advection_diffusion" else ["u", "d^2u/dx1^2"]
+        matrices = [np.column_stack([s["clean_tokens"][label].ravel() for label in labels])
                     for s in case["train"]]
+        evidence["design_columns"] = labels
         evidence["individual_designs"] = [matrix_diagnostics(m) for m in matrices]
         evidence["pooled_design"] = matrix_diagnostics(np.vstack(matrices))
         evidence["identity"] = "u_xx=-k^2*u for each single mode; distinct k remove the common nullspace"
@@ -270,10 +345,14 @@ def fixture_evidence(case):
 
 def make_search(case, spec):
     import epde
+    objectives = {"discrepancy_metric": "l2_relative", "instability_metric": "dyad"}
+    if spec["multisample_mode"] != "mean":
+        # Mean is the default, so a mean job runs unchanged on a checkout
+        # that predates these settings.
+        objectives.update(multisample_mode=spec["multisample_mode"],
+                          multisample_weighting=spec["weighting"])
     config = {
-        "objectives": {"multisample_mode": spec["multisample_mode"],
-                       "multisample_weighting": spec["weighting"],
-                       "discrepancy_metric": "l2_relative", "instability_metric": "dyad"},
+        "objectives": objectives,
         "domain": {"evaluation_form": spec["evaluation_form"]},
         "runtime": {"free_tensor_cache_after_fit": False},
     }
@@ -307,7 +386,11 @@ def known_candidate(case, pool):
     features = {"affine": {"u": ["u"]}, "logistic": {"u": ["u", "u^2"]},
                 "coupled": {"u": ["u", "v"], "v": ["u", "v"]},
                 "reaction_diffusion": {"u": ["u", "d^2u/dx1^2"]},
-                "contradictory": {"u": ["u"]}, "density": {"u": ["u"]}}[case["name"]]
+                "reaction_diffusion_rich": {"u": ["u", "d^2u/dx1^2"]},
+                "heat": {"u": ["d^2u/dx1^2"]},
+                "advection_diffusion": {"u": ["du/dx1", "d^2u/dx1^2"]},
+                "contradictory": {"u": ["u"]}, "density": {"u": ["u"]},
+                "robot_heading": {"u": ["v"], "v": ["u"]}}[case["name"]]
     texts = {}
     for var, keys in features.items():
         tokens = ["u{power: 2.0}" if key == "u^2" else key + "{power: 1.0}" for key in keys]
@@ -496,9 +579,17 @@ def run_worker(spec):
                 "training_selection_score": float(np.mean([e["fitness"] for e in reports])),
                 "heldout_rollout": rollout_report(reports, case)})
         if result["models"]:
-            selected = min(result["models"], key=lambda m: m["training_selection_score"])
+            for model in result["models"]:
+                model["training_instability"] = float(np.mean([e["instability"] for e in model["equations"]]))
+            best = min(m["training_selection_score"] for m in result["models"])
+            near = [m for m in result["models"]
+                    if m["training_selection_score"] <= best + SELECT_RTOL * max(abs(best), 1e-12)]
+            selected = min(near, key=lambda m: (m["training_instability"], m["training_selection_score"]))
+            result["truth_on_front"] = (case["truth"] is not None and any(
+                all(e["support_exact"] is True for e in m["equations"]) for m in result["models"]))
             result.update(status="ok", selected_model_id=selected["model_id"],
-                          selection_rule="minimum mean training fitness; holdout never used for selection")
+                          selection_rule=f"lowest training instability among models within {SELECT_RTOL:g} "
+                                         "relative training fitness of the best; holdout never used")
         else:
             result.update(status="no_candidate", reason="EPDE accepted no fitted candidate for this stage")
     except Exception as exc:
@@ -542,7 +633,22 @@ def build_matrix(args):
         for name in ("logistic", "reaction_diffusion"):
             add(name, stage="assignment")
             add(name, modes=("joint",), evaluation_form="weak")
-    filters = {"scenario": args.scenarios, "derivatives": args.derivatives, "multisample_mode": args.modes}
+    if args.suite in ("extended", "all"):
+        # Laws from the fork's earlier multi-trajectory study, a control where
+        # one record already suffices, stronger noise, and the weak form in
+        # the full search.
+        seeds = tuple(int(x) for x in args.seeds.split(","))
+        for name in EXTRA_SCENARIOS:
+            add(name)
+            add(name, stage="discovery", seeds=seeds)
+        add("reaction_diffusion", stage="discovery", derivative="fd", noise=0.05, seeds=seeds)
+        add("robot_heading", derivative="fd")
+        add("robot_heading", stage="discovery", derivative="fd", seeds=seeds)
+        for name in ("logistic", "reaction_diffusion"):
+            add(name, stage="discovery", derivative="fd", noise=0.01, seeds=seeds,
+                evaluation_form="weak")
+    filters = {"scenario": args.scenarios, "derivatives": args.derivatives, "multisample_mode": args.modes,
+               "stage": args.stages}
     for key, values in filters.items():
         if values:
             accepted = set(values.split(","))
@@ -605,6 +711,7 @@ def summarize(results):
             "median_max_equation_coefficient_error_if_available": float(np.median(coefficients)) if coefficients else None,
             "median_holdout_residual_if_available": float(np.median(holdout)) if holdout else None,
             "median_rollout_error_if_available": float(np.median(rollouts)) if rollouts else None,
+            "truth_on_front_count": sum(bool(r.get("truth_on_front")) for r in runs),
             "error_count": sum(r["status"] == "error" for r in runs),
             "timeout_count": sum(r["status"] == "timeout" for r in runs),
             "no_candidate_count": sum(r["status"] == "no_candidate" for r in runs)})
@@ -637,7 +744,8 @@ def write_csv(path, results):
 def source_fingerprints():
     """Hash actual source/config contents, including files not tracked by git."""
     files = sorted(set(REPO.glob("epde/**/*.py")) | set(REPO.glob("epde/**/*.json")) | {Path(__file__).resolve()})
-    digests = {str(path.relative_to(REPO)): hashlib.sha256(path.read_bytes()).hexdigest() for path in files}
+    digests = {(str(path.relative_to(REPO)) if path.is_relative_to(REPO) else "benchmark.py (job definitions)"):
+               hashlib.sha256(path.read_bytes()).hexdigest() for path in files}
     aggregate = hashlib.sha256()
     for name, digest in sorted(digests.items()):
         aggregate.update(name.encode() + b"\0" + digest.encode() + b"\n")
@@ -678,7 +786,7 @@ def launch(spec, directory, args):
     command = [sys.executable, str(Path(__file__).resolve()), "--worker", json.dumps(spec),
                "--worker-output", str(result_path)]
     start = time.perf_counter()
-    worker_environment = dict(os.environ, PYTHONHASHSEED=str(spec["seed"]))
+    worker_environment = dict(os.environ, PYTHONHASHSEED=str(spec["seed"]), EPDE_BENCH_ROOT=str(REPO))
     try:
         with log_path.open("w") as stream:
             completed = subprocess.run(command, cwd=REPO, stdout=stream, stderr=subprocess.STDOUT,
@@ -703,7 +811,7 @@ def launch(spec, directory, args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--suite", choices=("smoke", "fixed", "discovery", "compatibility", "all"), default="smoke")
+    parser.add_argument("--suite", choices=("smoke", "fixed", "discovery", "compatibility", "extended", "all"), default="smoke")
     parser.add_argument("--output", type=Path, default=Path("projects/multisample/results/benchmark.json"))
     parser.add_argument("--workers", type=int, choices=(1, 2, 3), default=1)
     parser.add_argument("--seeds", default="0,1,2,3,4")
@@ -715,12 +823,22 @@ def main():
     parser.add_argument("--derivatives", help="analytic,fd")
     parser.add_argument("--modes", help="mean,joint")
     parser.add_argument("--noise", type=float)
+    parser.add_argument("--stages", help="fixed,assignment,discovery")
+    parser.add_argument("--epde-root", type=Path,
+                        help="run the workers on another EPDE checkout (e.g. the commit before multisample); "
+                             "only mean-mode jobs are meaningful there")
     parser.add_argument("--resume", action="store_true", help="retain completed non-error jobs; archive the prior report and retry errors/pending jobs")
     parser.add_argument("--list", action="store_true", help="print the matrix without importing EPDE or fitting")
     parser.add_argument("--check-data", action="store_true", help="check analytic fixture identities only")
     parser.add_argument("--worker", help=argparse.SUPPRESS)
     parser.add_argument("--worker-output", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.epde_root is not None and not args.worker:
+        root = args.epde_root.resolve()
+        if not (root / "epde" / "__init__.py").exists():
+            parser.error(f"--epde-root {root} is not an EPDE checkout")
+        os.environ["EPDE_BENCH_ROOT"] = str(root)
+        globals()["REPO"] = root
     if args.worker:
         write_json(args.worker_output, run_worker(json.loads(args.worker)))
         return
@@ -734,14 +852,19 @@ def main():
         return
     if args.check_data:
         checks = []
-        for name in SCENARIOS:
+        for name in SCENARIOS + EXTRA_SCENARIOS:
             case = make_case(dict(scenario=name, noise=0.0, seed=0))
             evidence = fixture_evidence(case)
             if "maximum_exact_law_residual" in evidence:
                 assert evidence["maximum_exact_law_residual"] < 1e-12, (name, evidence)
-            if name == "reaction_diffusion":
-                assert [x["rank"] for x in evidence["individual_designs"]] == [1, 1]
-                assert evidence["pooled_design"]["rank"] == 2
+            if name in PDE_SCENARIOS:
+                width = len(evidence["design_columns"])
+                local = [x["rank"] for x in evidence["individual_designs"]]
+                if name == "reaction_diffusion_rich":
+                    assert local == [width, width], (name, local)
+                else:
+                    assert local == [width - 1, width - 1], (name, local)
+                assert evidence["pooled_design"]["rank"] == width
             checks.append({"scenario": name, "evidence": evidence})
         print(json.dumps(finite_json(checks), indent=2, allow_nan=False))
         return
