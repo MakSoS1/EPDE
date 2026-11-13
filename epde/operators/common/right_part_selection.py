@@ -823,7 +823,11 @@ def amplification_ratio(objective: Equation) -> float:
     slot = slot_of(objective)
     t = dictApplyUFunc(lambda x: np.asarray(x, dtype=float).reshape(-1),
                        term_columns(objective.structure[tgt], slot)) # grids=()
-    den = dictApplyUFunc(np.linalg.norm, t)
+    from epde.operators.common.multisample import joint_enabled, stable_l2_norm
+    # Keep legacy/single-sample arithmetic unchanged. The common fit's
+    # screening table and materialised guard must use the same stable norm.
+    norm = stable_l2_norm if joint_enabled(len(t)) else np.linalg.norm
+    den = dictApplyUFunc(norm, t)
     if (not all(list(dictApplyUFunc(np.isfinite, den).values())) or
         any([d == 0.0 for d in den.values()])):
         return np.inf
@@ -834,7 +838,7 @@ def amplification_ratio(objective: Equation) -> float:
         if wj == 0.0:
             continue
         col = dictApplyUFunc(lambda x: np.asarray(x, dtype=float).reshape(-1), term_columns(term, slot)) # grids=()
-        num = dictAdd(num, dictApplyUFunc(lambda x: abs(wj) * np.linalg.norm(x), col), suppressed=True)
+        num = dictAdd(num, dictApplyUFunc(lambda x: abs(wj) * norm(x), col), suppressed=True)
 
     if w[-1] != 0.0:
         # Intercept column of ones: its norm is sqrt(n) PER SAMPLE, and ``t`` is

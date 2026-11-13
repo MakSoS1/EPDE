@@ -419,13 +419,13 @@ class TestTestFunctionSupport:
         domain.g_func = g
         return domain
 
-    def test_a_shifted_box_with_the_right_count_passes_only_unstrided(self):
-        """The count alone lets a shifted box through; on a lattice the support is checked too."""
+    def test_a_shifted_box_is_rejected_with_or_without_a_stride(self):
+        """Equal row counts do not align a shifted mask with the declared solver grid."""
         search = _search()
-        self._domain(search, slice(11, 111)).validateTestFunction()
-        strided = _quiet(self._domain, search, slice(11, 111), evaluation_stride=2)
-        with pytest.raises(ValueError, match='interior box'):
-            strided.validateTestFunction()
+        for stride in (None, 2):
+            domain = _quiet(self._domain, search, slice(11, 111), evaluation_stride=stride)
+            with pytest.raises(ValueError, match='interior box'):
+                domain.validateTestFunction()
 
     def test_a_wider_support_with_the_lattice_count_raises(self):
         search = _search()

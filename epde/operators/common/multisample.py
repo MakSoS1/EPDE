@@ -37,12 +37,30 @@ def fit_row_weights(weights, weighting=None):
     if weighting not in ('samples', 'points'):
         raise ValueError("multisample weighting must be 'samples' or 'points'.")
     weights = np.asarray(weights, dtype=float).reshape(-1)
-    with np.errstate(over='ignore'):
-        mass = float(weights.sum())
     if (not weights.size or not np.all(np.isfinite(weights)) or np.any(weights < 0)
-            or not np.isfinite(mass) or mass <= 0):
+            or not np.any(weights > 0)):
         raise ValueError('sample weights must be finite, non-negative, and have positive total mass.')
-    return weights / mass if weighting == 'samples' else weights
+    if weighting == 'points':
+        return weights
+    # Summing finite weights can overflow although their normalised values
+    # are ordinary probabilities. Cancel the common scale before summing.
+    scaled = weights / weights.max()
+    return scaled / scaled.sum()
+
+
+def stable_l2_norm(values, axis=None):
+    """L2 magnitude without squaring values in their physical units.
+
+    Used by the pooled design and both joint amplification readers. This
+    does not change the existing objective/instability definitions or their
+    separate numerical limits. A truly unrepresentable norm remains inf.
+    """
+    values = np.asarray(values, dtype=float)
+    peak = np.max(np.abs(values), axis=axis, keepdims=True, initial=0.0)
+    with np.errstate(divide='ignore', invalid='ignore', over='ignore'):
+        scaled = values / np.where(peak > 0, peak, 1.0)
+        norm = np.sqrt(np.sum(scaled * scaled, axis=axis, keepdims=True)) * peak
+    return np.squeeze(norm, axis=axis) if axis is not None else float(norm.reshape(-1)[0])
 
 
 def _samples(samples):
@@ -126,13 +144,19 @@ def joint_subset_table(samples, *, discrepancy, subsets=None, weighting=None,
     if any(not isinstance(mask, (int, np.integer)) or mask < 0 or mask >= 1 << width for mask in masks):
         raise ValueError('joint fit subset masks must address the feature columns and optional constant.')
     design, target = [], []
-    for _key, X, y, weights in samples:
-        root = np.sqrt(fit_row_weights(weights, weighting))
+    fit_weights = [fit_row_weights(weights, weighting) for _key, _X, _y, weights in samples]
+    # One common multiplier leaves WLS unchanged, including relative mass in
+    # points mode. Remove it before multiplying finite fields by huge weights.
+    # Divide square roots so a representable small root is not lost by first
+    # forming a possibly underflowing weight/max ratio.
+    root_scale = np.sqrt(max(weights.max() for weights in fit_weights))
+    for (_key, X, y, _weights), weights in zip(samples, fit_weights):
+        root = np.sqrt(weights) / root_scale
         design.append(np.column_stack([X, np.ones(y.size)]) * root[:, None])
         target.append(y * root)
     design = np.vstack(design)
     target = np.concatenate(target)
-    norms = np.linalg.norm(design, axis=0)
+    norms = stable_l2_norm(design, axis=0)
     scaled = design / np.where(norms > 0, norms, 1.0)
     coefficients = np.zeros((len(masks), width))
     full_rank = np.zeros(len(masks), dtype=bool)
@@ -153,11 +177,16 @@ def joint_subset_table(samples, *, discrepancy, subsets=None, weighting=None,
         with np.errstate(divide='ignore', invalid='ignore', over='ignore'):
             discrepancy_values[position] = scorer.compute(view, context)
         ratios = []
+        active = full[:-1] != 0
         for _key, X, y, _weights in samples:
-            denominator = float(np.linalg.norm(y))
-            numerator = (float(np.abs(full[:-1]) @ np.linalg.norm(X, axis=0))
-                         + abs(full[-1]) * np.sqrt(y.size))
-            ratios.append(numerator / denominator if denominator > 0 else np.inf)
+            denominator = stable_l2_norm(y)
+            # Match the materialised equation: a discarded term contributes
+            # nothing, even when its unused norm would overflow (0 * inf).
+            with np.errstate(divide='ignore', invalid='ignore', over='ignore'):
+                numerator = (float(np.abs(full[:-1][active]) @ stable_l2_norm(X[:, active], axis=0))
+                             + abs(full[-1]) * np.sqrt(y.size))
+                ratio = numerator / denominator if denominator > 0 else np.inf
+            ratios.append(ratio if np.isfinite(ratio) else np.inf)
         amplification[position] = float(np.mean(ratios))
     return discrepancy_values, amplification, width, coefficients, full_rank
 

@@ -202,6 +202,53 @@ class TestSampleCacheMembership:
 
 class TestDomainWeights:
 
+    @pytest.mark.parametrize('stride', [None, (2, 2)])
+    @pytest.mark.parametrize('support', ['shifted', 'hole'])
+    def test_equal_row_count_does_not_make_an_arbitrary_mask_rectangular(self, stride, support):
+        search = _search(evaluation_stride=stride)
+        try:
+            x, t = np.meshgrid(np.arange(15.), np.arange(19.), indexing='ij')
+            weights = np.zeros_like(x)
+            if support == 'shifted':
+                weights[:11, :13] = 1.0
+            else:
+                weights[2:-2, 3:-3] = 1.0
+                weights[5, 5], weights[0, 0] = 0.0, 1.0
+            assert np.count_nonzero(weights) == 11 * 13
+
+            with pytest.raises(ValueError, match='interior box'):
+                search.createDomain([x, t], ID=7, boundary_width=(2, 3), gfunction=weights)
+        finally:
+            search.close()
+
+    def test_custom_rectangular_weights_match_each_records_solver_coordinates(self):
+        search = _search()
+        try:
+            x, t = np.meshgrid(np.arange(17.), np.arange(23.), indexing='ij')
+            samples = []
+            for key, boundary, amplitude in [(7, (1, 2), 1.), (19, (2, 3), 3.)]:
+                weights = np.zeros_like(x)
+                bx, bt = boundary
+                weights[bx:-bx, bt:-bt] = (1 + x / 20 + t / 30)[bx:-bx, bt:-bt]
+                domain = search.createDomain([x, t], ID=key, boundary_width=boundary,
+                                             gfunction=weights)[1]
+                field = amplitude * (100 * x + t)
+                derivatives = np.column_stack([np.full(x.size, 100 * amplitude),
+                                               np.full(x.size, amplitude)])
+                samples.append(search.createTrajectory({'u': field}, domain, cache_id=key,
+                                                        derivs=derivatives)[1])
+            search.create_pool(samples, max_deriv_order=(1, 1))
+
+            for sample, amplitude, expected_shape in zip(samples, [1., 3.], [(15, 19), (13, 17)]):
+                solver_x, solver_t = sample.grids('solver')
+                assert solver_x.shape == solver_t.shape == expected_shape
+                np.testing.assert_array_equal(sample.get(('u', (1.0,))),
+                                              (amplitude * (100 * solver_x + solver_t)).ravel())
+                np.testing.assert_array_equal(sample.gFuncs('dmf'),
+                                              (1 + solver_x / 20 + solver_t / 30).ravel())
+        finally:
+            search.close()
+
     @pytest.mark.parametrize('weights', [np.ones((4, 5)), np.full(20, np.nan),
                                           np.full(20, np.inf), -np.ones(20),
                                           np.ones(20, dtype=complex) * (1 + 1j)])

@@ -1268,6 +1268,10 @@ class EpdeSearch(object):
         """Resolve the three settings that describe the pool, not the sample."""
         if max_deriv_order is UNSET:
             max_deriv_order = self._config.preprocessing.max_deriv_order
+        # Pool keys must describe the completed request, even if the caller
+        # later edits a list in place before the next create_pool/fit.
+        if isinstance(max_deriv_order, list):
+            max_deriv_order = tuple(max_deriv_order)
         if data_fun_pow is UNSET:
             data_fun_pow = self._config.search_space.data_fun_pow
         if deriv_fun_pow is UNSET:
