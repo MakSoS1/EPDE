@@ -190,37 +190,31 @@ class InputEntry(object):
         self.names = deriv_names
         self.d_orders = deriv_orders
 
-        if deriv_tensors is None and isinstance(self.data_tensor, np.ndarray):
-            self.data_tensor, self.derivatives = preprocesser.run(self.data_tensor, grid=grid,
-                                                                  max_order=max_order)
-            self.deriv_properties = {'max order': max_order,
-                                     'dimensionality': self.data_tensor.ndim}
-        elif deriv_tensors is None and isinstance(self.data_tensor, list):
-            raise NotImplementedError("Depricated method: used to be a way to create multi-sample setup")
-            if isinstance(grid[0], np.ndarray):
-                raise ValueError('A single set of grids passed for multiple samples mode.')
-            data_tensors, derivatives = [], []
-            for samp_idx, sample in enumerate(self.data_tensor):
-                processed_data, derivs = preprocesser.run(sample, grid=grid[samp_idx],
-                                                          max_order=max_order)
-                data_tensors.append(processed_data)
-                derivatives.append(derivs)
-            self.data_tensor = np.concatenate(data_tensors, axis = 0) # TODO: stack data_tensors with the time axis in the correct wa
-            self.derivatives = np.concatenate(derivatives, axis=0) # TODO: check the correct
-            self.deriv_properties = {'max order': max_order,
-                                     'dimensionality': self.data_tensor.ndim}
-
-        elif deriv_tensors is not None and isinstance(self.data_tensor, list):
-            self.data_tensor = np.concatenate(self.data_tensor, axis = 0)
-
-            print(f'Concatenating arrays of len {len(deriv_tensors)}')
-            self.derivatives = np.concatenate(deriv_tensors, axis = 0)
-            self.deriv_properties = {'max order': max_order,
-                                     'dimensionality': self.data_tensor.ndim}            
+        if deriv_tensors is None:
+            # A rebuild may follow a cache release, a new derivative order or
+            # a token-pool change. Start from the observations each time, and
+            # protect them from a custom smoother that mutates its input.
+            data, derivatives = preprocesser.run(self.raw_tensor.copy(), grid=grid,
+                                                 max_order=max_order)
         else:
-            self.derivatives = deriv_tensors
-            self.deriv_properties = {'max order': max_order,
-                                     'dimensionality': self.data_tensor.ndim}
+            data, derivatives = self.raw_tensor, deriv_tensors
+
+        if not isinstance(data, np.ndarray) or data.shape != self.raw_tensor.shape:
+            raise ValueError(f'Preprocessed field {self.var_name!r} has shape {np.shape(data)}, '
+                             f'expected its observation shape {self.raw_tensor.shape}.')
+        if (not np.issubdtype(data.dtype, np.number) or not np.isrealobj(data)
+                or not np.all(np.isfinite(data))):
+            raise ValueError(f'Preprocessed field {self.var_name!r} must contain finite real numbers.')
+        expected = (self.raw_tensor.size, len(deriv_names))
+        if not isinstance(derivatives, np.ndarray) or derivatives.shape != expected:
+            raise ValueError(f'The derivatives of {self.var_name!r} have shape {np.shape(derivatives)}, '
+                             f'expected {expected} (grid points, derivative columns).')
+        if (not np.issubdtype(derivatives.dtype, np.number) or not np.isrealobj(derivatives)
+                or not np.all(np.isfinite(derivatives))):
+            raise ValueError(f'The derivatives of {self.var_name!r} must contain finite real numbers.')
+
+        self.data_tensor, self.derivatives = data, derivatives
+        self.deriv_properties = {'max order': max_order, 'dimensionality': data.ndim}
 
 
 class VariableEntry(InputEntry):
@@ -465,11 +459,8 @@ class Domain(object): # inheritance from cache objects?
         picked up exactly as before.
         """
         if self._g_func_val_cache is None:
-            try:
-                self._g_func_val_cache = self._g_func(self.getGrids(mode = 'full'))
-            except TypeError:
-                assert isinstance(self._g_func, (np.ndarray, list))
-                self._g_func_val_cache = self._g_func
+            value = self._g_func(self.getGrids(mode='full')) if callable(self._g_func) else self._g_func
+            self._g_func_val_cache = np.asarray(value)
         return self._g_func_val_cache
 
     @g_func.setter
@@ -648,6 +639,14 @@ class Domain(object): # inheritance from cache objects?
         (the lattice of a shifted box can keep as many points), so the
         test function's support must also be the box itself.
         """
+        weights = self.g_func
+        if weights.shape != tuple(self.initial_shape):
+            raise ValueError(f'The test function has shape {weights.shape}, expected the full '
+                             f'grid shape {tuple(self.initial_shape)}.')
+        numeric = np.issubdtype(weights.dtype, np.number) or np.issubdtype(weights.dtype, np.bool_)
+        if (not numeric or not np.isrealobj(weights)
+                or not np.all(np.isfinite(weights)) or np.any(weights < 0)):
+            raise ValueError('The test function must contain finite nonnegative real weights.')
         if self._eval_stride is not None and not np.array_equal(self.g_func != 0, self._box_mask()):
             raise ValueError(
                 'The test function is not nonzero exactly on the interior box '
@@ -686,10 +685,10 @@ def _(input_entry: VariableEntry, domain: Domain, cache: Cache, trajectory_id: i
 
     # Flat mask: derivatives are (n_points, n_derivs); the data tensor below
     # keeps the grid shape and takes the grid-shaped mask.
-    derivatives = np.array([derivative[domain.g_func_mask_flat]
-                            for derivative in input_entry.derivatives.T]).T
-    # print(f'In addEntryToCache: {derivatives}')
-    derivs_stacked = prepareVarTensor(input_entry.data_tensor[domain.g_func_mask], derivatives, time_axis = domain._time_axis)
+    # Boolean selection already flattens the grid in its original axis order.
+    # Reordering by the original time axis here both misdescribes those rows
+    # and raises for time_axis > 0, since the masked data is one-dimensional.
+    derivs_stacked = input_entry.derivatives[domain.g_func_mask_flat].T
     
     try:
         uploadSimpleTokens(labels = input_entry.names, cache = cache, tensors = derivs_stacked, 
@@ -824,7 +823,8 @@ class Trajectory(object): # Pass around in evo. operators or init in globals. Us
         boundary the domain excludes from fitting, or the search fits on padded values."""
         pipe = self._preprocessor_pipeline
         required = getattr(getattr(pipe, 'deriv_calculator', None), 'required_boundary', None)
-        if self._derivs is not None or required is None:
+        if required is None or all(self._entry_derivs(entry, idx) is not None
+                                   for idx, entry in enumerate(self._entries)):
             return
         kwargs = pipe.deriv_calculator_kwargs
         t_ax = kwargs.get('time_axis', 0)
@@ -959,9 +959,11 @@ class Trajectory(object): # Pass around in evo. operators or init in globals. Us
         return self._domain.inner_shape
 
     def checkShapes(self, domain: Domain) -> bool:
+        """Compare domain geometry and the number of cached, flattened rows."""
         sample_tensor = self._cache.get(subcache_ID = self._cache_id)
-        print('In check shapes: ', domain.inner_shape, type(domain.inner_shape), sample_tensor.shape, type(sample_tensor.shape))
-        return (domain.inner_shape == sample_tensor.shape)
+        return (tuple(self._domain.initial_shape) == tuple(domain.initial_shape)
+                and tuple(self.inner_shape) == tuple(domain.inner_shape)
+                and sample_tensor.shape == (int(np.prod(domain.inner_shape)),))
 
     @property
     def ID(self) -> int:
@@ -1148,7 +1150,8 @@ class TrajectoriesManager(object):
             np.ndarray of values (checked in unnormalized data); (np.ndarray, normalized), where normalized is bool
             (T if norm, else F) and np.ndarray is np.ndarray of tensor values. Does not support scaled vals
         '''
-        return all([obj in trajectory._cache for trajectory in self._traj.values()])
+        return all(trajectory._cache.contains(obj, trajectory.ID)
+                   for trajectory in self._traj.values())
 
     @property
     def trajecatoryIDs(self) -> List[int]:
@@ -1201,14 +1204,14 @@ class TrajectoriesManager(object):
 
     @property
     def grid_keys(self) -> list:
-        # A bit too hard-coded as: 
         traj_ID = self.trajecatoryIDs[0]
-        return self._traj[traj_ID]._domain._grid_cache.getKeys()
+        domain = self._traj[traj_ID]._domain
+        return domain._grid_cache.getKeys(subcache_ID=domain.ID)
 
     @property
     def ndim(self) -> int:
         traj_ID = self.trajecatoryIDs[0]
-        return self._traj[traj_ID]._domain._grid_cache.get(label = None).ndim
+        return len(self._traj[traj_ID]._domain.initial_shape)
 
     def raw_fields(self, key: int) -> Dict[str, np.ndarray]:
         """Every observed field of trajectory ``key`` on its full grid, raw."""

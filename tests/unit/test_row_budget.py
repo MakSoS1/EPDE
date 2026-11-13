@@ -1050,7 +1050,10 @@ class TestWarnings:
             search.create_pool(data=[trajectory], additional_tokens=[family], max_deriv_order=(1,))
         removed = [w for w in _usage_warnings(records) if 'Constant on the row-budget lattice' in str(w.message)]
         assert len(removed) == int(warned)
-        assert ('f' in family._token_family.tokens) is not warned
+        pooled = next(f for f in search.pool.families if f.ftype == family.token_family.ftype)
+        assert ('f' in pooled.tokens) is not warned
+        # A later fit can use other rows or records where this token varies.
+        assert 'f' in family.token_family.tokens
 
     @pytest.mark.parametrize('budget, factor, warned', [(dict(evaluation_stride=2), 2.0, True),
                                                         (dict(evaluation_stride=2), 0.1, False),

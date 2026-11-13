@@ -723,6 +723,14 @@ class ObjectivesConfig:
     anchor_on_residual: bool = False
     sparsity_cls: Any = 'vwsr'
     sparsity_kwargs: dict = field(default_factory=dict)
+    #: ``mean`` preserves the historical average of independently fitted
+    #: coefficient vectors. ``joint`` fits one physical vector to all records
+    #: in plain/assignment mode; the individual grids are still used by the
+    #: instability estimators. A single record keeps the existing path.
+    multisample_mode: str = 'mean'
+    #: Joint WLS only: equal total weight per record, or the original point
+    #: weights. This does not redefine the selected discrepancy statistic.
+    multisample_weighting: str = 'samples'
 
     @property
     def gram_mode(self):
@@ -1658,6 +1666,15 @@ def _check_types(resolved: dict) -> None:
 
     space = resolved['search_space']
     rps_mode = space['system_rps_mode']
+    objectives = resolved['objectives']
+    if objectives['multisample_mode'] not in ('mean', 'joint'):
+        raise ValueError("objectives.multisample_mode must be 'mean' or 'joint'.")
+    if objectives['multisample_weighting'] not in ('samples', 'points'):
+        raise ValueError("objectives.multisample_weighting must be 'samples' or 'points'.")
+    if objectives['multisample_mode'] == 'joint' and rps_mode not in ('plain', 'assignment'):
+        raise ValueError("objectives.multisample_mode='joint' requires "
+                         "system_rps_mode='plain' or 'assignment'; repair/VWSR "
+                         'prunes each record independently.')
     # The mode's settings, defaults filled in; a key of another mode raises.
     space['system_rps_params'] = resolve_rps_params(rps_mode, space['system_rps_params'])
     pick = space['system_rps_params'].get('variant_pick')
@@ -1758,19 +1775,25 @@ def _check_types(resolved: dict) -> None:
 
 
 def check_plain_sparsity(resolved: dict) -> None:
-    """``'plain'`` mode keeps the weighted least-squares fit of a candidate's
-    own terms. Refused with a sparsity class that does not declare its weights
-    physical (``fits_physical_scale``; e.g. ``'lasso'``), since the
-    coefficient step would then refit them."""
-    if resolved['search_space']['system_rps_mode'] != 'plain':
+    """Preserve physical candidate coefficients in plain and joint fitting.
+
+    A nonphysical sparsity class triggers a later coefficient refit. In joint
+    assignment this would also discard the selected sample weighting and make
+    the materialized equation disagree with the candidate table.
+    """
+    plain = resolved['search_space']['system_rps_mode'] == 'plain'
+    joint = resolved['objectives']['multisample_mode'] == 'joint'
+    if not (plain or joint):
         return
     sparsity_cls = resolved['objectives']['sparsity_cls']
     name = getattr(sparsity_cls, '__name__', sparsity_cls)
     if not getattr(sparsity_cls, 'fits_physical_scale', False):
+        setting = ("search_space.system_rps_mode='plain'" if plain else
+                   "objectives.multisample_mode='joint'")
         raise ValueError(
-            "search_space.system_rps_mode='plain' keeps the least-squares fit of each "
-            'candidate; objectives.sparsity_cls={0!r} would have it refitted. Use a sparsity '
-            "class whose weights are physical (the default 'vwsr').".format(name))
+            "{0} keeps the least-squares fit of each candidate; "
+            'objectives.sparsity_cls={1!r} would have it refitted. Use a sparsity '
+            "class whose weights are physical (the default 'vwsr').".format(setting, name))
 
 
 def load_search_config(user_config=None, overrides=None) -> SearchConfig:

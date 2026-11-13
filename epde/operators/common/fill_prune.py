@@ -418,6 +418,9 @@ def _weak() -> bool:
 def _trajectory_key():
     manager = global_var.samples_manager
     keys = list(manager.weak.keys) if _weak() else list(manager.inner_shapes.keys())
+    from epde.operators.common.multisample import joint_enabled
+    if joint_enabled(len(keys)):
+        return tuple(keys)
     if len(keys) != 1:
         _warn_once('trajectories', 'plain mode fill_probability: the fill-and-prune move handles one trajectory; '
                                    'with %d it is skipped (the drawn move runs).' % len(keys))
@@ -429,22 +432,27 @@ def _column(term, key, slot):
     """``term``'s column on the evaluation rows (weak rows: those of ``slot``)."""
     if slot is not None:
         from epde.structure.weak_rows import term_columns
-        return np.asarray(term_columns(term, slot)[key], dtype=float).reshape(-1)
-    from epde.structure.structure_template import ComplexStructure
-    manager = global_var.samples_manager
-    if term.saved[False] or (term.factors_labels, False) in manager:
-        values = term.evaluate()
+        values = term_columns(term, slot)
     else:
-        values = ComplexStructure.evaluate(term)
+        from epde.structure.structure_template import ComplexStructure
+        manager = global_var.samples_manager
+        if term.saved[False] or (term.factors_labels, False) in manager:
+            values = term.evaluate()
+        else:
+            values = ComplexStructure.evaluate(term)
+    if isinstance(key, tuple):
+        return np.concatenate([np.asarray(values[k], dtype=float).reshape(-1) for k in key])
     return np.asarray(values[key], dtype=float).reshape(-1)
 
 
 def gram_store(equation, key, sw, slot) -> dict:
     """The Gram store of ``slot`` (None: strong rows, one store), built at its first use in a fit and rebuilt
     only when the samples manager, the trajectory, the token families or the factors setting change."""
+    from epde.interface.search_config import active_config
     families = list(equation.pool.families)
+    cfg = active_config().objectives
     skey = (id(global_var.samples_manager), key, tuple(id(f) for f in families),
-            repr(factors_setting(equation)), slot)
+            repr(factors_setting(equation)), slot, cfg.multisample_mode, cfg.multisample_weighting)
     gs = _STORES.get(slot)
     if gs is not None and gs['skey'] == skey and all(a is b for a, b in zip(gs['families'], families)):
         return gs
@@ -615,10 +623,15 @@ def _attempt(equation, target, features, system, params) -> None:
     key = _trajectory_key()
     if _weak():
         slot = var
-        sw = np.asarray(global_var.samples_manager.row_weights(slot, 'dm')[key], dtype=float).reshape(-1)
+        row_weights = global_var.samples_manager.row_weights(slot, 'dm')
     else:
         slot = None
-        sw = np.asarray(global_var.samples_manager.gFunc('dm')[key], dtype=float).reshape(-1)
+        row_weights = global_var.samples_manager.gFunc('dm')
+    if isinstance(key, tuple):
+        from epde.operators.common.multisample import fit_row_weights
+        sw = np.concatenate([fit_row_weights(row_weights[k]) for k in key])
+    else:
+        sw = np.asarray(row_weights[key], dtype=float).reshape(-1)
     gs = gram_store(equation, key, sw, slot)
     t = gs['index'].get(target.factors_labels)
     if t is None:

@@ -1961,6 +1961,8 @@ def _equation_variants(equation, target_term, removed_sigs, coeff_calc, coeff_ar
     from epde.operators.common.subset_search import screened_masks
     from epde.operators.common.survival import dyad_subset_scores
     from epde.operators.common.objectives import LOSS_NAN_VAL
+    from epde.operators.common.multisample import (
+        fit_row_weights, joint_enabled, joint_instability_table, joint_subset_table)
 
     position = next(i for i, term in enumerate(equation.structure) if term is target_term)
     work = deepcopy(equation)
@@ -1991,6 +1993,7 @@ def _equation_variants(equation, target_term, removed_sigs, coeff_calc, coeff_ar
     target, features = work.evaluate()
     if features is None:
         return []
+    joint = joint_enabled(len(target))
     finite = []
     for key in target.keys():
         X = np.asarray(features[key], dtype=float)
@@ -1999,6 +2002,8 @@ def _equation_variants(equation, target_term, removed_sigs, coeff_calc, coeff_ar
         y = np.asarray(target[key], dtype=float).reshape(-1)
         sw = np.asarray(gfuncs[key], dtype=float).reshape(-1)
         if not (np.all(np.isfinite(X)) and np.all(np.isfinite(y))):
+            if joint:
+                return []
             continue
         finite.append((key, X, y, sw))
     if not finite:
@@ -2031,7 +2036,7 @@ def _equation_variants(equation, target_term, removed_sigs, coeff_calc, coeff_ar
         # labels, so the same structure screens the same subsets whatever the
         # order its terms are held in.
         terms = [term for i, term in enumerate(work.structure) if i != work.target_idx]
-        if screen_state is not None and subset_search._ENGINE == 'exact':
+        if screen_state is not None and subset_search._ENGINE == 'exact' and not joint:
             # One ranking for the trajectories pooled, from the call's union
             # Gram, derived from a searched superset where it can be certified.
             masks = sorted(screen_state.masks(equation_index, position,
@@ -2043,7 +2048,8 @@ def _equation_variants(equation, target_term, removed_sigs, coeff_calc, coeff_ar
             # ``screen_size`` of each size however many trajectories there are.
             masks = sorted(screened_masks(np.vstack([X for _key, X, _y, _sw in finite]),
                                           np.concatenate([y for _key, _X, y, _sw in finite]),
-                                          np.concatenate([sw for _key, _X, _y, sw in finite]),
+                                          np.concatenate([fit_row_weights(sw) if joint else sw
+                                                          for _key, _X, _y, sw in finite]),
                                           selected_max, screen_size, order))
         if len(masks) > MAX_ASSIGNMENT_SUBSETS:
             raise ValueError(
@@ -2051,8 +2057,22 @@ def _equation_variants(equation, target_term, removed_sigs, coeff_calc, coeff_ar
                 "equation's {2} columns, more than the {3}-subset limit. Lower "
                 "system_rps_params['screen_size'].".format(len(masks), selected_max, n_cols,
                                                MAX_ASSIGNMENT_SUBSETS))
+    shared_coefficients = full_rank = None
+    if joint:
+        # Every table entry scores the coefficients the eventual equation
+        # carries. Its independent-grid instability reads the same active
+        # support through the real fitness filler, not locally fitted masks.
+        disc, amp, n_cols, shared_coefficients, full_rank = joint_subset_table(
+            finite, discrepancy=discrepancy, subsets=masks,
+            penalty_coeff=host.params['penalty_coeff'])
+        inst = joint_instability_table(finite, shared_coefficients, shapes,
+                                       main_var=work.main_var_to_explain,
+                                       penalty_coeff=host.params['penalty_coeff'])
     samples = []
     for key, X, y, sw in finite:
+        if joint:
+            samples.append((key, X, y, sw, None))
+            continue
         gram = trajectory_gram(None, X, y, sw, shapes[key], gram_mode,
                                work.main_var_to_explain, key)
         disc_tab, amp_tab, n_cols = subset_table(X, y, sw, discrepancy=discrepancy,
@@ -2085,23 +2105,31 @@ def _equation_variants(equation, target_term, removed_sigs, coeff_calc, coeff_ar
     if not samples:
         return []
     n_cols = samples[0][1].shape[1] + 1
-    disc = np.mean([s[5] for s in samples], axis=0)
-    amp = np.mean([s[6] for s in samples], axis=0)
-    inst = np.mean([s[7] for s in samples], axis=0)
+    if not joint:
+        disc = np.mean([s[5] for s in samples], axis=0)
+        amp = np.mean([s[6] for s in samples], axis=0)
+        inst = np.mean([s[7] for s in samples], axis=0)
     p = n_cols - 1
     feature_terms = [term for i, term in enumerate(work.structure) if i != work.target_idx]
     X0 = samples[0][1]
     norms = np.linalg.norm(X0, axis=0)
     unit_cols = X0 / np.where(norms > 0, norms, 1.0)
     unit_constant = np.full(X0.shape[0], 1.0 / np.sqrt(X0.shape[0]))
+    shared_positions = ({mask: position for position, mask in
+                         enumerate(range(1 << n_cols) if masks is None else masks)}
+                        if joint else {})
 
     def admissible(S):
         cols = [j for j in range(p) if (S >> j) & 1]
         with_constant = bool((S >> p) & 1)
-        if any(norms[j] == 0 for j in cols):
+        if joint:
+            position = shared_positions[S]
+            if not full_rank[position] or not np.any(shared_coefficients[position][:-1] != 0):
+                return False
+        elif (any(norms[j] == 0 for j in cols)
+              or _subset_rank_deficient(unit_cols, unit_constant, cols, with_constant)):
             return False
-        return not (_subset_reducible(work_target, feature_terms, cols, with_constant)
-                    or _subset_rank_deficient(unit_cols, unit_constant, cols, with_constant))
+        return not _subset_reducible(work_target, feature_terms, cols, with_constant)
 
     # Position i of the tables holds the subset with bitmask ``mask_at(i)``.
     if masks is None:
@@ -2126,12 +2154,15 @@ def _equation_variants(equation, target_term, removed_sigs, coeff_calc, coeff_ar
         support = mask_of(S, n_cols)
         coefs, sw_weights, vc_scores = [], {}, {}
         for key, X, y, sw, gram, *_ in samples:
+            if joint:
+                continue
             full = subset_coefficients(X, y, sw, support)
             coefs.append(full)
             vc_scores[key], sw_weights[key] = support_scores(gram, full != 0, metric)
         variant = deepcopy(work)
-        store_fit(variant, np.mean(np.stack(coefs, axis=1), axis=1),
-                  sw_weights, vc_scores)
+        weights = (shared_coefficients[shared_positions[S]].copy() if joint else
+                   np.mean(np.stack(coefs, axis=1), axis=1))
+        store_fit(variant, weights, sw_weights, vc_scores)
         coeff_calc.apply(variant, coeff_args)
         variant.remove_zero_terms()
         if _pruned_to_reducible(variant):
