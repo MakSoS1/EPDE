@@ -14,7 +14,7 @@
     "run_id": "014_logistic_discovery_analytic_mean_samples_strong_base_noise0_seed0"
   },
   "status": "ok",
-  "started_at": "2026-11-13T12:41:35.869731+00:00",
+  "started_at": "2026-11-14T21:49:46.880842+00:00",
   "models": [
     {
       "model_id": 0,
@@ -488,9 +488,9 @@
   "truth_on_front": true,
   "selected_model_id": 0,
   "selection_rule": "lowest training instability among models within 0.001 relative training fitness of the best; holdout never used",
-  "elapsed_seconds": 4.6227730000027805,
-  "finished_at": "2026-11-13T12:41:40.492404+00:00",
-  "wall_seconds_including_imports": 4.99970837499859,
+  "elapsed_seconds": 4.086232999994536,
+  "finished_at": "2026-11-14T21:49:50.967075+00:00",
+  "wall_seconds_including_imports": 4.434386041990365,
   "log_file": "projects/multisample/results/2026-11-13/before_after/baseline_runs/014_logistic_discovery_analytic_mean_samples_strong_base_noise0_seed0.log",
   "timeout_seconds": 90.0
 }

@@ -20,7 +20,7 @@ python projects/multisample/benchmark.py --suite compatibility --workers 3 --out
 python projects/multisample/benchmark.py --suite extended --workers 3 --output projects/multisample/results/extended.json
 ```
 
-The `extended` suite adds heat and advection–diffusion laws whose single-mode records are each degenerate, a reaction–diffusion control whose records already carry two modes, 5% noise in the PDE search, the weak form inside the full search, and a real recording: one spinning robot from the 30-robot data in `projects/robot`, cut into 2 s windows (first minute for training, second minute held out).
+The `extended` suite adds heat and advection–diffusion laws whose single-mode records are each degenerate, a reaction–diffusion control whose records already carry two modes, 5% noise in the PDE search, the weak form inside the full search, and four laws with a second time derivative (an overdamped oscillator made of single exponentials, an underdamped control, the wave equation and the Klein–Gordon equation), and a real recording: one spinning robot from the 30-robot data in `projects/robot`, cut into 2 s windows (first minute for training, second minute held out).
 
 The same job definitions can run on another checkout, for example the commit before this work. Only mean-mode jobs exist there:
 

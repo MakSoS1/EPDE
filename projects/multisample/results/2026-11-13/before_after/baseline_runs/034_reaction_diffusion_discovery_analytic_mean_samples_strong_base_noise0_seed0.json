@@ -14,7 +14,7 @@
     "run_id": "034_reaction_diffusion_discovery_analytic_mean_samples_strong_base_noise0_seed0"
   },
   "status": "ok",
-  "started_at": "2026-11-13T12:42:18.572336+00:00",
+  "started_at": "2026-11-14T21:50:24.264519+00:00",
   "models": [
     {
       "model_id": 0,
@@ -619,9 +619,9 @@
   "truth_on_front": false,
   "selected_model_id": 1,
   "selection_rule": "lowest training instability among models within 0.001 relative training fitness of the best; holdout never used",
-  "elapsed_seconds": 4.868161416998191,
-  "finished_at": "2026-11-13T12:42:23.440389+00:00",
-  "wall_seconds_including_imports": 5.292297374995542,
+  "elapsed_seconds": 3.7016481249884237,
+  "finished_at": "2026-11-14T21:50:27.966163+00:00",
+  "wall_seconds_including_imports": 4.098302332989988,
   "log_file": "projects/multisample/results/2026-11-13/before_after/baseline_runs/034_reaction_diffusion_discovery_analytic_mean_samples_strong_base_noise0_seed0.log",
   "timeout_seconds": 90.0
 }

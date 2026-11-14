@@ -14,7 +14,7 @@
     "run_id": "056_coupled_discovery_analytic_mean_samples_strong_base_noise0_seed2"
   },
   "status": "ok",
-  "started_at": "2026-11-13T12:35:59.640517+00:00",
+  "started_at": "2026-11-14T21:41:52.059431+00:00",
   "models": [
     {
       "model_id": 0,
@@ -723,9 +723,9 @@
   "truth_on_front": true,
   "selected_model_id": 1,
   "selection_rule": "lowest training instability among models within 0.001 relative training fitness of the best; holdout never used",
-  "elapsed_seconds": 6.141249042004347,
-  "finished_at": "2026-11-13T12:36:05.781637+00:00",
-  "wall_seconds_including_imports": 6.498532917001285,
+  "elapsed_seconds": 6.528386624995619,
+  "finished_at": "2026-11-14T21:41:58.587821+00:00",
+  "wall_seconds_including_imports": 6.946696500002872,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/056_coupled_discovery_analytic_mean_samples_strong_base_noise0_seed2.log",
   "timeout_seconds": 90.0
 }

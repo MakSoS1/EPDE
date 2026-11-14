@@ -49,7 +49,14 @@ SCENARIOS = ("affine", "logistic", "coupled", "reaction_diffusion",
 # Space-time laws in which every single-mode record is degenerate
 # (u_xx = -k^2 u), and a control whose records already carry two modes.
 PDE_SCENARIOS = ("reaction_diffusion", "heat", "advection_diffusion", "reaction_diffusion_rich")
-EXTRA_SCENARIOS = PDE_SCENARIOS[1:]
+# Second time derivative. In the "modes" ODE and the two wave laws every
+# record holds one mode, so u, u_t (or u_xx) and u_tt are proportional on it
+# and a one-term wrong law fits each record exactly; "oscillator" is the
+# control whose records each identify the law.
+SECOND_ORDER = ("oscillator_modes", "oscillator", "wave", "klein_gordon")
+EXTRA_SCENARIOS = PDE_SCENARIOS[1:] + SECOND_ORDER
+DESIGN_COLUMNS = {"oscillator_modes": ["u", "du/dx0"], "oscillator": ["u", "du/dx0"],
+                  "wave": ["u", "d^2u/dx1^2"], "klein_gordon": ["u", "d^2u/dx1^2"]}
 TRUTH = {"affine": {"u": {"1": 0.4, "u": -0.7}},
          "logistic": {"u": {"u": 1.2, "u^2": -0.6}},
          "coupled": {"u": {"u": -0.2, "v": 1.0}, "v": {"u": -1.0, "v": -0.2}},
@@ -57,6 +64,10 @@ TRUTH = {"affine": {"u": {"1": 0.4, "u": -0.7}},
          "reaction_diffusion_rich": {"u": {"u": -0.2, "d^2u/dx1^2": 0.1}},
          "heat": {"u": {"d^2u/dx1^2": 0.1}},
          "advection_diffusion": {"u": {"du/dx1": -0.5, "d^2u/dx1^2": 0.1}},
+         "oscillator_modes": {"u": {"u": -2.0, "du/dx0": -3.0}},
+         "oscillator": {"u": {"u": -4.0, "du/dx0": -0.3}},
+         "wave": {"u": {"d^2u/dx1^2": 0.64}},
+         "klein_gordon": {"u": {"d^2u/dx1^2": 0.64, "u": -1.0}},
          "contradictory": None, "density": None, "robot_heading": None}
 PDE_RECORDS = {
     # (id, nt, nx, t0, x0, [(wavenumber, amplitude), ...]); id 97 is held out.
@@ -144,7 +155,8 @@ def make_case(spec):
     """Actual analytic solutions, with independent grids and held-out records."""
     name, noise = spec["scenario"], spec["noise"]
     rng = np.random.default_rng(spec["seed"])
-    orders = (1, 2) if name in PDE_SCENARIOS else ((2,) if name == "density" else (1,))
+    orders = ((1, 2) if name in PDE_SCENARIOS else (2, 2) if name in ("wave", "klein_gordon")
+              else (2,) if name in ("density", "oscillator_modes", "oscillator") else (1,))
     variables = ["u", "v"] if name == "coupled" else ["u"]
     targets = {var: f"d{var}/dx0" for var in variables}
     truth = TRUTH[name]
@@ -185,6 +197,57 @@ def make_case(spec):
                             {"window_start_s": start, "robot_index": robot["index"],
                              "reference_spin_rad_s": robot["omega"]})
             (holdout if held else train).append(record)
+    elif name in ("oscillator_modes", "oscillator"):
+        targets = {"u": "d^2u/dx0^2"}
+        if name == "oscillator_modes":
+            # Overdamped u'' + 3u' + 2u = 0: modes exp(-t) and exp(-2t).
+            settings = [(7, 81, 0.0, 4.0, [(-1.0, 1.0)]), (19, 151, 10.0, 3.0, [(-2.0, 1.5)]),
+                        (97, 137, 40.0, 4.0, [(-1.0, 1.2), (-2.0, -0.8)])]
+            for ident, n, start, duration, modes in settings:
+                t = np.linspace(start, start + duration, n)
+                tau = t - start
+                u = sum(a * np.exp(lam * tau) for lam, a in modes)
+                du = sum(lam * a * np.exp(lam * tau) for lam, a in modes)
+                ddu = sum(lam * lam * a * np.exp(lam * tau) for lam, a in modes)
+                record = sample(ident, [t], {"u": u}, {"u": {"du/dx0": du, "d^2u/dx0^2": ddu}},
+                                orders, noise if ident != 97 else 0.0, rng, {"modes": modes})
+                (holdout if ident == 97 else train).append(record)
+        else:
+            # Underdamped u'' + 0.3u' + 4u = 0 with different amplitudes and phases.
+            gamma, omega = 0.15, np.sqrt(4.0 - 0.15 ** 2)
+            settings = [(7, 101, 0.0, 6.0, 1.0, 0.0), (19, 173, 10.0, 7.0, 1.6, 1.1),
+                        (97, 137, 30.0, 6.5, 0.8, 2.3)]
+            for ident, n, start, duration, amplitude, phase in settings:
+                t = np.linspace(start, start + duration, n)
+                tau = t - start
+                u = amplitude * np.exp(-gamma * tau) * np.cos(omega * tau + phase)
+                du = -gamma * u - amplitude * omega * np.exp(-gamma * tau) * np.sin(omega * tau + phase)
+                ddu = -4.0 * u - 0.3 * du
+                record = sample(ident, [t], {"u": u}, {"u": {"du/dx0": du, "d^2u/dx0^2": ddu}},
+                                orders, noise if ident != 97 else 0.0, rng,
+                                {"amplitude": amplitude, "phase": phase})
+                (holdout if ident == 97 else train).append(record)
+    elif name in ("wave", "klein_gordon"):
+        targets = {"u": "d^2u/dx0^2"}
+        speed2, mass2 = 0.64, (1.0 if name == "klein_gordon" else 0.0)
+        settings = [(7, 41, 51, 0.0, -np.pi, [(1, 1.0)]), (19, 37, 61, 10.0, 4 * np.pi, [(2, 0.7)]),
+                    (97, 39, 57, 23.0, 8 * np.pi + 0.17, [(1, 0.8), (3, 0.4)])]
+        for ident, nt, nx, start, left, modes in settings:
+            t, x = np.linspace(start, start + 4, nt), np.linspace(left, left + 2 * np.pi, nx)
+            T, X = np.meshgrid(t - start, x, indexing="ij")
+            u, dt, dtt, dx, dxx = (np.zeros_like(T) for _ in range(5))
+            for k, amplitude in modes:
+                w = np.sqrt(speed2 * k * k + mass2)
+                u += amplitude * np.cos(w * T) * np.sin(k * X)
+                dt += -amplitude * w * np.sin(w * T) * np.sin(k * X)
+                dtt += -w * w * amplitude * np.cos(w * T) * np.sin(k * X)
+                dx += amplitude * k * np.cos(w * T) * np.cos(k * X)
+                dxx += -k * k * amplitude * np.cos(w * T) * np.sin(k * X)
+            record = sample(ident, [t, x], {"u": u},
+                            {"u": {"du/dx0": dt, "d^2u/dx0^2": dtt, "du/dx1": dx, "d^2u/dx1^2": dxx}},
+                            orders, noise if ident != 97 else 0.0, rng,
+                            {"modes": modes, "speed2": speed2, "mass2": mass2})
+            (holdout if ident == 97 else train).append(record)
     elif name == "density":
         targets = {"u": "d^2u/dx0^2"}
         second_n = 256 if spec.get("density") == "refined" else 64
@@ -311,6 +374,13 @@ def matrix_diagnostics(matrix):
 def fixture_evidence(case):
     """Analytic identities/rank proof, labelled independently of EPDE fits."""
     evidence = {"kind": "analytic_fixture_check_not_EPDE_fit"}
+    if case["name"] in DESIGN_COLUMNS:
+        labels = DESIGN_COLUMNS[case["name"]]
+        matrices = [np.column_stack([s["clean_tokens"][label].ravel() for label in labels])
+                    for s in case["train"]]
+        evidence["design_columns"] = labels
+        evidence["individual_designs"] = [matrix_diagnostics(m) for m in matrices]
+        evidence["pooled_design"] = matrix_diagnostics(np.vstack(matrices))
     if case["name"] in PDE_SCENARIOS:
         # The fitted columns plus u: a single mode has u_xx = -k^2 u, so the
         # law is not separable from a multiple of u on that record alone.
@@ -390,7 +460,9 @@ def known_candidate(case, pool):
                 "heat": {"u": ["d^2u/dx1^2"]},
                 "advection_diffusion": {"u": ["du/dx1", "d^2u/dx1^2"]},
                 "contradictory": {"u": ["u"]}, "density": {"u": ["u"]},
-                "robot_heading": {"u": ["v"], "v": ["u"]}}[case["name"]]
+                "robot_heading": {"u": ["v"], "v": ["u"]},
+                "oscillator_modes": {"u": ["u", "du/dx0"]}, "oscillator": {"u": ["u", "du/dx0"]},
+                "wave": {"u": ["d^2u/dx1^2"]}, "klein_gordon": {"u": ["u", "d^2u/dx1^2"]}}[case["name"]]
     texts = {}
     for var, keys in features.items():
         tokens = ["u{power: 2.0}" if key == "u^2" else key + "{power: 1.0}" for key in keys]
@@ -641,6 +713,10 @@ def build_matrix(args):
         for name in EXTRA_SCENARIOS:
             add(name)
             add(name, stage="discovery", seeds=seeds)
+        for name in SECOND_ORDER:
+            add(name, stage="discovery", derivative="fd", noise=0.01, seeds=seeds)
+            add(name, stage="discovery", derivative="fd", noise=0.01, seeds=seeds,
+                evaluation_form="weak")
         add("reaction_diffusion", stage="discovery", derivative="fd", noise=0.05, seeds=seeds)
         add("robot_heading", derivative="fd")
         add("robot_heading", stage="discovery", derivative="fd", seeds=seeds)
@@ -857,10 +933,10 @@ def main():
             evidence = fixture_evidence(case)
             if "maximum_exact_law_residual" in evidence:
                 assert evidence["maximum_exact_law_residual"] < 1e-12, (name, evidence)
-            if name in PDE_SCENARIOS:
+            if name in PDE_SCENARIOS or name in DESIGN_COLUMNS:
                 width = len(evidence["design_columns"])
                 local = [x["rank"] for x in evidence["individual_designs"]]
-                if name == "reaction_diffusion_rich":
+                if name in ("reaction_diffusion_rich", "oscillator"):
                     assert local == [width, width], (name, local)
                 else:
                     assert local == [width - 1, width - 1], (name, local)

@@ -14,7 +14,7 @@
     "run_id": "106_heat_discovery_analytic_mean_samples_strong_base_noise0_seed3"
   },
   "status": "ok",
-  "started_at": "2026-11-13T12:37:40.343883+00:00",
+  "started_at": "2026-11-14T21:43:27.810348+00:00",
   "models": [
     {
       "model_id": 0,
@@ -529,9 +529,9 @@
   "truth_on_front": true,
   "selected_model_id": 0,
   "selection_rule": "lowest training instability among models within 0.001 relative training fitness of the best; holdout never used",
-  "elapsed_seconds": 3.8103343750044587,
-  "finished_at": "2026-11-13T12:37:44.154136+00:00",
-  "wall_seconds_including_imports": 4.215743458000361,
+  "elapsed_seconds": 3.7732917920075124,
+  "finished_at": "2026-11-14T21:43:31.583637+00:00",
+  "wall_seconds_including_imports": 4.113346416997956,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/106_heat_discovery_analytic_mean_samples_strong_base_noise0_seed3.log",
   "timeout_seconds": 90.0
 }

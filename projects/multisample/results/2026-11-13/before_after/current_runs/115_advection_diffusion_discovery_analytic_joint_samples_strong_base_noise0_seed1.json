@@ -14,7 +14,7 @@
     "run_id": "115_advection_diffusion_discovery_analytic_joint_samples_strong_base_noise0_seed1"
   },
   "status": "ok",
-  "started_at": "2026-11-13T12:37:53.272539+00:00",
+  "started_at": "2026-11-14T21:43:39.396404+00:00",
   "models": [
     {
       "model_id": 0,
@@ -541,9 +541,9 @@
   "truth_on_front": true,
   "selected_model_id": 0,
   "selection_rule": "lowest training instability among models within 0.001 relative training fitness of the best; holdout never used",
-  "elapsed_seconds": 5.895388541001012,
-  "finished_at": "2026-11-13T12:37:59.167801+00:00",
-  "wall_seconds_including_imports": 6.305833792001067,
+  "elapsed_seconds": 4.759437458997127,
+  "finished_at": "2026-11-14T21:43:44.155838+00:00",
+  "wall_seconds_including_imports": 5.127096665994031,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/115_advection_diffusion_discovery_analytic_joint_samples_strong_base_noise0_seed1.log",
   "timeout_seconds": 90.0
 }

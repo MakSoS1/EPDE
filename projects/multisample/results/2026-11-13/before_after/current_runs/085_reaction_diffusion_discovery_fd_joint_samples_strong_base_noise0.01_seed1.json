@@ -14,7 +14,7 @@
     "run_id": "085_reaction_diffusion_discovery_fd_joint_samples_strong_base_noise0.01_seed1"
   },
   "status": "ok",
-  "started_at": "2026-11-13T12:37:11.268785+00:00",
+  "started_at": "2026-11-14T21:43:02.397784+00:00",
   "models": [
     {
       "model_id": 0,
@@ -713,9 +713,9 @@
   "truth_on_front": true,
   "selected_model_id": 1,
   "selection_rule": "lowest training instability among models within 0.001 relative training fitness of the best; holdout never used",
-  "elapsed_seconds": 4.173796249997395,
-  "finished_at": "2026-11-13T12:37:15.442490+00:00",
-  "wall_seconds_including_imports": 4.586062249996758,
+  "elapsed_seconds": 4.006601624991163,
+  "finished_at": "2026-11-14T21:43:06.404388+00:00",
+  "wall_seconds_including_imports": 4.337771958002122,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/085_reaction_diffusion_discovery_fd_joint_samples_strong_base_noise0.01_seed1.log",
   "timeout_seconds": 90.0
 }

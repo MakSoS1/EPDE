@@ -14,7 +14,7 @@
     "run_id": "071_coupled_discovery_fd_joint_samples_strong_base_noise0.01_seed4"
   },
   "status": "ok",
-  "started_at": "2026-11-13T12:36:43.679358+00:00",
+  "started_at": "2026-11-14T21:42:36.283387+00:00",
   "models": [
     {
       "model_id": 0,
@@ -1069,9 +1069,9 @@
   "truth_on_front": true,
   "selected_model_id": 3,
   "selection_rule": "lowest training instability among models within 0.001 relative training fitness of the best; holdout never used",
-  "elapsed_seconds": 22.068290583003545,
-  "finished_at": "2026-11-13T12:37:05.747158+00:00",
-  "wall_seconds_including_imports": 22.50652033300139,
+  "elapsed_seconds": 20.93062591701164,
+  "finished_at": "2026-11-14T21:42:57.213995+00:00",
+  "wall_seconds_including_imports": 21.299495333005325,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/071_coupled_discovery_fd_joint_samples_strong_base_noise0.01_seed4.log",
   "timeout_seconds": 90.0
 }
