@@ -14,7 +14,7 @@
     "run_id": "061_coupled_discovery_analytic_joint_samples_strong_base_noise0_seed4"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:06:34.482757+00:00",
+  "started_at": "2026-11-14T22:52:38.575213+00:00",
   "models": [
     {
       "model_id": 0,
@@ -67,6 +67,11 @@
             0.1967970988123104,
             1.0096677955297624,
             2.449699978688924e-16
+          ],
+          "term_t": [
+            490289826348718.5,
+            518735669272713.25,
+            0.1739868690835752
           ],
           "training_fit_residuals": [
             {
@@ -153,6 +158,11 @@
             0.952518376831284,
             0.19547587551665074,
             4.5292067404595805e-17
+          ],
+          "term_t": [
+            859584548349634.5,
+            257957971857012.22,
+            0.43706406064673997
           ],
           "training_fit_residuals": [
             {
@@ -251,6 +261,11 @@
             1.0096677955297624,
             2.449699978688924e-16
           ],
+          "term_t": [
+            490289826348718.5,
+            518735669272713.25,
+            0.1739868690835752
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -335,6 +350,10 @@
           "term_shares": [
             0.9525183768312844,
             0.19547587551665085
+          ],
+          "term_t": [
+            739139723876002.1,
+            392755885175150.06
           ],
           "training_fit_residuals": [
             {
@@ -432,6 +451,10 @@
             0.19679709881231033,
             1.0096677955297628
           ],
+          "term_t": [
+            542538380646718.2,
+            989861884760215.6
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -517,6 +540,11 @@
             0.952518376831284,
             0.19547587551665074,
             4.5292067404595805e-17
+          ],
+          "term_t": [
+            859584548349634.5,
+            257957971857012.22,
+            0.43706406064673997
           ],
           "training_fit_residuals": [
             {
@@ -614,6 +642,10 @@
             0.19679709881231033,
             1.0096677955297628
           ],
+          "term_t": [
+            542538380646718.2,
+            989861884760215.6
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -698,6 +730,10 @@
           "term_shares": [
             0.9525183768312844,
             0.19547587551665085
+          ],
+          "term_t": [
+            739139723876002.1,
+            392755885175150.06
           ],
           "training_fit_residuals": [
             {
@@ -1104,10 +1140,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": true,
   "selected_model_id": 3,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 7.533958957996219,
-  "finished_at": "2026-11-14T22:06:42.016707+00:00",
-  "wall_seconds_including_imports": 7.936747917003231,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 9.341222707997076,
+  "finished_at": "2026-11-14T22:52:47.916435+00:00",
+  "wall_seconds_including_imports": 9.80107145900547,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/061_coupled_discovery_analytic_joint_samples_strong_base_noise0_seed4.log",
   "timeout_seconds": 90.0
 }

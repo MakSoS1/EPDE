@@ -33,7 +33,7 @@ def test_joint_configuration_is_explicit_and_serializable():
 @pytest.mark.parametrize('overrides, match', [
     ({'multisample_mode': 'typo'}, 'multisample_mode'),
     ({'multisample_weighting': 'typo'}, 'multisample_weighting'),
-    ({'multisample_mode': 'joint', 'system_rps_mode': 'repair'}, 'plain.*assignment|assignment.*plain'),
+    ({'multisample_mode': 'joint', 'system_rps_mode': 'repair', 'instability_metric': 'cv'}, 'basis-free'),
     ({'multisample_mode': 'joint', 'system_rps_mode': 'assignment',
       'sparsity_cls': 'lasso'}, 'physical|lasso|refit'),
 ])

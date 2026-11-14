@@ -14,7 +14,7 @@
     "run_id": "113_advection_diffusion_discovery_analytic_joint_samples_strong_base_noise0_seed0"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:08:26.077675+00:00",
+  "started_at": "2026-11-14T22:54:36.910359+00:00",
   "models": [
     {
       "model_id": 0,
@@ -75,6 +75,11 @@
             0.9403505277863975,
             1.6531042424827242e-16,
             0.30510428931553873
+          ],
+          "term_t": [
+            1012108749787566.4,
+            0.3485853727731245,
+            572535168218421.6
           ],
           "training_fit_residuals": [
             {
@@ -171,6 +176,10 @@
           "term_shares": [
             0.30510428931553785,
             0.9403505277863975
+          ],
+          "term_t": [
+            534420141562971.5,
+            495604776514315.6
           ],
           "training_fit_residuals": [
             {
@@ -649,10 +658,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": true,
   "selected_model_id": 1,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 7.283463209008914,
-  "finished_at": "2026-11-14T22:08:33.361131+00:00",
-  "wall_seconds_including_imports": 7.79457199999888,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 5.402098916994873,
+  "finished_at": "2026-11-14T22:54:42.312459+00:00",
+  "wall_seconds_including_imports": 5.818638209006167,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/113_advection_diffusion_discovery_analytic_joint_samples_strong_base_noise0_seed0.log",
   "timeout_seconds": 90.0
 }

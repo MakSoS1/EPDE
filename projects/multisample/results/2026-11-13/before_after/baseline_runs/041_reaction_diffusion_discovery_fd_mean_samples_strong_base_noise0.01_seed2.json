@@ -14,7 +14,7 @@
     "run_id": "041_reaction_diffusion_discovery_fd_mean_samples_strong_base_noise0.01_seed2"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:17:35.477822+00:00",
+  "started_at": "2026-11-14T23:10:19.599423+00:00",
   "models": [
     {
       "model_id": 0,
@@ -58,6 +58,10 @@
           "term_shares": [
             1.102996622144736,
             0.0017194083596182071
+          ],
+          "term_t": [
+            73.00735794910999,
+            0.3399539433448689
           ],
           "training_fit_residuals": [
             {
@@ -145,6 +149,9 @@
           "coefficient_reason": null,
           "term_shares": [
             1.10299623900559
+          ],
+          "term_t": [
+            73.04114309826362
           ],
           "training_fit_residuals": [
             {
@@ -617,10 +624,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": false,
   "selected_model_id": 1,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 4.351809834013693,
-  "finished_at": "2026-11-14T22:17:39.829603+00:00",
-  "wall_seconds_including_imports": 4.767286458009039,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 4.736379875001148,
+  "finished_at": "2026-11-14T23:10:24.335814+00:00",
+  "wall_seconds_including_imports": 5.179107499992824,
   "log_file": "projects/multisample/results/2026-11-13/before_after/baseline_runs/041_reaction_diffusion_discovery_fd_mean_samples_strong_base_noise0.01_seed2.log",
   "timeout_seconds": 90.0
 }

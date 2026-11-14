@@ -602,7 +602,7 @@ class EqRightPartSelector(CompoundOperator):
         including valid analytical identities -- is never touched, in keeping
         with the no-collinearity-machinery principle.
 
-        MULTISAMPLE SEMANTICS. The coefficient fit is run PER TRAJECTORY and
+        MULTISAMPLE SEMANTICS. In the default (mean) mode the coefficient fit is run PER TRAJECTORY and
         the resulting coefficient vectors are averaged (``VWSRSparsity.apply``),
         so a rank-deficient solve in ONE sample already corrupts that sample's
         coefficients and thereby the average. A term is therefore flagged when
@@ -625,6 +625,17 @@ class EqRightPartSelector(CompoundOperator):
         cols: Dict[int, List[np.ndarray]] = dictApplyUFunc(lambda x: [np.asarray(elem, dtype=float).reshape(-1) for elem in x],
                                                            cols)
 
+        from epde.operators.common.multisample import joint_enabled
+        if joint_enabled(len(cols)):
+            # One coefficient vector serves every record, so a column is
+            # redundant only when it is dependent on all records TOGETHER. A
+            # column dependent on each record alone (u_xx = -k^2 u for one
+            # spatial mode) can still be what the records jointly identify.
+            # Exact dependence is invariant under positive row weights, so the
+            # stacked unweighted columns decide it, intercept shared.
+            keys = sorted(cols, key=repr)
+            cols = {-1: [np.concatenate([cols[key][i] for key in keys])
+                              for i in range(len(feature_terms))]}
         scan: Dict[int, Tuple[List[int], List[np.ndarray]]] = dictApplyUFunc(_flag_dependent_columns, cols)
         if any([sc is None for sc in scan.values()]):
             # Non-finite column: dependence undecidable, mirror the

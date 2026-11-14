@@ -14,7 +14,7 @@
     "run_id": "158_wave_fixed_analytic_mean_samples_strong_base_noise0_seed0"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:09:36.037472+00:00",
+  "started_at": "2026-11-14T22:55:46.664601+00:00",
   "models": [
     {
       "model_id": 0,
@@ -57,6 +57,9 @@
           "coefficient_reason": null,
           "term_shares": [
             0.999999999999996
+          ],
+          "term_t": [
+            1057770667172588.0
           ],
           "training_fit_residuals": [
             {
@@ -562,10 +565,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": true,
   "selected_model_id": 0,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 2.540547166005126,
-  "finished_at": "2026-11-14T22:09:38.578013+00:00",
-  "wall_seconds_including_imports": 2.9940099579980597,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 2.1166538749967003,
+  "finished_at": "2026-11-14T22:55:48.781255+00:00",
+  "wall_seconds_including_imports": 2.5209898329922,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/158_wave_fixed_analytic_mean_samples_strong_base_noise0_seed0.log",
   "timeout_seconds": 45.0
 }

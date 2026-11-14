@@ -14,7 +14,7 @@
     "run_id": "107_klein_gordon_discovery_poly_mean_samples_strong_base_noise0.01_seed4"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:19:13.967098+00:00",
+  "started_at": "2026-11-14T23:12:17.255206+00:00",
   "models": [
     {
       "model_id": 0,
@@ -58,6 +58,10 @@
           "term_shares": [
             0.9571147498424402,
             0.010484739828684014
+          ],
+          "term_t": [
+            14.548540719567377,
+            0.8912976615041213
           ],
           "training_fit_residuals": [
             {
@@ -145,6 +149,9 @@
           "coefficient_reason": null,
           "term_shares": [
             0.9571141557588576
+          ],
+          "term_t": [
+            14.539038654143749
           ],
           "training_fit_residuals": [
             {
@@ -614,11 +621,11 @@
   "epochs_completed": 4,
   "active_evaluation_form": "strong",
   "truth_on_front": false,
-  "selected_model_id": 0,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 5.340603040996939,
-  "finished_at": "2026-11-14T22:19:19.307670+00:00",
-  "wall_seconds_including_imports": 5.761712291001459,
+  "selected_model_id": 1,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 5.881489167004474,
+  "finished_at": "2026-11-14T23:12:23.136700+00:00",
+  "wall_seconds_including_imports": 6.95981495900196,
   "log_file": "projects/multisample/results/2026-11-13/before_after/baseline_runs/107_klein_gordon_discovery_poly_mean_samples_strong_base_noise0.01_seed4.log",
   "timeout_seconds": 90.0
 }

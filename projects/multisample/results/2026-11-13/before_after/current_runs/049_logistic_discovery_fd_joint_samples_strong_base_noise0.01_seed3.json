@@ -14,7 +14,7 @@
     "run_id": "049_logistic_discovery_fd_joint_samples_strong_base_noise0.01_seed3"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:06:07.638172+00:00",
+  "started_at": "2026-11-14T22:52:04.906951+00:00",
   "models": [
     {
       "model_id": 0,
@@ -66,6 +66,10 @@
           "term_shares": [
             5.771151037627822,
             5.45699074256192
+          ],
+          "term_t": [
+            125.4757143608012,
+            114.9504399258772
           ],
           "training_fit_residuals": [
             {
@@ -175,6 +179,11 @@
             5.403455926389437,
             5.735039223921803,
             0.0190979984889185
+          ],
+          "term_t": [
+            30.425888542449037,
+            47.687140506851094,
+            0.2870980490405424
           ],
           "training_fit_residuals": [
             {
@@ -601,11 +610,11 @@
   "epochs_completed": 4,
   "active_evaluation_form": "strong",
   "truth_on_front": true,
-  "selected_model_id": 1,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 4.8569570839899825,
-  "finished_at": "2026-11-14T22:06:12.495124+00:00",
-  "wall_seconds_including_imports": 5.322387374995742,
+  "selected_model_id": 0,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 5.161600791994715,
+  "finished_at": "2026-11-14T22:52:10.068554+00:00",
+  "wall_seconds_including_imports": 5.589793416002067,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/049_logistic_discovery_fd_joint_samples_strong_base_noise0.01_seed3.log",
   "timeout_seconds": 90.0
 }

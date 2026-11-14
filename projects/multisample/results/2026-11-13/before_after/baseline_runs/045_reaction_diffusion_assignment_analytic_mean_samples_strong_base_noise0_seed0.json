@@ -14,7 +14,7 @@
     "run_id": "045_reaction_diffusion_assignment_analytic_mean_samples_strong_base_noise0_seed0"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:17:40.933924+00:00",
+  "started_at": "2026-11-14T23:10:25.645271+00:00",
   "models": [
     {
       "model_id": 0,
@@ -57,6 +57,9 @@
           "coefficient_reason": null,
           "term_shares": [
             1.2046114301654445
+          ],
+          "term_t": [
+            82.98700978959126
           ],
           "training_fit_residuals": [
             {
@@ -559,10 +562,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": false,
   "selected_model_id": 0,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 2.031476999996812,
-  "finished_at": "2026-11-14T22:17:42.965387+00:00",
-  "wall_seconds_including_imports": 2.421568915990065,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 2.257035332993837,
+  "finished_at": "2026-11-14T23:10:27.902307+00:00",
+  "wall_seconds_including_imports": 2.6618349159980426,
   "log_file": "projects/multisample/results/2026-11-13/before_after/baseline_runs/045_reaction_diffusion_assignment_analytic_mean_samples_strong_base_noise0_seed0.log",
   "timeout_seconds": 45.0
 }

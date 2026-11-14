@@ -14,7 +14,7 @@
     "run_id": "087_reaction_diffusion_discovery_fd_joint_samples_strong_base_noise0.01_seed2"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:07:46.958193+00:00",
+  "started_at": "2026-11-14T22:54:00.157022+00:00",
   "models": [
     {
       "model_id": 0,
@@ -57,6 +57,9 @@
           "coefficient_reason": null,
           "term_shares": [
             0.9042071808762022
+          ],
+          "term_t": [
+            73.04114309826362
           ],
           "training_fit_residuals": [
             {
@@ -163,6 +166,11 @@
             0.5495266228722879,
             0.44611570539978784
           ],
+          "term_t": [
+            0.32499322896204674,
+            53.8653386250651,
+            32.44599154435955
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -258,6 +266,10 @@
           "term_shares": [
             0.4461075288108893,
             0.5495332351140156
+          ],
+          "term_t": [
+            32.48819528315774,
+            53.8472260739713
           ],
           "training_fit_residuals": [
             {
@@ -732,10 +744,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": true,
   "selected_model_id": 2,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 5.559173332992941,
-  "finished_at": "2026-11-14T22:07:52.517353+00:00",
-  "wall_seconds_including_imports": 6.035559791998821,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 4.682866999995895,
+  "finished_at": "2026-11-14T22:54:04.839888+00:00",
+  "wall_seconds_including_imports": 5.1944651669909945,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/087_reaction_diffusion_discovery_fd_joint_samples_strong_base_noise0.01_seed2.log",
   "timeout_seconds": 90.0
 }

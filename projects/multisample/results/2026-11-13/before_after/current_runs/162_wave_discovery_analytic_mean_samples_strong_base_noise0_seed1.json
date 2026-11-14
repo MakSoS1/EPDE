@@ -14,7 +14,7 @@
     "run_id": "162_wave_discovery_analytic_mean_samples_strong_base_noise0_seed1"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:09:41.199198+00:00",
+  "started_at": "2026-11-14T22:55:51.128151+00:00",
   "models": [
     {
       "model_id": 0,
@@ -66,6 +66,10 @@
           "term_shares": [
             0.9999999999999979,
             2.2829363565643728e-18
+          ],
+          "term_t": [
+            948978910594968.0,
+            1.908708910087674
           ],
           "training_fit_residuals": [
             {
@@ -153,6 +157,9 @@
           "coefficient_reason": null,
           "term_shares": [
             0.999999999999996
+          ],
+          "term_t": [
+            1057770667172588.0
           ],
           "training_fit_residuals": [
             {
@@ -251,6 +258,11 @@
             0.9999999999999979,
             2.282774407316642e-17
           ],
+          "term_t": [
+            2.1116993514981495,
+            675158873693694.4,
+            25.789107871292735
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -346,6 +358,10 @@
           "term_shares": [
             0.9999999999999979,
             6.284783720860476e-17
+          ],
+          "term_t": [
+            765558203679423.1,
+            0.8671470667280511
           ],
           "training_fit_residuals": [
             {
@@ -816,10 +832,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": true,
   "selected_model_id": 1,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 4.552143292006804,
-  "finished_at": "2026-11-14T22:09:45.751334+00:00",
-  "wall_seconds_including_imports": 5.013569125003414,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 4.233407542007626,
+  "finished_at": "2026-11-14T22:55:55.361560+00:00",
+  "wall_seconds_including_imports": 4.677573666005628,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/162_wave_discovery_analytic_mean_samples_strong_base_noise0_seed1.log",
   "timeout_seconds": 90.0
 }

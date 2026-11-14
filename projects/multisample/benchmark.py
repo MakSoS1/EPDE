@@ -50,9 +50,12 @@ SUPPORT_TOL = 1e-8
 #   "significant": among models within 1% of the lowest discrepancy, drop
 #                those with a term explaining under 1% of the target, then
 #                the best fit; if none is left, fall back to "stable".
-SELECTION_RULES = {"fitness": None, "stable": 1e-3, "parsimony": 1e-2, "significant": 1e-2}
+#   "noise":     the best-fitting model all of whose terms are significant by
+#                a jackknife t-test (see term_t_statistics); no fixed share or
+#                fit margin. Falls back to "stable" when no model qualifies.
+SELECTION_RULES = {"fitness": None, "stable": 1e-3, "parsimony": 1e-2, "significant": 1e-2, "noise": None}
 SIGNIFICANT_SHARE = 1e-2
-SELECTION_RULE = "significant"
+SELECTION_RULE = "noise"
 
 
 def model_terms(model):
@@ -65,6 +68,52 @@ def model_terms(model):
     return count
 
 
+JACKKNIFE_BLOCKS = 10
+
+
+def term_t_statistics(targets, features, weights, blocks=JACKKNIFE_BLOCKS):
+    """|coefficient| / standard error for every nonzero term, intercept last.
+
+    The error is a delete-one-block jackknife: each record is cut into
+    ``blocks`` contiguous pieces of rows, piece b is removed from every record
+    at once, and the support is refitted by least squares with equal total
+    weight per record. Contiguous pieces keep the error honest when
+    neighbouring rows share noise, as finite differences and weak windows do.
+    No noise level is assumed; the spread of the refits measures it.
+    """
+    weights = np.asarray(weights, dtype=float)
+    cols = [j for j, w in enumerate(weights[:-1]) if w != 0]
+    intercept = weights[-1] != 0
+    if not cols and not intercept:
+        return []
+    designs = []
+    for key, y in targets.items():
+        y = np.ravel(np.asarray(y, dtype=float))
+        X = np.asarray(features[key], dtype=float)[:, cols] if cols else np.zeros((y.size, 0))
+        if intercept:
+            X = np.column_stack([X, np.ones(y.size)])
+        pieces = np.array_split(np.arange(y.size), blocks)
+        designs.append((X, y, pieces))
+
+    def solve(drop):
+        rows_x, rows_y = [], []
+        for X, y, pieces in designs:
+            keep = np.ones(y.size, dtype=bool)
+            if drop is not None:
+                keep[pieces[drop]] = False
+            root = np.sqrt(1.0 / keep.sum())
+            rows_x.append(X[keep] * root)
+            rows_y.append(y[keep] * root)
+        return np.linalg.lstsq(np.vstack(rows_x), np.concatenate(rows_y), rcond=None)[0]
+
+    full = solve(None)
+    refits = np.array([solve(b) for b in range(blocks)])
+    spread = np.sqrt((blocks - 1) / blocks * np.sum((refits - refits.mean(axis=0)) ** 2, axis=0))
+    with np.errstate(divide="ignore", invalid="ignore"):
+        t = np.where(spread > 0, np.abs(full) / spread, np.inf)
+    return [float(x) for x in t]
+
+
 def select_model(models, rule=SELECTION_RULE, tolerance=None):
     """Pick one returned model by a training-only rule (see SELECTION_RULES)."""
     if not models:
@@ -72,6 +121,14 @@ def select_model(models, rule=SELECTION_RULE, tolerance=None):
     best = min(m["training_selection_score"] for m in models)
     if rule == "fitness":
         return min(models, key=lambda m: m["training_selection_score"])
+    if rule == "noise":
+        from scipy.stats import t as student
+        critical = student.ppf(0.975, JACKKNIFE_BLOCKS - 1) if tolerance is None else tolerance
+        kept = [m for m in models if all(e.get("term_t") is not None and
+                                         all(x >= critical for x in e["term_t"]) for e in m["equations"])]
+        if not kept:
+            return select_model(models, "stable")
+        return min(kept, key=lambda m: (m["training_selection_score"], m["training_instability"]))
     margin = SELECTION_RULES[rule] if tolerance is None else tolerance
     near = [m for m in models if m["training_selection_score"] <= best + margin * max(abs(best), 1e-12)]
     if rule == "stable":
@@ -615,6 +672,7 @@ def equation_report(eq, case):
     if weights[-1] != 0:
         shares.append(abs(weights[-1]) * np.sqrt(pooled_y.size) / float(np.linalg.norm(pooled_y)))
     result["term_shares"] = [float(x) for x in shares]
+    result["term_t"] = term_t_statistics(targets, features, weights)
     result["training_fit_residuals"] = []
     for ident, y in targets.items():
         resid = features[ident] @ np.asarray(eq.weights_final[:-1]) + eq.weights_final[-1] - y
@@ -715,9 +773,9 @@ def run_worker(spec):
             result["truth_on_front"] = (case["truth"] is not None and any(
                 all(e["support_exact"] is True for e in m["equations"]) for m in result["models"]))
             result.update(status="ok", selected_model_id=selected["model_id"],
-                          selection_rule=f"{SELECTION_RULE}: within {SELECTION_RULES[SELECTION_RULE]:g} relative "
-                                         f"training fitness of the best, no term below {SIGNIFICANT_SHARE:g} of the "
-                                         "target, then lowest training fitness; holdout never used")
+                          selection_rule=f"{SELECTION_RULE}: best training fitness among models whose every "
+                                         f"term passes a {JACKKNIFE_BLOCKS}-block jackknife t-test at 95%; "
+                                         "holdout never used")
         else:
             result.update(status="no_candidate", reason="EPDE accepted no fitted candidate for this stage")
     except Exception as exc:
@@ -771,6 +829,10 @@ def build_matrix(args):
             add(name, stage="discovery", seeds=seeds)
         for name in SECOND_ORDER + ("reaction_diffusion",):
             add(name, stage="discovery", derivative="poly", noise=0.01, seeds=seeds)
+        # The default right-part mode, where terms are pruned by a sparse fit.
+        for name in ("logistic", "reaction_diffusion", "oscillator_modes", "klein_gordon"):
+            add(name, stage="discovery", seeds=seeds, rps_mode="repair")
+            add(name, stage="discovery", derivative="fd", noise=0.01, seeds=seeds, rps_mode="repair")
         for name in SECOND_ORDER:
             add(name, stage="discovery", derivative="fd", noise=0.01, seeds=seeds)
             add(name, stage="discovery", derivative="fd", noise=0.01, seeds=seeds,
@@ -792,6 +854,8 @@ def build_matrix(args):
     for index, spec in enumerate(specs):
         fields = [spec[k] for k in ("scenario", "stage", "derivatives", "multisample_mode", "weighting")]
         fields += [spec["evaluation_form"], spec.get("density", "base"), f"noise{spec['noise']:g}", f"seed{spec['seed']}"]
+        if spec["rps_mode"] == "repair":
+            fields.insert(2, "repair")
         spec["run_id"] = f"{index:03d}_" + "_".join(map(str, fields))
     return specs
 

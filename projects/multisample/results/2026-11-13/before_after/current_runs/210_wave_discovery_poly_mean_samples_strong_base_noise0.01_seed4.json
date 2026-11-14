@@ -14,7 +14,7 @@
     "run_id": "210_wave_discovery_poly_mean_samples_strong_base_noise0.01_seed4"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:10:58.079591+00:00",
+  "started_at": "2026-11-14T22:57:09.867549+00:00",
   "models": [
     {
       "model_id": 0,
@@ -57,6 +57,9 @@
           "coefficient_reason": null,
           "term_shares": [
             0.7915067036076809
+          ],
+          "term_t": [
+            6.904199960821771
           ],
           "training_fit_residuals": [
             {
@@ -155,6 +158,11 @@
             4.718542570440828e-05,
             0.021085836141107733
           ],
+          "term_t": [
+            25.99747869777964,
+            0.06810160350957065,
+            1.475174741324738
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -241,6 +249,9 @@
           "coefficient_reason": null,
           "term_shares": [
             0.6367038928732642
+          ],
+          "term_t": [
+            26.191441912843118
           ],
           "training_fit_residuals": [
             {
@@ -329,6 +340,10 @@
           "term_shares": [
             0.6369548776038635,
             0.021083766012741045
+          ],
+          "term_t": [
+            26.36587744442229,
+            1.479848541063111
           ],
           "training_fit_residuals": [
             {
@@ -800,11 +815,11 @@
   "epochs_completed": 4,
   "active_evaluation_form": "strong",
   "truth_on_front": true,
-  "selected_model_id": 3,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 4.342118750006193,
-  "finished_at": "2026-11-14T22:11:02.421710+00:00",
-  "wall_seconds_including_imports": 4.79907758400077,
+  "selected_model_id": 2,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 4.6919973339972785,
+  "finished_at": "2026-11-14T22:57:14.559548+00:00",
+  "wall_seconds_including_imports": 5.106039083999349,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/210_wave_discovery_poly_mean_samples_strong_base_noise0.01_seed4.log",
   "timeout_seconds": 90.0
 }

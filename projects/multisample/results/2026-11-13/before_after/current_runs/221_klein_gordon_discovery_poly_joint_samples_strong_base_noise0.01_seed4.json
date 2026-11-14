@@ -14,7 +14,7 @@
     "run_id": "221_klein_gordon_discovery_poly_joint_samples_strong_base_noise0.01_seed4"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:11:19.117444+00:00",
+  "started_at": "2026-11-14T22:57:27.551543+00:00",
   "models": [
     {
       "model_id": 0,
@@ -66,6 +66,10 @@
           "term_shares": [
             0.8442004504432784,
             0.030395227911952784
+          ],
+          "term_t": [
+            14.507360097951004,
+            0.5506612952726878
           ],
           "training_fit_residuals": [
             {
@@ -162,6 +166,10 @@
           "term_shares": [
             0.5269008918219378,
             0.4138949798360133
+          ],
+          "term_t": [
+            13.499629435093706,
+            10.953096343201915
           ],
           "training_fit_residuals": [
             {
@@ -260,6 +268,11 @@
             0.41410115659208885,
             0.013039071865769388
           ],
+          "term_t": [
+            13.581277293171564,
+            11.03449866856803,
+            1.370006739176029
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -346,6 +359,9 @@
           "coefficient_reason": null,
           "term_shares": [
             0.8422665216600832
+          ],
+          "term_t": [
+            14.539038654143749
           ],
           "training_fit_residuals": [
             {
@@ -817,11 +833,11 @@
   "epochs_completed": 4,
   "active_evaluation_form": "strong",
   "truth_on_front": true,
-  "selected_model_id": 2,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 4.742163791001076,
-  "finished_at": "2026-11-14T22:11:23.859601+00:00",
-  "wall_seconds_including_imports": 5.149108875004458,
+  "selected_model_id": 1,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 4.970983749997686,
+  "finished_at": "2026-11-14T22:57:32.522528+00:00",
+  "wall_seconds_including_imports": 5.430314750003163,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/221_klein_gordon_discovery_poly_joint_samples_strong_base_noise0.01_seed4.log",
   "timeout_seconds": 90.0
 }

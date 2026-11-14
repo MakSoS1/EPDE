@@ -14,7 +14,7 @@
     "run_id": "094_logistic_fixed_analytic_joint_samples_weak_base_noise0_seed0"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:07:57.943056+00:00",
+  "started_at": "2026-11-14T22:54:11.888317+00:00",
   "models": [
     {
       "model_id": 0,
@@ -66,6 +66,10 @@
           "term_shares": [
             5.23311452179684,
             5.316269162965786
+          ],
+          "term_t": [
+            51905856732405.82,
+            43838569417038.875
           ],
           "training_fit_residuals": [
             {
@@ -542,10 +546,10 @@
   "active_evaluation_form": "weak",
   "truth_on_front": true,
   "selected_model_id": 0,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 2.56710524999653,
-  "finished_at": "2026-11-14T22:08:00.510157+00:00",
-  "wall_seconds_including_imports": 3.054498166005942,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 2.3941443340008846,
+  "finished_at": "2026-11-14T22:54:14.282462+00:00",
+  "wall_seconds_including_imports": 2.926384833001066,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/094_logistic_fixed_analytic_joint_samples_weak_base_noise0_seed0.log",
   "timeout_seconds": 45.0
 }

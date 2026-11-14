@@ -14,7 +14,7 @@
     "run_id": "178_klein_gordon_discovery_analytic_mean_samples_strong_base_noise0_seed3"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:10:06.673136+00:00",
+  "started_at": "2026-11-14T22:56:17.497919+00:00",
   "models": [
     {
       "model_id": 0,
@@ -57,6 +57,9 @@
           "coefficient_reason": null,
           "term_shares": [
             1.281267036681577
+          ],
+          "term_t": [
+            37.417679968115245
           ],
           "training_fit_residuals": [
             {
@@ -155,6 +158,11 @@
             6.831275767458107e-17,
             9.720274698238556e-18
           ],
+          "term_t": [
+            39.14702013066807,
+            0.7187925101380551,
+            4.499506519889251e-15
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -250,6 +258,10 @@
           "term_shares": [
             6.506178450170523e-17,
             1.2812670366815757
+          ],
+          "term_t": [
+            0.7189227247303104,
+            39.14998743936165
           ],
           "training_fit_residuals": [
             {
@@ -720,10 +732,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": false,
   "selected_model_id": 0,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 3.693321249986184,
-  "finished_at": "2026-11-14T22:10:10.366454+00:00",
-  "wall_seconds_including_imports": 4.110174041998107,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 3.8766699580010027,
+  "finished_at": "2026-11-14T22:56:21.374590+00:00",
+  "wall_seconds_including_imports": 4.31493954200414,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/178_klein_gordon_discovery_analytic_mean_samples_strong_base_noise0_seed3.log",
   "timeout_seconds": 90.0
 }

@@ -14,7 +14,7 @@
     "run_id": "225_reaction_diffusion_discovery_poly_joint_samples_strong_base_noise0.01_seed1"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:11:25.949530+00:00",
+  "started_at": "2026-11-14T22:57:38.062006+00:00",
   "models": [
     {
       "model_id": 0,
@@ -67,6 +67,11 @@
             0.4436176535128964,
             0.6024206788067256,
             0.00845078102699464
+          ],
+          "term_t": [
+            15.393333539208808,
+            30.98739875199869,
+            2.8264887524083004
           ],
           "training_fit_residuals": [
             {
@@ -164,6 +169,10 @@
             0.4432748948541926,
             0.6027005278712692
           ],
+          "term_t": [
+            15.330425020453852,
+            30.94912009377736
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -250,6 +259,9 @@
           "coefficient_reason": null,
           "term_shares": [
             0.9631494999127765
+          ],
+          "term_t": [
+            177.04297748973892
           ],
           "training_fit_residuals": [
             {
@@ -355,6 +367,11 @@
             0.6026653057112425,
             0.00575541700760135,
             0.44334630468447395
+          ],
+          "term_t": [
+            30.955830711455096,
+            1.630361651470813,
+            15.316322815176376
           ],
           "training_fit_residuals": [
             {
@@ -830,11 +847,11 @@
   "epochs_completed": 4,
   "active_evaluation_form": "strong",
   "truth_on_front": true,
-  "selected_model_id": 1,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 4.872024666998186,
-  "finished_at": "2026-11-14T22:11:30.813720+00:00",
-  "wall_seconds_including_imports": 5.26430112500384,
+  "selected_model_id": 0,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 5.502530333993491,
+  "finished_at": "2026-11-14T22:57:43.564538+00:00",
+  "wall_seconds_including_imports": 6.001391332989442,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/225_reaction_diffusion_discovery_poly_joint_samples_strong_base_noise0.01_seed1.log",
   "timeout_seconds": 90.0
 }

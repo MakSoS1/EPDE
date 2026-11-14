@@ -14,7 +14,7 @@
     "run_id": "212_klein_gordon_discovery_poly_mean_samples_strong_base_noise0.01_seed0"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:11:02.801314+00:00",
+  "started_at": "2026-11-14T22:57:11.005399+00:00",
   "models": [
     {
       "model_id": 0,
@@ -57,6 +57,9 @@
           "coefficient_reason": null,
           "term_shares": [
             0.9465071460977253
+          ],
+          "term_t": [
+            14.514567028855813
           ],
           "training_fit_residuals": [
             {
@@ -163,6 +166,11 @@
             0.00548549510133644,
             0.0025801087835593105
           ],
+          "term_t": [
+            14.643644106524453,
+            0.8284595988385045,
+            0.766021581994837
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -258,6 +266,10 @@
           "term_shares": [
             0.005485409384600471,
             0.9465151370584144
+          ],
+          "term_t": [
+            0.8344079476529034,
+            14.509643316638584
           ],
           "training_fit_residuals": [
             {
@@ -730,10 +742,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": false,
   "selected_model_id": 0,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 4.565064374997746,
-  "finished_at": "2026-11-14T22:11:07.366374+00:00",
-  "wall_seconds_including_imports": 5.013410582992947,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 4.705226749996655,
+  "finished_at": "2026-11-14T22:57:15.710627+00:00",
+  "wall_seconds_including_imports": 5.1483057919977,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/212_klein_gordon_discovery_poly_mean_samples_strong_base_noise0.01_seed0.log",
   "timeout_seconds": 90.0
 }

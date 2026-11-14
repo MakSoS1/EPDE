@@ -14,7 +14,7 @@
     "run_id": "205_wave_discovery_poly_joint_samples_strong_base_noise0.01_seed1"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:10:50.951465+00:00",
+  "started_at": "2026-11-14T22:56:59.590935+00:00",
   "models": [
     {
       "model_id": 0,
@@ -57,6 +57,9 @@
           "coefficient_reason": null,
           "term_shares": [
             0.6860936019766248
+          ],
+          "term_t": [
+            6.722122449026762
           ],
           "training_fit_residuals": [
             {
@@ -154,6 +157,11 @@
             0.18973280488307617,
             0.6546252111112453,
             0.011133282085410662
+          ],
+          "term_t": [
+            8.863656220987574,
+            13.512718019042584,
+            1.3263609318353766
           ],
           "training_fit_residuals": [
             {
@@ -260,6 +268,11 @@
             0.6545563016263534,
             0.18980221498344665
           ],
+          "term_t": [
+            0.04138746030490407,
+            13.552999936222086,
+            9.268350355514537
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -357,6 +370,11 @@
             0.006049625416758841,
             0.011246291927838378
           ],
+          "term_t": [
+            23.82239954171202,
+            0.6641356922847209,
+            1.3133683696210778
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -443,6 +461,9 @@
           "coefficient_reason": null,
           "term_shares": [
             0.8044583864872571
+          ],
+          "term_t": [
+            23.799496722457572
           ],
           "training_fit_residuals": [
             {
@@ -531,6 +552,10 @@
           "term_shares": [
             0.804491985319028,
             0.01157926505140295
+          ],
+          "term_t": [
+            23.805546549059756,
+            1.289346788842391
           ],
           "training_fit_residuals": [
             {
@@ -1002,11 +1027,11 @@
   "epochs_completed": 4,
   "active_evaluation_form": "strong",
   "truth_on_front": true,
-  "selected_model_id": 1,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 5.732073291990673,
-  "finished_at": "2026-11-14T22:10:56.683532+00:00",
-  "wall_seconds_including_imports": 6.1832694159966195,
+  "selected_model_id": 4,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 5.289753874996677,
+  "finished_at": "2026-11-14T22:57:04.880690+00:00",
+  "wall_seconds_including_imports": 5.720934874989325,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/205_wave_discovery_poly_joint_samples_strong_base_noise0.01_seed1.log",
   "timeout_seconds": 90.0
 }

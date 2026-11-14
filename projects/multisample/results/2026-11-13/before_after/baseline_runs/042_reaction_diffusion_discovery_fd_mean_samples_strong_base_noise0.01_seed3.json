@@ -14,7 +14,7 @@
     "run_id": "042_reaction_diffusion_discovery_fd_mean_samples_strong_base_noise0.01_seed3"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:17:36.550238+00:00",
+  "started_at": "2026-11-14T23:10:20.777323+00:00",
   "models": [
     {
       "model_id": 0,
@@ -66,6 +66,10 @@
           "term_shares": [
             0.001918981493887937,
             1.1071849846655366
+          ],
+          "term_t": [
+            0.7200429938998671,
+            52.68752035359185
           ],
           "training_fit_residuals": [
             {
@@ -164,6 +168,11 @@
             1.1071853109085306,
             0.002169865171898229
           ],
+          "term_t": [
+            0.7094770047242132,
+            52.76036634777768,
+            0.40891588484901686
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -250,6 +259,9 @@
           "coefficient_reason": null,
           "term_shares": [
             1.107185174735722
+          ],
+          "term_t": [
+            52.7248284533402
           ],
           "training_fit_residuals": [
             {
@@ -338,6 +350,10 @@
           "term_shares": [
             1.1071855221769649,
             0.002179347163630753
+          ],
+          "term_t": [
+            52.79705347477963,
+            0.4113764637417588
           ],
           "training_fit_residuals": [
             {
@@ -810,10 +826,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": false,
   "selected_model_id": 2,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 3.939503417001106,
-  "finished_at": "2026-11-14T22:17:40.489727+00:00",
-  "wall_seconds_including_imports": 4.364428291999502,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 4.373936500007403,
+  "finished_at": "2026-11-14T23:10:25.151260+00:00",
+  "wall_seconds_including_imports": 4.828058375002001,
   "log_file": "projects/multisample/results/2026-11-13/before_after/baseline_runs/042_reaction_diffusion_discovery_fd_mean_samples_strong_base_noise0.01_seed3.log",
   "timeout_seconds": 90.0
 }

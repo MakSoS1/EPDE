@@ -14,7 +14,7 @@
     "run_id": "188_oscillator_modes_discovery_poly_mean_samples_strong_base_noise0.01_seed3"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:10:21.996076+00:00",
+  "started_at": "2026-11-14T22:56:32.620856+00:00",
   "models": [
     {
       "model_id": 0,
@@ -54,6 +54,9 @@
           "coefficient_reason": "no linear canonical target term",
           "term_shares": [
             0.8302920692061161
+          ],
+          "term_t": [
+            16.793223898236946
           ],
           "training_fit_residuals": [
             {
@@ -152,6 +155,11 @@
             0.8249099088650759,
             0.0018563544560199884
           ],
+          "term_t": [
+            0.07292076954952112,
+            4.687942545412751,
+            1.2822758377191905
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -247,6 +255,10 @@
           "term_shares": [
             0.037588152666327784,
             0.8264551310890369
+          ],
+          "term_t": [
+            0.08009439802813839,
+            5.052028415012494
           ],
           "training_fit_residuals": [
             {
@@ -694,11 +706,11 @@
   "epochs_completed": 4,
   "active_evaluation_form": "strong",
   "truth_on_front": true,
-  "selected_model_id": 2,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 4.166927375001251,
-  "finished_at": "2026-11-14T22:10:26.162998+00:00",
-  "wall_seconds_including_imports": 4.626980457993341,
+  "selected_model_id": 0,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 3.8556392500031507,
+  "finished_at": "2026-11-14T22:56:36.476494+00:00",
+  "wall_seconds_including_imports": 4.546115707998979,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/188_oscillator_modes_discovery_poly_mean_samples_strong_base_noise0.01_seed3.log",
   "timeout_seconds": 90.0
 }

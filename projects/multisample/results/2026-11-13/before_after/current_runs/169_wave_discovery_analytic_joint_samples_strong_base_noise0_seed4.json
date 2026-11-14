@@ -14,7 +14,7 @@
     "run_id": "169_wave_discovery_analytic_joint_samples_strong_base_noise0_seed4"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:09:53.793395+00:00",
+  "started_at": "2026-11-14T22:56:03.947611+00:00",
   "models": [
     {
       "model_id": 0,
@@ -57,6 +57,9 @@
           "coefficient_reason": null,
           "term_shares": [
             1.0000000000000004
+          ],
+          "term_t": [
+            1057770667172588.0
           ],
           "training_fit_residuals": [
             {
@@ -163,6 +166,11 @@
             2.1041762057200787e-17,
             8.96956043844137e-17
           ],
+          "term_t": [
+            630096424460066.6,
+            1.9740573065454419,
+            0.7786031979718975
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -267,6 +275,11 @@
             3.540710697423875e-16,
             9.789195054127149e-17,
             1.0
+          ],
+          "term_t": [
+            0.14923329366193747,
+            0.06560418503442894,
+            418318683269234.06
           ],
           "training_fit_residuals": [
             {
@@ -737,10 +750,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": true,
   "selected_model_id": 0,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 4.674619416007772,
-  "finished_at": "2026-11-14T22:09:58.468006+00:00",
-  "wall_seconds_including_imports": 5.081201292006881,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 4.8673672919976525,
+  "finished_at": "2026-11-14T22:56:08.814978+00:00",
+  "wall_seconds_including_imports": 5.322837582993088,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/169_wave_discovery_analytic_joint_samples_strong_base_noise0_seed4.log",
   "timeout_seconds": 90.0
 }

@@ -14,7 +14,7 @@
     "run_id": "216_klein_gordon_discovery_poly_mean_samples_strong_base_noise0.01_seed2"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:11:08.277399+00:00",
+  "started_at": "2026-11-14T22:57:20.309317+00:00",
   "models": [
     {
       "model_id": 0,
@@ -66,6 +66,10 @@
           "term_shares": [
             0.93587829860257,
             0.007188397931552741
+          ],
+          "term_t": [
+            24.305822606294125,
+            16.441462712916092
           ],
           "training_fit_residuals": [
             {
@@ -172,6 +176,11 @@
             0.007673505399259378,
             0.9355193741012303
           ],
+          "term_t": [
+            1.3816403130914137,
+            16.539558812809144,
+            24.505819256975517
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -258,6 +267,9 @@
           "coefficient_reason": null,
           "term_shares": [
             0.9443232787389275
+          ],
+          "term_t": [
+            14.36930919365031
           ],
           "training_fit_residuals": [
             {
@@ -729,11 +741,11 @@
   "epochs_completed": 4,
   "active_evaluation_form": "strong",
   "truth_on_front": true,
-  "selected_model_id": 2,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 5.425800375000108,
-  "finished_at": "2026-11-14T22:11:13.703190+00:00",
-  "wall_seconds_including_imports": 5.926064792001853,
+  "selected_model_id": 0,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 5.460044624996954,
+  "finished_at": "2026-11-14T22:57:25.769362+00:00",
+  "wall_seconds_including_imports": 5.943553167002392,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/216_klein_gordon_discovery_poly_mean_samples_strong_base_noise0.01_seed2.log",
   "timeout_seconds": 90.0
 }

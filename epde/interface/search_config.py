@@ -1671,10 +1671,14 @@ def _check_types(resolved: dict) -> None:
         raise ValueError("objectives.multisample_mode must be 'mean' or 'joint'.")
     if objectives['multisample_weighting'] not in ('samples', 'points'):
         raise ValueError("objectives.multisample_weighting must be 'samples' or 'points'.")
-    if objectives['multisample_mode'] == 'joint' and rps_mode not in ('plain', 'assignment'):
+    if objectives['multisample_mode'] == 'joint' and rps_mode not in ('plain', 'assignment', 'repair'):
         raise ValueError("objectives.multisample_mode='joint' requires "
-                         "system_rps_mode='plain' or 'assignment'; repair/VWSR "
-                         'prunes each record independently.')
+                         "system_rps_mode='plain', 'assignment' or 'repair'.")
+    if (objectives['multisample_mode'] == 'joint' and rps_mode == 'repair'
+            and objectives['instability_metric'] in ('cv', 'vcoef')):
+        raise ValueError("objectives.multisample_mode='joint' with system_rps_mode='repair' "
+                         "needs a basis-free instability_metric (not 'cv' or 'vcoef'): the "
+                         'joint sparse fit averages each record\'s column scores.')
     # The mode's settings, defaults filled in; a key of another mode raises.
     space['system_rps_params'] = resolve_rps_params(rps_mode, space['system_rps_params'])
     pick = space['system_rps_params'].get('variant_pick')

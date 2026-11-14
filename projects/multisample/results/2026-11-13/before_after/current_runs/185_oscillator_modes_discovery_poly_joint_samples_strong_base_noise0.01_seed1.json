@@ -14,7 +14,7 @@
     "run_id": "185_oscillator_modes_discovery_poly_joint_samples_strong_base_noise0.01_seed1"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:10:16.766701+00:00",
+  "started_at": "2026-11-14T22:56:28.388517+00:00",
   "models": [
     {
       "model_id": 0,
@@ -54,6 +54,9 @@
           "coefficient_reason": "no linear canonical target term",
           "term_shares": [
             0.8899751326153053
+          ],
+          "term_t": [
+            17.523735214558453
           ],
           "training_fit_residuals": [
             {
@@ -152,6 +155,11 @@
             0.2625746306833215,
             0.03259002171615006
           ],
+          "term_t": [
+            13.416290054309856,
+            4.238559123671629,
+            1.8066164877898117
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -247,6 +255,10 @@
           "term_shares": [
             0.677459307757337,
             0.2699679380518473
+          ],
+          "term_t": [
+            14.430785086083436,
+            4.625949300409795
           ],
           "training_fit_residuals": [
             {
@@ -694,11 +706,11 @@
   "epochs_completed": 4,
   "active_evaluation_form": "strong",
   "truth_on_front": true,
-  "selected_model_id": 1,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 4.747358916996745,
-  "finished_at": "2026-11-14T22:10:21.514051+00:00",
-  "wall_seconds_including_imports": 5.156777875003172,
+  "selected_model_id": 2,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 3.794767499988666,
+  "finished_at": "2026-11-14T22:56:32.183283+00:00",
+  "wall_seconds_including_imports": 4.2116394999902695,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/185_oscillator_modes_discovery_poly_joint_samples_strong_base_noise0.01_seed1.log",
   "timeout_seconds": 90.0
 }

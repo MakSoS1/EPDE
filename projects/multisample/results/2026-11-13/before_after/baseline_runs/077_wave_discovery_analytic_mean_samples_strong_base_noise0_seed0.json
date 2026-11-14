@@ -14,7 +14,7 @@
     "run_id": "077_wave_discovery_analytic_mean_samples_strong_base_noise0_seed0"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:18:27.865333+00:00",
+  "started_at": "2026-11-14T23:11:19.299367+00:00",
   "models": [
     {
       "model_id": 0,
@@ -57,6 +57,9 @@
           "coefficient_reason": null,
           "term_shares": [
             0.999999999999996
+          ],
+          "term_t": [
+            1057770667172588.0
           ],
           "training_fit_residuals": [
             {
@@ -153,6 +156,10 @@
           "term_shares": [
             0.9999999999999979,
             2.2829363565643728e-18
+          ],
+          "term_t": [
+            948978910594968.0,
+            1.908708910087674
           ],
           "training_fit_residuals": [
             {
@@ -251,6 +258,11 @@
             0.9999999999999979,
             2.282774407316642e-17
           ],
+          "term_t": [
+            2.1116993514981495,
+            675158873693694.4,
+            25.789107871292735
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -346,6 +358,10 @@
           "term_shares": [
             6.270015494984994e-17,
             0.9999999999999979
+          ],
+          "term_t": [
+            0.3623618679877066,
+            475942718900416.9
           ],
           "training_fit_residuals": [
             {
@@ -443,6 +459,11 @@
             6.270015494984994e-17,
             0.9999999999999979,
             2.2797596719923292e-17
+          ],
+          "term_t": [
+            0.3751362149817756,
+            327619141664854.75,
+            0.0318187076219406
           ],
           "training_fit_residuals": [
             {
@@ -911,10 +932,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": true,
   "selected_model_id": 0,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 3.9949134580092505,
-  "finished_at": "2026-11-14T22:18:31.860219+00:00",
-  "wall_seconds_including_imports": 4.359670165998978,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 4.958924624996143,
+  "finished_at": "2026-11-14T23:11:24.258292+00:00",
+  "wall_seconds_including_imports": 5.445291540992912,
   "log_file": "projects/multisample/results/2026-11-13/before_after/baseline_runs/077_wave_discovery_analytic_mean_samples_strong_base_noise0_seed0.log",
   "timeout_seconds": 90.0
 }

@@ -14,7 +14,7 @@
     "run_id": "038_reaction_diffusion_discovery_analytic_mean_samples_strong_base_noise0_seed4"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:17:31.777530+00:00",
+  "started_at": "2026-11-14T23:10:16.072939+00:00",
   "models": [
     {
       "model_id": 0,
@@ -66,6 +66,10 @@
           "term_shares": [
             2.451799370015515e-18,
             1.1667953129468611
+          ],
+          "term_t": [
+            8.380030342446935e-15,
+            72.11315040489771
           ],
           "training_fit_residuals": [
             {
@@ -153,6 +157,9 @@
           "coefficient_reason": null,
           "term_shares": [
             1.204611430165447
+          ],
+          "term_t": [
+            82.98700978959126
           ],
           "training_fit_residuals": [
             {
@@ -250,6 +257,10 @@
             2.451799370015515e-18,
             1.2046114301654445
           ],
+          "term_t": [
+            6.954007720558857e-15,
+            83.0218281641222
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -337,6 +348,9 @@
           "term_shares": [
             1.1667953129468656
           ],
+          "term_t": [
+            72.15319264552984
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -423,6 +437,9 @@
           "coefficient_reason": null,
           "term_shares": [
             1.2868741916773396e-17
+          ],
+          "term_t": [
+            8.692888979884782e-16
           ],
           "training_fit_residuals": [
             {
@@ -895,10 +912,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": false,
   "selected_model_id": 3,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 2.5299981249991106,
-  "finished_at": "2026-11-14T22:17:34.307513+00:00",
-  "wall_seconds_including_imports": 2.910320249997312,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 2.717820499994559,
+  "finished_at": "2026-11-14T23:10:18.790763+00:00",
+  "wall_seconds_including_imports": 3.1298780830111355,
   "log_file": "projects/multisample/results/2026-11-13/before_after/baseline_runs/038_reaction_diffusion_discovery_analytic_mean_samples_strong_base_noise0_seed4.log",
   "timeout_seconds": 90.0
 }

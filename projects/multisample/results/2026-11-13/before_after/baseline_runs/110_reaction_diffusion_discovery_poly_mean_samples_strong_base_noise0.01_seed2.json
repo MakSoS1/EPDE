@@ -14,7 +14,7 @@
     "run_id": "110_reaction_diffusion_discovery_poly_mean_samples_strong_base_noise0.01_seed2"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:19:19.285035+00:00",
+  "started_at": "2026-11-14T23:12:24.007142+00:00",
   "models": [
     {
       "model_id": 0,
@@ -67,6 +67,11 @@
             0.011099978279578256,
             1.187396449711107,
             0.00534697894973844
+          ],
+          "term_t": [
+            17.65235758487478,
+            32.66151679092746,
+            1.4542066350042306
           ],
           "training_fit_residuals": [
             {
@@ -164,6 +169,10 @@
             0.010572402139844152,
             1.1873893829387676
           ],
+          "term_t": [
+            17.664505898768102,
+            32.559098739751875
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -250,6 +259,9 @@
           "coefficient_reason": null,
           "term_shares": [
             1.2052419282727551
+          ],
+          "term_t": [
+            149.48322128821206
           ],
           "training_fit_residuals": [
             {
@@ -724,10 +736,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": true,
   "selected_model_id": 1,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 4.278266249995795,
-  "finished_at": "2026-11-14T22:19:23.563274+00:00",
-  "wall_seconds_including_imports": 4.675446583001758,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 5.622240458003944,
+  "finished_at": "2026-11-14T23:12:29.629387+00:00",
+  "wall_seconds_including_imports": 6.116936833001091,
   "log_file": "projects/multisample/results/2026-11-13/before_after/baseline_runs/110_reaction_diffusion_discovery_poly_mean_samples_strong_base_noise0.01_seed2.log",
   "timeout_seconds": 90.0
 }

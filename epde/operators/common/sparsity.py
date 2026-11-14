@@ -222,10 +222,6 @@ class PhysicsInformedLasso(BaseEstimator, RegressorMixin):
         # X_aug = np.column_stack((X, np.ones(n_samples)))
         total_features = n_features + 1
 
-        # Master state trackers
-        active_mask = np.ones(total_features, dtype=bool)
-        self.full_coef_ = np.zeros(total_features)
-        self.keep_rule_binding_ = None
         tie_ranks = _tie_ranks(n_features, feature_labels)
 
         # Precompute the augmented Gram blocks ONCE. The RFE outer loop and the
@@ -258,8 +254,6 @@ class PhysicsInformedLasso(BaseEstimator, RegressorMixin):
         Gy_w[:n_features] = Xf.T @ (sw * y)
         Gy_w[-1] = float((sw * y).sum())
 
-        norm_sq_features = np.diag(G_w).copy()  # weighted column norms^2
-        X_T_y = Gy_w                            # raw-target anchor: max|X^T W y|
 
         # Pre-build the full sliding-window Gram matrix ONCE. The outer
         # RFE loop below will slice it by ``active_mask`` per iteration
@@ -307,6 +301,26 @@ class PhysicsInformedLasso(BaseEstimator, RegressorMixin):
         # neither the varying-coefficient mode solve nor the sliding-window
         # stack is built at all.
 
+        score = lambda mask, weights: self._keep_rule_scores(metric, gram_setup, weights, Xf, y, sw,
+                                                              grid_shape, mask, n_features)
+        return self._select(G_w, Gy_w, score, tie_ranks, total_features, gram_setup, metric,
+                            anchor_on_residual)
+
+    def _select(self, G_w, Gy_w, score, tie_ranks, total_features, gram_setup, metric,
+                anchor_on_residual):
+        """Adaptive-L1 elimination and relaxed refit, entirely in Gram space.
+
+        ``score(active_mask, window_weights)`` returns the instability score of
+        every active column. One record passes its own estimator; a joint fit
+        over several records passes the mean of the records' scores, each on
+        its own grid (:meth:`fit_joint`).
+        """
+        active_mask = np.ones(total_features, dtype=bool)
+        self.full_coef_ = np.zeros(total_features)
+        self.keep_rule_binding_ = None
+        norm_sq_features = np.diag(G_w).copy()
+        X_T_y = Gy_w
+
         is_vcoef = getattr(gram_setup, 'is_vcoef', False)
 
         outer_iteration = 0
@@ -323,7 +337,7 @@ class PhysicsInformedLasso(BaseEstimator, RegressorMixin):
             # (``get_cv`` reduces it to var/mu^2). Every other metric scores
             # without it, so the solve is skipped rather than computed and
             # thrown away.
-            weights = (gram_setup.solve(active_mask) if metric == 'cv'
+            weights = (gram_setup.solve(active_mask) if metric == 'cv' and gram_setup is not None
                        else None)
 
             # Slice the (weighted) precomputed Gram by the current active set.
@@ -345,9 +359,7 @@ class PhysicsInformedLasso(BaseEstimator, RegressorMixin):
             # weak / zero / unstable / spuriously-varying terms hardest. Which
             # statistic says "unstable" is the search-wide instability metric,
             # the one the Pareto axis reads.
-            active_cv = self._keep_rule_scores(metric, gram_setup, weights, Xf, y,
-                                            sw, grid_shape, active_mask,
-                                            n_features)
+            active_cv = score(active_mask, weights)
 
             # Tackle the most physically unstable feature first.
             active_thresholds = active_cv * max_corr
@@ -470,6 +482,7 @@ class PhysicsInformedLasso(BaseEstimator, RegressorMixin):
         # vcoef one: the 'cv' axis Gram and the basis-free metrics leave it.
         self.cached_vc_score_ = (gram_setup.score(active_mask)
                                  if is_vcoef else None)
+        self.active_mask_ = active_mask.copy()
 
         # Relaxed-LASSO refit: replace the surviving CD-output
         # coefficients with a single global weighted-OLS on
@@ -489,6 +502,59 @@ class PhysicsInformedLasso(BaseEstimator, RegressorMixin):
         self.intercept_ = self.full_coef_[-1]
 
         return self
+
+    @_loop_stats.timed('PhysicsInformedLasso.fit_joint')
+    def fit_joint(self, blocks, feature_labels=None, weighting=None):
+        """One support and one coefficient vector for several records.
+
+        ``blocks`` holds ``(key, X, y, row_weights, grid_shape)`` per record.
+        The Gram is the sum of the records' Grams, each with the multisample
+        row weights (equal total mass per record by default), so no record is
+        stacked into another's grid. Each column's L1 scale is the mean of its
+        instability score on every record, computed on that record's own grid
+        and rows. A column that is unstable on every record is pruned as
+        before; a column that only the records together identify is kept,
+        which a per-record fit followed by averaging cannot do.
+
+        Only the basis-free instability metrics are supported: ``'cv'`` and
+        ``'vcoef'`` need a per-record window Gram for the scores and are
+        refused by the search configuration in joint mode.
+        """
+        from epde.operators.common.multisample import fit_row_weights
+        blocks = sorted(blocks, key=lambda block: (type(block[0]).__name__, repr(block[0])))
+        metric = active_config().objectives.instability_metric
+        if metric in ('cv', 'vcoef'):
+            raise ValueError(f"A joint sparse fit needs a basis-free instability metric, not {metric!r}.")
+        anchor_on_residual = active_config().objectives.anchor_on_residual
+        n_features = np.asarray(blocks[0][1]).shape[1]
+        total_features = n_features + 1
+        prepared = []
+        weights = [fit_row_weights(np.ones(np.asarray(y).size) if sw is None else sw, weighting)
+                   for _key, _X, y, sw, _shape in blocks]
+        # One common multiplier leaves the weighted problem unchanged.
+        scale = max(w.max() for w in weights)
+        G_w = np.zeros((total_features, total_features))
+        Gy_w = np.zeros(total_features)
+        for (key, X, y, sw, shape), w in zip(blocks, weights):
+            Xf = np.asarray(X, dtype=float)
+            yf = np.asarray(y, dtype=float).reshape(-1)
+            w = w / scale
+            if Xf.shape[1] != n_features or Xf.shape[0] != yf.size or yf.size != w.size:
+                raise ValueError('joint sparse fit blocks must have matching rows and columns.')
+            Xa = np.column_stack([Xf, np.ones(yf.size)])
+            G_w += Xa.T @ (w[:, None] * Xa)
+            Gy_w += Xa.T @ (w * yf)
+            local_sw = (np.ones(yf.size) if sw is None else np.asarray(sw, dtype=float).reshape(-1))
+            prepared.append((Xf, yf, local_sw, shape))
+
+        def score(mask, _window_weights):
+            per_record = [instability_scores(metric, Xf, yf, sw, shape, mask, n_features)
+                          for Xf, yf, sw, shape in prepared]
+            with np.errstate(invalid='ignore'):
+                return np.mean(np.vstack(per_record), axis=0)
+
+        return self._select(G_w, Gy_w, score, _tie_ranks(n_features, feature_labels),
+                            total_features, None, metric, anchor_on_residual)
 
     def _keep_rule_scores(self, metric, gram_setup, weights, X, y, sw,
                        grid_shape, active_mask, n_features):
@@ -720,6 +786,19 @@ class VWSRSparsity(CompoundOperator):
         feature_labels = [_term_tie_label(term)
                           for idx, term in enumerate(objective.structure)
                           if idx != objective.target_idx]
+
+        from epde.operators.common.multisample import joint_enabled
+        if joint_enabled(len(target)):
+            # One support for all records: the averaged per-record fits below
+            # would let each record drop a column only the records together
+            # identify.
+            estimator.fit_joint([(key, features[key], target[key], gfuncs[key], grid_shapes[key])
+                                 for key in target], feature_labels=feature_labels)
+            objective.weights_internal = np.array(estimator.full_coef_, dtype=float)
+            objective.weights_internal_evald = True
+            objective._cached_sw_weights = None
+            objective._cached_vc_score = None
+            return
 
         sampled_full_coefs = []
         sampled_sw_weights = {}

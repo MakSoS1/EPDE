@@ -14,7 +14,7 @@
     "run_id": "190_oscillator_modes_discovery_poly_mean_samples_strong_base_noise0.01_seed4"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:10:25.977864+00:00",
+  "started_at": "2026-11-14T22:56:36.103781+00:00",
   "models": [
     {
       "model_id": 0,
@@ -66,6 +66,10 @@
           "term_shares": [
             0.8275271581466717,
             0.013493358270494025
+          ],
+          "term_t": [
+            4.557601681605648,
+            0.016378174880169023
           ],
           "training_fit_residuals": [
             {
@@ -150,6 +154,9 @@
           "coefficient_reason": "no linear canonical target term",
           "term_shares": [
             0.8299684840306985
+          ],
+          "term_t": [
+            18.996200607780917
           ],
           "training_fit_residuals": [
             {
@@ -597,11 +604,11 @@
   "epochs_completed": 4,
   "active_evaluation_form": "strong",
   "truth_on_front": true,
-  "selected_model_id": 0,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 4.069095749990083,
-  "finished_at": "2026-11-14T22:10:30.046953+00:00",
-  "wall_seconds_including_imports": 4.545710833001067,
+  "selected_model_id": 1,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 3.95069208300265,
+  "finished_at": "2026-11-14T22:56:40.054472+00:00",
+  "wall_seconds_including_imports": 4.341241292000632,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/190_oscillator_modes_discovery_poly_mean_samples_strong_base_noise0.01_seed4.log",
   "timeout_seconds": 90.0
 }

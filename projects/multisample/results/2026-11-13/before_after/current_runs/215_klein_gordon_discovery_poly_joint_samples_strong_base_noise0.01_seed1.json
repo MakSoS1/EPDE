@@ -14,7 +14,7 @@
     "run_id": "215_klein_gordon_discovery_poly_joint_samples_strong_base_noise0.01_seed1"
   },
   "status": "ok",
-  "started_at": "2026-11-14T22:11:07.918343+00:00",
+  "started_at": "2026-11-14T22:57:16.188160+00:00",
   "models": [
     {
       "model_id": 0,
@@ -58,6 +58,10 @@
           "term_shares": [
             0.8724541228260861,
             0.00576979138814657
+          ],
+          "term_t": [
+            14.52513101368945,
+            0.8279032756895431
           ],
           "training_fit_residuals": [
             {
@@ -145,6 +149,9 @@
           "coefficient_reason": null,
           "term_shares": [
             0.8724546932104936
+          ],
+          "term_t": [
+            14.531965187490819
           ],
           "training_fit_residuals": [
             {
@@ -243,6 +250,11 @@
             0.8747319642835376,
             0.0057820860959704404
           ],
+          "term_t": [
+            0.6318637189746644,
+            14.583215882724538,
+            0.8141737554316953
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -339,6 +351,11 @@
             0.5122290528951822,
             0.46907873388243254,
             0.007389706012745637
+          ],
+          "term_t": [
+            26.27334438229546,
+            18.637177863401263,
+            1.3644963981164222
           ],
           "training_fit_residuals": [
             {
@@ -810,11 +827,11 @@
   "epochs_completed": 4,
   "active_evaluation_form": "strong",
   "truth_on_front": false,
-  "selected_model_id": 3,
-  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
-  "elapsed_seconds": 5.440281250004773,
-  "finished_at": "2026-11-14T22:11:13.358613+00:00",
-  "wall_seconds_including_imports": 5.9693056249961955,
+  "selected_model_id": 1,
+  "selection_rule": "noise: best training fitness among models whose every term passes a 10-block jackknife t-test at 95%; holdout never used",
+  "elapsed_seconds": 4.779871040998842,
+  "finished_at": "2026-11-14T22:57:20.968035+00:00",
+  "wall_seconds_including_imports": 5.196497459008242,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/215_klein_gordon_discovery_poly_joint_samples_strong_base_noise0.01_seed1.log",
   "timeout_seconds": 90.0
 }
