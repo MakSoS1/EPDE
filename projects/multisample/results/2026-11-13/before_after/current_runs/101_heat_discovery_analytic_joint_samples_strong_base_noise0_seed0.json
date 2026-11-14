@@ -14,7 +14,7 @@
     "run_id": "101_heat_discovery_analytic_joint_samples_strong_base_noise0_seed0"
   },
   "status": "ok",
-  "started_at": "2026-11-14T21:43:18.937511+00:00",
+  "started_at": "2026-11-14T22:08:04.045584+00:00",
   "models": [
     {
       "model_id": 0,
@@ -55,6 +55,9 @@
           "coefficient_error": 0.0,
           "support_exact": true,
           "coefficient_reason": null,
+          "term_shares": [
+            1.0
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -528,10 +531,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": true,
   "selected_model_id": 0,
-  "selection_rule": "lowest training instability among models within 0.001 relative training fitness of the best; holdout never used",
-  "elapsed_seconds": 4.416333958011819,
-  "finished_at": "2026-11-14T21:43:23.353849+00:00",
-  "wall_seconds_including_imports": 4.755485250003403,
+  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
+  "elapsed_seconds": 5.8503294169931905,
+  "finished_at": "2026-11-14T22:08:09.895908+00:00",
+  "wall_seconds_including_imports": 6.30804766700021,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/101_heat_discovery_analytic_joint_samples_strong_base_noise0_seed0.log",
   "timeout_seconds": 90.0
 }

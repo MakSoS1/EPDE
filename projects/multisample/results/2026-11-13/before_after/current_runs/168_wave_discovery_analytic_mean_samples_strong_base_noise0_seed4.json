@@ -14,7 +14,7 @@
     "run_id": "168_wave_discovery_analytic_mean_samples_strong_base_noise0_seed4"
   },
   "status": "ok",
-  "started_at": "2026-11-14T21:44:47.279627+00:00",
+  "started_at": "2026-11-14T22:09:51.358064+00:00",
   "models": [
     {
       "model_id": 0,
@@ -63,6 +63,10 @@
           "coefficient_error": 1.908200423882536e-15,
           "support_exact": true,
           "coefficient_reason": null,
+          "term_shares": [
+            2.2829363565643743e-18,
+            0.9999999999999979
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -155,6 +159,11 @@
           "coefficient_error": 1.9083529520646322e-15,
           "support_exact": true,
           "coefficient_reason": null,
+          "term_shares": [
+            2.3475709684121004e-18,
+            0.9999999999999979,
+            2.282774407316642e-17
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -247,6 +256,10 @@
           "coefficient_error": 1.9124744025947742e-15,
           "support_exact": true,
           "coefficient_reason": null,
+          "term_shares": [
+            0.9999999999999979,
+            6.284783720860476e-17
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -331,6 +344,9 @@
           "coefficient_error": 3.989863994746656e-15,
           "support_exact": true,
           "coefficient_reason": null,
+          "term_shares": [
+            0.999999999999996
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -799,11 +815,11 @@
   "epochs_completed": 4,
   "active_evaluation_form": "strong",
   "truth_on_front": true,
-  "selected_model_id": 2,
-  "selection_rule": "lowest training instability among models within 0.001 relative training fitness of the best; holdout never used",
-  "elapsed_seconds": 3.3455324999958975,
-  "finished_at": "2026-11-14T21:44:50.625161+00:00",
-  "wall_seconds_including_imports": 3.721470207994571,
+  "selected_model_id": 3,
+  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
+  "elapsed_seconds": 3.907680625008652,
+  "finished_at": "2026-11-14T22:09:55.265743+00:00",
+  "wall_seconds_including_imports": 4.28543545800494,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/168_wave_discovery_analytic_mean_samples_strong_base_noise0_seed4.log",
   "timeout_seconds": 90.0
 }

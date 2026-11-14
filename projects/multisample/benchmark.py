@@ -39,11 +39,53 @@ import numpy as np
 
 SCHEMA_VERSION = 1
 SUPPORT_TOL = 1e-8
-# Model choice uses training numbers only: the lowest discrepancy, except that
-# a model within this relative margin of it with a lower instability wins.
-# Pure discrepancy ranking picks noise-fitted extra terms whose fit is equal
-# to six digits but whose coefficients are an order of magnitude less stable.
-SELECT_RTOL = 1e-3
+# Choosing one model from the returned front uses training numbers only.
+#   "fitness":   the lowest discrepancy (the first campaign);
+#   "stable":    the most stable model within 0.1% of the lowest discrepancy;
+#   "parsimony": the fewest terms within 1% of the lowest discrepancy, ties
+#                broken by stability (the default). A term that buys less
+#                than 1% of fit is treated as not significant.
+# Pure discrepancy ranking picks noise-fitted extra terms of order 1e-3 that
+# improve the fit by 0.1-1% while making the coefficients far less stable.
+#   "significant": among models within 1% of the lowest discrepancy, drop
+#                those with a term explaining under 1% of the target, then
+#                the best fit; if none is left, fall back to "stable".
+SELECTION_RULES = {"fitness": None, "stable": 1e-3, "parsimony": 1e-2, "significant": 1e-2}
+SIGNIFICANT_SHARE = 1e-2
+SELECTION_RULE = "significant"
+
+
+def model_terms(model):
+    """Nonzero terms over all equations of a returned model, target excluded."""
+    count = 0
+    for equation in model["equations"]:
+        for term in equation["terms_in_zero_form"]:
+            if term["key"] != equation["canonical_target"] and abs(term["coefficient"]) > SUPPORT_TOL:
+                count += 1
+    return count
+
+
+def select_model(models, rule=SELECTION_RULE, tolerance=None):
+    """Pick one returned model by a training-only rule (see SELECTION_RULES)."""
+    if not models:
+        return None
+    best = min(m["training_selection_score"] for m in models)
+    if rule == "fitness":
+        return min(models, key=lambda m: m["training_selection_score"])
+    margin = SELECTION_RULES[rule] if tolerance is None else tolerance
+    near = [m for m in models if m["training_selection_score"] <= best + margin * max(abs(best), 1e-12)]
+    if rule == "stable":
+        return min(near, key=lambda m: (m["training_instability"], m["training_selection_score"]))
+    if rule == "significant":
+        kept = [m for m in near if all(min(e.get("term_shares") or [1.0]) >= SIGNIFICANT_SHARE
+                                       for e in m["equations"])]
+        if not kept:
+            return select_model(models, "stable")
+        return min(kept, key=lambda m: (m["training_selection_score"], m["training_instability"]))
+    return min(near, key=lambda m: (model_terms(m), m["training_instability"], m["training_selection_score"]))
+
+
+POLY_WINDOW = 11
 SCENARIOS = ("affine", "logistic", "coupled", "reaction_diffusion",
              "contradictory", "density")
 # Space-time laws in which every single-mode record is degenerate
@@ -431,7 +473,12 @@ def make_search(case, spec):
         system_rps_mode=spec["rps_mode"],
         system_rps_params={"plain_target": True, "target_axes": 0}
         if spec["rps_mode"] == "plain" else {},
-        default_preprocessor_type="FD", boundary_width=case["boundary"],
+        # "poly": Savitzky-Golay smoothing before differentiation; its window
+        # reaches further, so the boundary grows with it.
+        default_preprocessor_type="poly" if spec["derivatives"] == "poly" else "FD",
+        preprocessor_kwargs={"polynomial_window": POLY_WINDOW} if spec["derivatives"] == "poly" else {},
+        boundary_width=(max(case["boundary"], POLY_WINDOW // 2) if spec["derivatives"] == "poly"
+                        else case["boundary"]),
         equation_terms_max_number=4, equation_factors_max_number=1,
         data_fun_pow=2 if case["name"] == "logistic" else 1, deriv_fun_pow=1,
         population_size=spec["population"], training_epochs=spec["epochs"],
@@ -557,6 +604,17 @@ def equation_report(eq, case):
     elif case["truth"] is not None:
         result["coefficient_reason"] = "no linear canonical target term"
     targets, features = eq.evaluate()
+    # Each right-hand term's share of the target on the training rows, pooled
+    # over records: |c_j| * ||X_j|| / ||y||. A term that explains a fraction
+    # of a percent of the target is a candidate for noise fitting.
+    weights = np.asarray(eq.weights_final, dtype=float)
+    pooled_y = np.concatenate([np.ravel(y) for y in targets.values()])
+    pooled_x = np.vstack([features[k] for k in targets]) if features else np.zeros((pooled_y.size, 0))
+    shares = [abs(w) * float(np.linalg.norm(pooled_x[:, j])) / float(np.linalg.norm(pooled_y))
+              for j, w in enumerate(weights[:-1]) if w != 0]
+    if weights[-1] != 0:
+        shares.append(abs(weights[-1]) * np.sqrt(pooled_y.size) / float(np.linalg.norm(pooled_y)))
+    result["term_shares"] = [float(x) for x in shares]
     result["training_fit_residuals"] = []
     for ident, y in targets.items():
         resid = features[ident] @ np.asarray(eq.weights_final[:-1]) + eq.weights_final[-1] - y
@@ -653,15 +711,13 @@ def run_worker(spec):
         if result["models"]:
             for model in result["models"]:
                 model["training_instability"] = float(np.mean([e["instability"] for e in model["equations"]]))
-            best = min(m["training_selection_score"] for m in result["models"])
-            near = [m for m in result["models"]
-                    if m["training_selection_score"] <= best + SELECT_RTOL * max(abs(best), 1e-12)]
-            selected = min(near, key=lambda m: (m["training_instability"], m["training_selection_score"]))
+            selected = select_model(result["models"])
             result["truth_on_front"] = (case["truth"] is not None and any(
                 all(e["support_exact"] is True for e in m["equations"]) for m in result["models"]))
             result.update(status="ok", selected_model_id=selected["model_id"],
-                          selection_rule=f"lowest training instability among models within {SELECT_RTOL:g} "
-                                         "relative training fitness of the best; holdout never used")
+                          selection_rule=f"{SELECTION_RULE}: within {SELECTION_RULES[SELECTION_RULE]:g} relative "
+                                         f"training fitness of the best, no term below {SIGNIFICANT_SHARE:g} of the "
+                                         "target, then lowest training fitness; holdout never used")
         else:
             result.update(status="no_candidate", reason="EPDE accepted no fitted candidate for this stage")
     except Exception as exc:
@@ -713,6 +769,8 @@ def build_matrix(args):
         for name in EXTRA_SCENARIOS:
             add(name)
             add(name, stage="discovery", seeds=seeds)
+        for name in SECOND_ORDER + ("reaction_diffusion",):
+            add(name, stage="discovery", derivative="poly", noise=0.01, seeds=seeds)
         for name in SECOND_ORDER:
             add(name, stage="discovery", derivative="fd", noise=0.01, seeds=seeds)
             add(name, stage="discovery", derivative="fd", noise=0.01, seeds=seeds,

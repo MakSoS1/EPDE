@@ -14,7 +14,7 @@
     "run_id": "172_klein_gordon_discovery_analytic_mean_samples_strong_base_noise0_seed0"
   },
   "status": "ok",
-  "started_at": "2026-11-14T21:44:52.966444+00:00",
+  "started_at": "2026-11-14T22:09:57.268901+00:00",
   "models": [
     {
       "model_id": 0,
@@ -55,6 +55,9 @@
           "coefficient_error": 0.9932465627389492,
           "support_exact": false,
           "coefficient_reason": null,
+          "term_shares": [
+            1.281267036681577
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -147,6 +150,11 @@
           "coefficient_error": 0.9932465627389486,
           "support_exact": false,
           "coefficient_reason": null,
+          "term_shares": [
+            1.2812670366815757,
+            6.831275767458107e-17,
+            9.720274698238556e-18
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -239,6 +247,10 @@
           "coefficient_error": 0.9932465627389486,
           "support_exact": false,
           "coefficient_reason": null,
+          "term_shares": [
+            6.506178450170523e-17,
+            1.2812670366815757
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -708,10 +720,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": false,
   "selected_model_id": 0,
-  "selection_rule": "lowest training instability among models within 0.001 relative training fitness of the best; holdout never used",
-  "elapsed_seconds": 3.6239891669974895,
-  "finished_at": "2026-11-14T21:44:56.590429+00:00",
-  "wall_seconds_including_imports": 4.108367749999161,
+  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
+  "elapsed_seconds": 3.684098708006786,
+  "finished_at": "2026-11-14T22:10:00.952993+00:00",
+  "wall_seconds_including_imports": 4.073035957990214,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/172_klein_gordon_discovery_analytic_mean_samples_strong_base_noise0_seed0.log",
   "timeout_seconds": 90.0
 }

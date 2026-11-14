@@ -14,7 +14,7 @@
     "run_id": "120_advection_diffusion_discovery_analytic_mean_samples_strong_base_noise0_seed4"
   },
   "status": "ok",
-  "started_at": "2026-11-14T21:43:46.900723+00:00",
+  "started_at": "2026-11-14T22:08:41.220071+00:00",
   "models": [
     {
       "model_id": 0,
@@ -63,6 +63,10 @@
           "coefficient_error": 0.5280588545286912,
           "support_exact": false,
           "coefficient_reason": null,
+          "term_shares": [
+            0.940350527786397,
+            0.37713003594275096
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -147,6 +151,9 @@
           "coefficient_error": 0.9811909065510352,
           "support_exact": false,
           "coefficient_reason": null,
+          "term_shares": [
+            0.3589320471775987
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -231,6 +238,10 @@
           "coefficient_error": 0.9814226296007028,
           "support_exact": false,
           "coefficient_reason": null,
+          "term_shares": [
+            0.36374920552174766,
+            0.02212573955774014
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -323,6 +334,10 @@
           "coefficient_error": 2.1942709178604378e-16,
           "support_exact": true,
           "coefficient_reason": null,
+          "term_shares": [
+            0.940350527786397,
+            0.30510428931553824
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -407,6 +422,9 @@
           "coefficient_error": 1.1414943447119201,
           "support_exact": false,
           "coefficient_reason": null,
+          "term_shares": [
+            0.4234145665947551
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -491,6 +509,10 @@
           "coefficient_error": 1.144076077314855,
           "support_exact": false,
           "coefficient_reason": null,
+          "term_shares": [
+            0.42735759935766576,
+            0.02212573955774014
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -575,6 +597,9 @@
           "coefficient_error": 0.1965135711655777,
           "support_exact": false,
           "coefficient_reason": null,
+          "term_shares": [
+            0.9523298331729532
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -1052,10 +1077,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": true,
   "selected_model_id": 3,
-  "selection_rule": "lowest training instability among models within 0.001 relative training fitness of the best; holdout never used",
-  "elapsed_seconds": 2.274991082987981,
-  "finished_at": "2026-11-14T21:43:49.175714+00:00",
-  "wall_seconds_including_imports": 2.657494042010512,
+  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
+  "elapsed_seconds": 2.6928273329976946,
+  "finished_at": "2026-11-14T22:08:43.912901+00:00",
+  "wall_seconds_including_imports": 3.1154817500064382,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/120_advection_diffusion_discovery_analytic_mean_samples_strong_base_noise0_seed4.log",
   "timeout_seconds": 90.0
 }

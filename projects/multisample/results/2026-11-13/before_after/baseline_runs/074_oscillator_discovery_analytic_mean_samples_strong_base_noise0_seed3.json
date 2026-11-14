@@ -14,7 +14,7 @@
     "run_id": "074_oscillator_discovery_analytic_mean_samples_strong_base_noise0_seed3"
   },
   "status": "ok",
-  "started_at": "2026-11-14T21:51:20.980789+00:00",
+  "started_at": "2026-11-14T22:18:23.534213+00:00",
   "models": [
     {
       "model_id": 0,
@@ -63,6 +63,10 @@
           "coefficient_error": 2.231458868447493e-16,
           "support_exact": true,
           "coefficient_reason": null,
+          "term_shares": [
+            0.15866402036173793,
+            0.99354560253765
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -490,10 +494,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": true,
   "selected_model_id": 0,
-  "selection_rule": "lowest training instability among models within 0.001 relative training fitness of the best; holdout never used",
-  "elapsed_seconds": 3.6720528750011,
-  "finished_at": "2026-11-14T21:51:24.652841+00:00",
-  "wall_seconds_including_imports": 4.10128958299174,
+  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
+  "elapsed_seconds": 4.011483791997307,
+  "finished_at": "2026-11-14T22:18:27.545670+00:00",
+  "wall_seconds_including_imports": 4.437837165998644,
   "log_file": "projects/multisample/results/2026-11-13/before_after/baseline_runs/074_oscillator_discovery_analytic_mean_samples_strong_base_noise0_seed3.log",
   "timeout_seconds": 90.0
 }

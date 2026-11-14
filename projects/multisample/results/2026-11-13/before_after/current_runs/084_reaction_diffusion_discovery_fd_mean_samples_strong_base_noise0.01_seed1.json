@@ -14,7 +14,7 @@
     "run_id": "084_reaction_diffusion_discovery_fd_mean_samples_strong_base_noise0.01_seed1"
   },
   "status": "ok",
-  "started_at": "2026-11-14T21:43:02.397785+00:00",
+  "started_at": "2026-11-14T22:07:41.537015+00:00",
   "models": [
     {
       "model_id": 0,
@@ -55,6 +55,10 @@
           "coefficient_error": 1.2020750184190574,
           "support_exact": false,
           "coefficient_reason": null,
+          "term_shares": [
+            1.1053158619477108,
+            0.0019665152778369404
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -139,6 +143,9 @@
           "coefficient_error": 1.2020734372398125,
           "support_exact": false,
           "coefficient_reason": null,
+          "term_shares": [
+            1.105315572775741
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -612,10 +619,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": false,
   "selected_model_id": 1,
-  "selection_rule": "lowest training instability among models within 0.001 relative training fitness of the best; holdout never used",
-  "elapsed_seconds": 3.7284935420029797,
-  "finished_at": "2026-11-14T21:43:06.126277+00:00",
-  "wall_seconds_including_imports": 4.066223832996911,
+  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
+  "elapsed_seconds": 4.890969999993104,
+  "finished_at": "2026-11-14T22:07:46.427982+00:00",
+  "wall_seconds_including_imports": 5.35029245800979,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/084_reaction_diffusion_discovery_fd_mean_samples_strong_base_noise0.01_seed1.log",
   "timeout_seconds": 90.0
 }

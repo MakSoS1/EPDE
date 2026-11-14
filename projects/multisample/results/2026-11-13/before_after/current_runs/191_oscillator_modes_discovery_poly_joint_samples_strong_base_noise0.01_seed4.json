@@ -1,0 +1,789 @@
+{
+  "spec": {
+    "scenario": "oscillator_modes",
+    "stage": "discovery",
+    "derivatives": "poly",
+    "noise": 0.01,
+    "seed": 4,
+    "multisample_mode": "joint",
+    "weighting": "samples",
+    "rps_mode": "plain",
+    "evaluation_form": "strong",
+    "population": 8,
+    "epochs": 4,
+    "run_id": "191_oscillator_modes_discovery_poly_joint_samples_strong_base_noise0.01_seed4"
+  },
+  "status": "ok",
+  "started_at": "2026-11-14T22:10:26.631273+00:00",
+  "models": [
+    {
+      "model_id": 0,
+      "equations": [
+        {
+          "variable": "u",
+          "text": "-1.6730325839673401 * u{power: 1.0} + 0.038401536718805564 = du/dx0{power: 1.0}",
+          "terms_in_zero_form": [
+            {
+              "key": "u",
+              "factors": {
+                "u": 1.0
+              },
+              "coefficient": -1.6730325839673401
+            },
+            {
+              "key": "du/dx0",
+              "factors": {
+                "du/dx0": 1.0
+              },
+              "coefficient": -1.0
+            },
+            {
+              "key": "1",
+              "factors": {},
+              "coefficient": 0.038401536718805564
+            }
+          ],
+          "target": "du/dx0{power: 1.0}",
+          "canonical_target": "d^2u/dx0^2",
+          "canonical_coefficients": null,
+          "canonical_reason": "no linear canonical target term",
+          "fitness": 0.288175822777117,
+          "instability": 1.0364468872361308,
+          "coefficient_error": null,
+          "support_exact": null,
+          "coefficient_reason": "no linear canonical target term",
+          "term_shares": [
+            0.9304671152425834,
+            0.06100699048532078
+          ],
+          "training_fit_residuals": [
+            {
+              "sample_id": 7,
+              "rows": 71,
+              "rmse": 0.17603646654342936,
+              "relative_l2": 0.5881854398337817
+            },
+            {
+              "sample_id": 19,
+              "rows": 141,
+              "rmse": 0.15012467099172852,
+              "relative_l2": 0.20231164987011457
+            }
+          ],
+          "clean_training_residuals": [
+            {
+              "sample_id": 7,
+              "relative_l2": 0.6043257240235614,
+              "rmse": 0.2176354012548159,
+              "normalization": "implicit equation scale"
+            },
+            {
+              "sample_id": 19,
+              "relative_l2": 0.09593782875811291,
+              "rmse": 0.1689407523089399,
+              "normalization": "implicit equation scale"
+            }
+          ],
+          "holdout_residuals": [
+            {
+              "sample_id": 97,
+              "relative_l2": 0.7465412206419942,
+              "rmse": 0.328479954608727,
+              "normalization": "implicit equation scale"
+            }
+          ]
+        }
+      ],
+      "training_selection_score": 0.288175822777117,
+      "heldout_rollout": {
+        "relative_l2": null,
+        "reason": "rollout implemented only for first-order ODE systems"
+      },
+      "training_instability": 1.0364468872361308
+    },
+    {
+      "model_id": 1,
+      "equations": [
+        {
+          "variable": "u",
+          "text": "-1.599139869967667 * u{power: 1.0} = du/dx0{power: 1.0}",
+          "terms_in_zero_form": [
+            {
+              "key": "u",
+              "factors": {
+                "u": 1.0
+              },
+              "coefficient": -1.599139869967667
+            },
+            {
+              "key": "du/dx0",
+              "factors": {
+                "du/dx0": 1.0
+              },
+              "coefficient": -1.0
+            },
+            {
+              "key": "1",
+              "factors": {},
+              "coefficient": 0.0
+            }
+          ],
+          "target": "du/dx0{power: 1.0}",
+          "canonical_target": "d^2u/dx0^2",
+          "canonical_coefficients": null,
+          "canonical_reason": "no linear canonical target term",
+          "fitness": 0.29214544476947996,
+          "instability": 0.00243653496549091,
+          "coefficient_error": null,
+          "support_exact": null,
+          "coefficient_reason": "no linear canonical target term",
+          "term_shares": [
+            0.8893712387536272
+          ],
+          "training_fit_residuals": [
+            {
+              "sample_id": 7,
+              "rows": 71,
+              "rmse": 0.17996653665662032,
+              "relative_l2": 0.6013168668812253
+            },
+            {
+              "sample_id": 19,
+              "rows": 141,
+              "rmse": 0.15112455652181797,
+              "relative_l2": 0.20365911987579266
+            }
+          ],
+          "clean_training_residuals": [
+            {
+              "sample_id": 7,
+              "relative_l2": 0.5991398699676671,
+              "rmse": 0.21576782325269286,
+              "normalization": "implicit equation scale"
+            },
+            {
+              "sample_id": 19,
+              "relative_l2": 0.10021503250808322,
+              "rmse": 0.17647265112979477,
+              "normalization": "implicit equation scale"
+            }
+          ],
+          "holdout_residuals": [
+            {
+              "sample_id": 97,
+              "relative_l2": 0.7627813416161328,
+              "rmse": 0.3356256473754811,
+              "normalization": "implicit equation scale"
+            }
+          ]
+        }
+      ],
+      "training_selection_score": 0.29214544476947996,
+      "heldout_rollout": {
+        "relative_l2": null,
+        "reason": "rollout implemented only for first-order ODE systems"
+      },
+      "training_instability": 0.00243653496549091
+    },
+    {
+      "model_id": 2,
+      "equations": [
+        {
+          "variable": "u",
+          "text": "-1.6702604425235836 * u{power: 1.0} + -0.002352255656436959 * d^2u/dx0^2{power: 1.0} + 0.03884323713925387 = du/dx0{power: 1.0}",
+          "terms_in_zero_form": [
+            {
+              "key": "du/dx0",
+              "factors": {
+                "du/dx0": 1.0
+              },
+              "coefficient": -1.0
+            },
+            {
+              "key": "u",
+              "factors": {
+                "u": 1.0
+              },
+              "coefficient": -1.6702604425235836
+            },
+            {
+              "key": "d^2u/dx0^2",
+              "factors": {
+                "d^2u/dx0^2": 1.0
+              },
+              "coefficient": -0.002352255656436959
+            },
+            {
+              "key": "1",
+              "factors": {},
+              "coefficient": 0.03884323713925387
+            }
+          ],
+          "target": "du/dx0{power: 1.0}",
+          "canonical_target": "d^2u/dx0^2",
+          "canonical_coefficients": {
+            "du/dx0": -425.12385814165015,
+            "u": -710.0675634270058,
+            "1": 16.513186835350638
+          },
+          "canonical_reason": null,
+          "fitness": 0.2878558153506113,
+          "instability": 2.0447106298849547,
+          "coefficient_error": 228.67863095641582,
+          "support_exact": false,
+          "coefficient_reason": null,
+          "term_shares": [
+            0.92892537213672,
+            0.01135213102858315,
+            0.06170870233463997
+          ],
+          "training_fit_residuals": [
+            {
+              "sample_id": 7,
+              "rows": 71,
+              "rmse": 0.17615305981447307,
+              "relative_l2": 0.5885750094823725
+            },
+            {
+              "sample_id": 19,
+              "rows": 141,
+              "rmse": 0.14973651254316828,
+              "relative_l2": 0.2017885581249638
+            }
+          ],
+          "clean_training_residuals": [
+            {
+              "sample_id": 7,
+              "relative_l2": 256.4275591802703,
+              "rmse": 92.34707793576457,
+              "normalization": "canonical target"
+            },
+            {
+              "sample_id": 19,
+              "relative_l2": 40.16933642025872,
+              "rmse": 70.73578798306434,
+              "normalization": "canonical target"
+            }
+          ],
+          "holdout_residuals": [
+            {
+              "sample_id": 97,
+              "relative_l2": 315.6651074307903,
+              "rmse": 138.8934157865471,
+              "normalization": "canonical target"
+            }
+          ]
+        }
+      ],
+      "training_selection_score": 0.2878558153506113,
+      "heldout_rollout": {
+        "relative_l2": null,
+        "reason": "rollout implemented only for first-order ODE systems"
+      },
+      "training_instability": 2.0447106298849547
+    },
+    {
+      "model_id": 3,
+      "equations": [
+        {
+          "variable": "u",
+          "text": "-1.5964661538395628 * u{power: 1.0} + -0.0017363743118766197 * d^2u/dx0^2{power: 1.0} = du/dx0{power: 1.0}",
+          "terms_in_zero_form": [
+            {
+              "key": "du/dx0",
+              "factors": {
+                "du/dx0": 1.0
+              },
+              "coefficient": -1.0
+            },
+            {
+              "key": "u",
+              "factors": {
+                "u": 1.0
+              },
+              "coefficient": -1.5964661538395628
+            },
+            {
+              "key": "d^2u/dx0^2",
+              "factors": {
+                "d^2u/dx0^2": 1.0
+              },
+              "coefficient": -0.0017363743118766197
+            },
+            {
+              "key": "1",
+              "factors": {},
+              "coefficient": 0.0
+            }
+          ],
+          "target": "du/dx0{power: 1.0}",
+          "canonical_target": "d^2u/dx0^2",
+          "canonical_coefficients": {
+            "du/dx0": -575.9126895394063,
+            "u": -919.4251164163742,
+            "1": 0.0
+          },
+          "canonical_reason": null,
+          "fitness": 0.29196556288765957,
+          "instability": 0.3114409634074744,
+          "coefficient_error": 299.9868963890659,
+          "support_exact": true,
+          "coefficient_reason": null,
+          "term_shares": [
+            0.8878842354779375,
+            0.008379849634604359
+          ],
+          "training_fit_residuals": [
+            {
+              "sample_id": 7,
+              "rows": 71,
+              "rmse": 0.1800398615502925,
+              "relative_l2": 0.6015618651800563
+            },
+            {
+              "sample_id": 19,
+              "rows": 141,
+              "rmse": 0.1509008408998835,
+              "relative_l2": 0.20335763527451906
+            }
+          ],
+          "clean_training_residuals": [
+            {
+              "sample_id": 7,
+              "relative_l2": 344.5124268769679,
+              "rmse": 124.06901986802748,
+              "normalization": "canonical target"
+            },
+            {
+              "sample_id": 19,
+              "relative_l2": 57.100065665609606,
+              "rmse": 100.54978495249931,
+              "normalization": "canonical target"
+            }
+          ],
+          "holdout_residuals": [
+            {
+              "sample_id": 97,
+              "relative_l2": 437.6618761721048,
+              "rmse": 192.57229104556745,
+              "normalization": "canonical target"
+            }
+          ]
+        }
+      ],
+      "training_selection_score": 0.29196556288765957,
+      "heldout_rollout": {
+        "relative_l2": null,
+        "reason": "rollout implemented only for first-order ODE systems"
+      },
+      "training_instability": 0.3114409634074744
+    }
+  ],
+  "train_samples": [
+    {
+      "id": 7,
+      "shape": [
+        81
+      ],
+      "grid_ranges": [
+        [
+          0.0,
+          4.0,
+          81
+        ]
+      ],
+      "parameters": {
+        "modes": [
+          [
+            -1.0,
+            1.0
+          ]
+        ]
+      },
+      "noise_std": {
+        "u": 0.0026043751183593544
+      }
+    },
+    {
+      "id": 19,
+      "shape": [
+        151
+      ],
+      "grid_ranges": [
+        [
+          10.0,
+          13.0,
+          151
+        ]
+      ],
+      "parameters": {
+        "modes": [
+          [
+            -2.0,
+            1.5
+          ]
+        ]
+      },
+      "noise_std": {
+        "u": 0.003604563999956759
+      }
+    }
+  ],
+  "heldout_samples": [
+    {
+      "id": 97,
+      "shape": [
+        137
+      ],
+      "grid_ranges": [
+        [
+          40.0,
+          44.0,
+          137
+        ]
+      ],
+      "parameters": {
+        "modes": [
+          [
+            -1.0,
+            1.2
+          ],
+          [
+            -2.0,
+            -0.8
+          ]
+        ]
+      },
+      "noise_std": {
+        "u": 0.0
+      }
+    }
+  ],
+  "fixture_evidence": {
+    "kind": "analytic_fixture_check_not_EPDE_fit",
+    "design_columns": [
+      "u",
+      "du/dx0"
+    ],
+    "individual_designs": [
+      {
+        "rows": 81,
+        "columns": 2,
+        "rank": 1,
+        "singular_values": [
+          4.5836976895850965,
+          1.8377188269499056e-15
+        ],
+        "condition_number": null,
+        "condition_reason": "rank deficient"
+      },
+      {
+        "rows": 151,
+        "columns": 2,
+        "rank": 1,
+        "singular_values": [
+          12.096452458129386,
+          7.952070461290068e-16
+        ],
+        "condition_number": null,
+        "condition_reason": "rank deficient"
+      }
+    ],
+    "pooled_design": {
+      "rows": 232,
+      "columns": 2,
+      "rank": 2,
+      "singular_values": [
+        12.863770571883943,
+        1.3630309076557448
+      ],
+      "condition_number": 9.437622066845233,
+      "condition_reason": null
+    },
+    "maximum_exact_law_residual": 8.881784197001252e-16
+  },
+  "resolved_config": {
+    "domain": {
+      "boundary_width": 5,
+      "time_axis": 0,
+      "evaluation_stride": null,
+      "evaluation_form": "strong",
+      "weak_window_products": "off",
+      "weak_window_gate": "half_power"
+    },
+    "preprocessing": {
+      "default_preprocessor_type": "poly",
+      "preprocessor_kwargs": {
+        "polynomial_window": 11
+      },
+      "max_deriv_order": 1
+    },
+    "search_space": {
+      "data_fun_pow": 1,
+      "deriv_fun_pow": 1,
+      "equation_terms_max_number": 4,
+      "equation_factors_max_number": 1,
+      "rps_amplification_cap": 100.0,
+      "tokens": [],
+      "system_rps_mode": "plain",
+      "system_rps_params": {
+        "fill_probability": "auto",
+        "fill_beam_width": 1000,
+        "fill_top": 20,
+        "fill_prune_alpha": 0.3,
+        "fill_levels": "all",
+        "product_rule_decline": "auto",
+        "variable_order": "auto",
+        "variable_order_seed": null,
+        "plain_target": true,
+        "factor_move_probability": "auto",
+        "target_axes": 0
+      }
+    },
+    "objectives": {
+      "multiobjective_mode": true,
+      "discrepancy_metric": "l2_relative",
+      "second_objective": "instability",
+      "complexity_metric": "factors",
+      "instability_metric": "dyad",
+      "single_objective_metric": "discrepancy",
+      "anchor_on_residual": false,
+      "sparsity_cls": "epde.operators.common.sparsity.VWSRSparsity",
+      "sparsity_kwargs": {},
+      "multisample_mode": "joint",
+      "multisample_weighting": "samples"
+    },
+    "solver": {
+      "use_solver": false,
+      "solver_backend": "autograd",
+      "device": "cpu",
+      "pinn_loss_mult": 0.0,
+      "error_metric": "rmse",
+      "deepxde_config": {
+        "net": [
+          64,
+          64,
+          64,
+          64
+        ],
+        "activation": "tanh",
+        "optimizer": "adam",
+        "lr": 0.0001,
+        "num_domain": 4000,
+        "num_test": 500,
+        "epochs": 2000,
+        "train_frac": 0.8,
+        "lbfgs_maxiter": 2000,
+        "loss_weight_mode": "gradient"
+      },
+      "basis_config": {
+        "train_frac": 0.8,
+        "energy": 0.99999,
+        "periodic": "auto",
+        "periodic_modes": "nyquist",
+        "nyquist_factor": 1.0,
+        "time_factor": 2.0,
+        "space_factor": 2.0,
+        "collocation_factor": 2,
+        "phys_weight_scale": 1.0,
+        "pde_loss": "mse",
+        "sinv_floor_rel": 0.0,
+        "start": "zero",
+        "precondition": "jacobi",
+        "refine": "spectral",
+        "refine_tol": 1e-10,
+        "refine_min_gain": 2.0,
+        "max_refinements": 3,
+        "lbfgs_maxiter": 4000,
+        "history_size": 100,
+        "gtol": 1e-08,
+        "ftol": 0.0,
+        "threads": null
+      },
+      "mode": "NN",
+      "use_cache": false,
+      "use_fourier": false,
+      "fourier_params": null,
+      "use_adaptive_lambdas": false,
+      "compiling_params": {},
+      "optimizer_params": {},
+      "cache_params": {},
+      "early_stopping_params": {},
+      "plotting_params": {},
+      "training_params": {}
+    },
+    "evolution": {
+      "population_size": 8,
+      "training_epochs": 4,
+      "early_stopping_patience": null,
+      "neighbors_number": 3,
+      "PBI_penalty": 5.0,
+      "subregion_mating_limitation": 0.9,
+      "solution_params": {},
+      "director_params": {
+        "variation_params": {},
+        "mutation_params": {},
+        "sorter_params": {},
+        "pareto_combiner_params": {},
+        "pareto_updater_params": {}
+      },
+      "operators": {
+        "MOEADDSelection": {
+          "delta": 0.9,
+          "parents_fraction": 0.2
+        },
+        "PopulationUpdater": {
+          "PBI_penalty": 5.0
+        },
+        "NSGASelection": {
+          "parents_fraction": 1.0
+        },
+        "AppendUpdater": {},
+        "SortingBasedNeighborSelector": {
+          "number_of_neighbors": 3
+        },
+        "ParetoLevelUpdater": {
+          "mutation_attempt_limit": 3,
+          "offspring_attempt_limit": 3
+        },
+        "InitialParetoLevelSorting": {
+          "uniqueness_attempt_limit": 100
+        },
+        "SolverFreeFitness": {
+          "penalty_coeff": 0.2
+        },
+        "SolverBasedFitness": {
+          "penalty_coeff": 0.2,
+          "pinn_loss_mult": 0.0,
+          "error_metric": "rmse",
+          "deepxde_config": {
+            "net": [
+              64,
+              64,
+              64,
+              64
+            ],
+            "activation": "tanh",
+            "optimizer": "adam",
+            "lr": 0.0001,
+            "num_domain": 4000,
+            "num_test": 500,
+            "epochs": 2000,
+            "train_frac": 0.8,
+            "lbfgs_maxiter": 2000,
+            "loss_weight_mode": "gradient"
+          },
+          "basis_config": {
+            "train_frac": 0.8,
+            "energy": 0.99999,
+            "periodic": "auto",
+            "periodic_modes": "nyquist",
+            "nyquist_factor": 1.0,
+            "time_factor": 2.0,
+            "space_factor": 2.0,
+            "collocation_factor": 2,
+            "phys_weight_scale": 1.0,
+            "pde_loss": "mse",
+            "sinv_floor_rel": 0.0,
+            "start": "zero",
+            "precondition": "jacobi",
+            "refine": "spectral",
+            "refine_tol": 1e-10,
+            "refine_min_gain": 2.0,
+            "max_refinements": 3,
+            "lbfgs_maxiter": 4000,
+            "history_size": 100,
+            "gtol": 1e-08,
+            "ftol": 0.0,
+            "threads": null
+          }
+        },
+        "DiscrepancyBasedFitnessWithCV": {
+          "penalty_coeff": 0.2
+        },
+        "PIC": {
+          "penalty_coeff": 0.2,
+          "pinn_loss_mult": 0.0
+        },
+        "DeepXDEBasedFitness": {
+          "penalty_coeff": 0.2,
+          "error_metric": "rmse",
+          "deepxde_config": {
+            "net": [
+              64,
+              64,
+              64,
+              64
+            ],
+            "activation": "tanh",
+            "optimizer": "adam",
+            "lr": 0.0001,
+            "num_domain": 4000,
+            "num_test": 500,
+            "epochs": 2000,
+            "train_frac": 0.8,
+            "lbfgs_maxiter": 2000,
+            "loss_weight_mode": "gradient"
+          }
+        },
+        "ParetoLevelsCrossover": {},
+        "ChromosomeCrossover": {
+          "equation_exchange_prob": 0.1
+        },
+        "MetaparamerCrossover": {
+          "metaparam_proportion": 0.05
+        },
+        "EquationCrossover": {
+          "crossover_probability": 1
+        },
+        "TermCrossover": {
+          "crossover_probability": 0.3
+        },
+        "TermParamCrossover": {
+          "term_param_proportion": 0.4
+        },
+        "SystemMutation": {
+          "indiv_mutation_prob": 1
+        },
+        "EquationMutation": {
+          "r_mutation": 0.6,
+          "n_added_terms": 12,
+          "term_addition_prob": 0.5
+        },
+        "MetaparameterMutation": {
+          "mean": 0.0,
+          "std": 1.0
+        },
+        "TermMutation": {},
+        "TermParameterMutation": {
+          "r_param_mutation": 0.2,
+          "multiplier": 0.1,
+          "strict_restrictions": 1
+        },
+        "LinRegCoeffCalc": {},
+        "LASSOBasedSparsity": {}
+      },
+      "niching": "auto",
+      "complementary_mating_prob": 0.0,
+      "engine": "nsga2",
+      "planned_duplicates": "fit"
+    },
+    "runtime": {
+      "memory_for_cache": 15,
+      "verbose_params": {
+        "show_iter_idx": false
+      },
+      "free_tensor_cache_after_fit": false
+    }
+  },
+  "epochs_completed": 4,
+  "active_evaluation_form": "strong",
+  "truth_on_front": true,
+  "selected_model_id": 2,
+  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
+  "elapsed_seconds": 4.534924624997075,
+  "finished_at": "2026-11-14T22:10:31.166187+00:00",
+  "wall_seconds_including_imports": 5.041670584003441,
+  "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/191_oscillator_modes_discovery_poly_joint_samples_strong_base_noise0.01_seed4.log",
+  "timeout_seconds": 90.0
+}

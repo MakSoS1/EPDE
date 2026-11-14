@@ -14,7 +14,7 @@
     "run_id": "128_reaction_diffusion_rich_discovery_analytic_mean_samples_strong_base_noise0_seed2"
   },
   "status": "ok",
-  "started_at": "2026-11-14T21:43:56.757748+00:00",
+  "started_at": "2026-11-14T22:08:52.976049+00:00",
   "models": [
     {
       "model_id": 0,
@@ -71,6 +71,11 @@
           "coefficient_error": 1.535362644498411e-14,
           "support_exact": true,
           "coefficient_reason": null,
+          "term_shares": [
+            3.1113345574320362e-18,
+            0.4581164653219665,
+            0.6020655880629765
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -163,6 +168,10 @@
           "coefficient_error": 1.5594583224237352e-14,
           "support_exact": true,
           "coefficient_reason": null,
+          "term_shares": [
+            0.6020655880629765,
+            0.4581164653219664
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -644,10 +653,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": true,
   "selected_model_id": 1,
-  "selection_rule": "lowest training instability among models within 0.001 relative training fitness of the best; holdout never used",
-  "elapsed_seconds": 4.310553250004887,
-  "finished_at": "2026-11-14T21:44:01.068297+00:00",
-  "wall_seconds_including_imports": 4.691023750012391,
+  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
+  "elapsed_seconds": 4.9648702920094365,
+  "finished_at": "2026-11-14T22:08:57.940911+00:00",
+  "wall_seconds_including_imports": 5.391508874992724,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/128_reaction_diffusion_rich_discovery_analytic_mean_samples_strong_base_noise0_seed2.log",
   "timeout_seconds": 90.0
 }

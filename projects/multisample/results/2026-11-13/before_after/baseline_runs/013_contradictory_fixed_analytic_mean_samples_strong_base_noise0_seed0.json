@@ -14,7 +14,7 @@
     "run_id": "013_contradictory_fixed_analytic_mean_samples_strong_base_noise0_seed0"
   },
   "status": "ok",
-  "started_at": "2026-11-14T21:49:46.871246+00:00",
+  "started_at": "2026-11-14T22:16:43.088657+00:00",
   "models": [
     {
       "model_id": 0,
@@ -55,6 +55,9 @@
           "coefficient_error": null,
           "support_exact": null,
           "coefficient_reason": "no common ground-truth coefficient vector",
+          "term_shares": [
+            0.873623521139128
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -482,10 +485,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": false,
   "selected_model_id": 0,
-  "selection_rule": "lowest training instability among models within 0.001 relative training fitness of the best; holdout never used",
-  "elapsed_seconds": 1.897362500007148,
-  "finished_at": "2026-11-14T21:49:48.768607+00:00",
-  "wall_seconds_including_imports": 2.279557791989646,
+  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
+  "elapsed_seconds": 1.9284175829961896,
+  "finished_at": "2026-11-14T22:16:45.017061+00:00",
+  "wall_seconds_including_imports": 2.3383998749923194,
   "log_file": "projects/multisample/results/2026-11-13/before_after/baseline_runs/013_contradictory_fixed_analytic_mean_samples_strong_base_noise0_seed0.log",
   "timeout_seconds": 45.0
 }

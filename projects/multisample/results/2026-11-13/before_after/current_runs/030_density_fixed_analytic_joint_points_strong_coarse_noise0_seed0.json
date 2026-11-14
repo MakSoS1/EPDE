@@ -15,7 +15,7 @@
     "run_id": "030_density_fixed_analytic_joint_points_strong_coarse_noise0_seed0"
   },
   "status": "ok",
-  "started_at": "2026-11-14T21:41:17.189148+00:00",
+  "started_at": "2026-11-14T22:05:41.545644+00:00",
   "models": [
     {
       "model_id": 0,
@@ -56,6 +56,9 @@
           "coefficient_error": null,
           "support_exact": null,
           "coefficient_reason": "no common ground-truth coefficient vector",
+          "term_shares": [
+            0.8574929257125441
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -489,10 +492,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": false,
   "selected_model_id": 0,
-  "selection_rule": "lowest training instability among models within 0.001 relative training fitness of the best; holdout never used",
-  "elapsed_seconds": 1.6615197499922942,
-  "finished_at": "2026-11-14T21:41:18.850666+00:00",
-  "wall_seconds_including_imports": 2.0686117909936,
+  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
+  "elapsed_seconds": 1.6821184589935,
+  "finished_at": "2026-11-14T22:05:43.227759+00:00",
+  "wall_seconds_including_imports": 2.073691625002539,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/030_density_fixed_analytic_joint_points_strong_coarse_noise0_seed0.log",
   "timeout_seconds": 45.0
 }

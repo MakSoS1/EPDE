@@ -14,7 +14,7 @@
     "run_id": "045_logistic_discovery_fd_joint_samples_strong_base_noise0.01_seed1"
   },
   "status": "ok",
-  "started_at": "2026-11-14T21:41:35.734812+00:00",
+  "started_at": "2026-11-14T22:06:01.996040+00:00",
   "models": [
     {
       "model_id": 0,
@@ -63,6 +63,10 @@
           "coefficient_error": 0.0003479595273029625,
           "support_exact": true,
           "coefficient_reason": null,
+          "term_shares": [
+            5.4542942900756115,
+            5.765770629003327
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -167,6 +171,11 @@
           "coefficient_error": 0.0008178867180591011,
           "support_exact": false,
           "coefficient_reason": null,
+          "term_shares": [
+            5.769336846154207,
+            5.459580519021436,
+            0.0018854735194703425
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -593,10 +602,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": true,
   "selected_model_id": 0,
-  "selection_rule": "lowest training instability among models within 0.001 relative training fitness of the best; holdout never used",
-  "elapsed_seconds": 3.778606166000827,
-  "finished_at": "2026-11-14T21:41:39.513416+00:00",
-  "wall_seconds_including_imports": 4.149277874996187,
+  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
+  "elapsed_seconds": 5.119486249997863,
+  "finished_at": "2026-11-14T22:06:07.115518+00:00",
+  "wall_seconds_including_imports": 5.630060582989245,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/045_logistic_discovery_fd_joint_samples_strong_base_noise0.01_seed1.log",
   "timeout_seconds": 90.0
 }

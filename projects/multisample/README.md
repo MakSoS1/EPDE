@@ -20,7 +20,7 @@ python projects/multisample/benchmark.py --suite compatibility --workers 3 --out
 python projects/multisample/benchmark.py --suite extended --workers 3 --output projects/multisample/results/extended.json
 ```
 
-The `extended` suite adds heat and advection–diffusion laws whose single-mode records are each degenerate, a reaction–diffusion control whose records already carry two modes, 5% noise in the PDE search, the weak form inside the full search, and four laws with a second time derivative (an overdamped oscillator made of single exponentials, an underdamped control, the wave equation and the Klein–Gordon equation), and a real recording: one spinning robot from the 30-robot data in `projects/robot`, cut into 2 s windows (first minute for training, second minute held out).
+The `extended` suite adds Savitzky–Golay smoothing before differentiation (`--derivatives poly`), heat and advection–diffusion laws whose single-mode records are each degenerate, a reaction–diffusion control whose records already carry two modes, 5% noise in the PDE search, the weak form inside the full search, and four laws with a second time derivative (an overdamped oscillator made of single exponentials, an underdamped control, the wave equation and the Klein–Gordon equation), and a real recording: one spinning robot from the 30-robot data in `projects/robot`, cut into 2 s windows (first minute for training, second minute held out).
 
 The same job definitions can run on another checkout, for example the commit before this work. Only mean-mode jobs exist there:
 
@@ -92,9 +92,9 @@ The compatibility suite also tries two clean weak-form fixed-structure jobs. The
 
 ## Holdout and model selection
 
-Whole clean trajectories/fields with new initial conditions are held out. Among the returned candidates, the selected model has the lowest mean training instability among those whose mean training fitness is within 0.1% of the best one. The report keeps every returned model, records whether the correct structure is anywhere on the returned front, and never selects by coefficient error, support recovery, or holdout error.
+Whole clean trajectories/fields with new initial conditions are held out. One model is chosen from the returned front by a training-only rule. The default keeps the models within 1% of the best training fitness, drops those with a term that explains less than 1% of the target (|c_j|·||X_j|| / ||y|| on the training rows), and takes the best fit among the rest. If none is left, it takes the most stable model within 0.1% of the best fitness. `select_model` also implements pure fitness, stability and fewest-terms rules for comparison. The report keeps every returned model, records whether the correct structure is anywhere on the front, and never selects by coefficient error, support recovery, or holdout error.
 
-The 98-job campaign below used the earlier rule, pure minimum training fitness. On noisy data that rule picks a copy of the correct equation with an extra intercept of order 1e-3: the two have equal fitness to six digits, while the extra coefficient is 20 to 70 times less stable. The `before_after` campaign uses the current rule.
+The 98-job campaign below used pure minimum training fitness. On noisy data that rule picks a copy of the correct equation with an extra intercept of order 1e-3. The `before_after` campaign uses the current rule.
 
 Canonicalization rewrites each equation against its scenario's first time derivative, or the second time derivative for the density control. A model lacking that linear derivative receives an explicit unavailable reason for canonical coefficient comparison. Active support uses the declared threshold `1e-8 * max(1, max(abs(coefficients)))`; this threshold is fixed before running any experiment. Extra terms contribute to coefficient error even when the true coefficient is zero.
 

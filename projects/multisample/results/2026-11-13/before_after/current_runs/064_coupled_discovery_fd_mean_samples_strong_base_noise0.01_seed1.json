@@ -14,7 +14,7 @@
     "run_id": "064_coupled_discovery_fd_mean_samples_strong_base_noise0.01_seed1"
   },
   "status": "ok",
-  "started_at": "2026-11-14T21:42:10.558800+00:00",
+  "started_at": "2026-11-14T22:06:42.532835+00:00",
   "models": [
     {
       "model_id": 0,
@@ -63,6 +63,10 @@
           "coefficient_error": 0.0022414093900599403,
           "support_exact": true,
           "coefficient_reason": null,
+          "term_shares": [
+            0.19503954869650464,
+            0.9897361658207824
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -144,6 +148,11 @@
           "coefficient_error": 0.0014569283870847663,
           "support_exact": false,
           "coefficient_reason": null,
+          "term_shares": [
+            0.19244867359931594,
+            0.9307001348575654,
+            0.0007491918676764841
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -236,6 +245,10 @@
           "coefficient_error": 0.0022414093900599403,
           "support_exact": true,
           "coefficient_reason": null,
+          "term_shares": [
+            0.19503954869650464,
+            0.9897361658207824
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -317,6 +330,10 @@
           "coefficient_error": 0.001255586795311724,
           "support_exact": true,
           "coefficient_reason": null,
+          "term_shares": [
+            0.19236882927104354,
+            0.9307964054080345
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -722,10 +739,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": true,
   "selected_model_id": 1,
-  "selection_rule": "lowest training instability among models within 0.001 relative training fitness of the best; holdout never used",
-  "elapsed_seconds": 4.109429791002185,
-  "finished_at": "2026-11-14T21:42:14.668230+00:00",
-  "wall_seconds_including_imports": 4.476604875002522,
+  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
+  "elapsed_seconds": 4.6865693330037175,
+  "finished_at": "2026-11-14T22:06:47.219400+00:00",
+  "wall_seconds_including_imports": 5.080677374993684,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/064_coupled_discovery_fd_mean_samples_strong_base_noise0.01_seed1.log",
   "timeout_seconds": 90.0
 }

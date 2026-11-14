@@ -14,7 +14,7 @@
     "run_id": "038_reaction_diffusion_discovery_analytic_mean_samples_strong_base_noise0_seed4"
   },
   "status": "ok",
-  "started_at": "2026-11-14T21:50:32.498400+00:00",
+  "started_at": "2026-11-14T22:17:31.777530+00:00",
   "models": [
     {
       "model_id": 0,
@@ -63,6 +63,10 @@
           "coefficient_error": 1.2041594578792296,
           "support_exact": false,
           "coefficient_reason": null,
+          "term_shares": [
+            2.451799370015515e-18,
+            1.1667953129468611
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -147,6 +151,9 @@
           "coefficient_error": 1.0547511554864506,
           "support_exact": false,
           "coefficient_reason": null,
+          "term_shares": [
+            1.204611430165447
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -239,6 +246,10 @@
           "coefficient_error": 1.0547511554864495,
           "support_exact": false,
           "coefficient_reason": null,
+          "term_shares": [
+            2.451799370015515e-18,
+            1.2046114301654445
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -323,6 +334,9 @@
           "coefficient_error": 1.204159457879237,
           "support_exact": false,
           "coefficient_reason": null,
+          "term_shares": [
+            1.1667953129468656
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -407,6 +421,9 @@
           "coefficient_error": 1.0,
           "support_exact": false,
           "coefficient_reason": null,
+          "term_shares": [
+            1.2868741916773396e-17
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -878,10 +895,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": false,
   "selected_model_id": 3,
-  "selection_rule": "lowest training instability among models within 0.001 relative training fitness of the best; holdout never used",
-  "elapsed_seconds": 2.3712316670134896,
-  "finished_at": "2026-11-14T21:50:34.869630+00:00",
-  "wall_seconds_including_imports": 2.7616085830086377,
+  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
+  "elapsed_seconds": 2.5299981249991106,
+  "finished_at": "2026-11-14T22:17:34.307513+00:00",
+  "wall_seconds_including_imports": 2.910320249997312,
   "log_file": "projects/multisample/results/2026-11-13/before_after/baseline_runs/038_reaction_diffusion_discovery_analytic_mean_samples_strong_base_noise0_seed4.log",
   "timeout_seconds": 90.0
 }

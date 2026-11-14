@@ -14,7 +14,7 @@
     "run_id": "091_reaction_diffusion_discovery_fd_joint_samples_strong_base_noise0.01_seed4"
   },
   "status": "ok",
-  "started_at": "2026-11-14T21:43:10.845327+00:00",
+  "started_at": "2026-11-14T22:07:53.036140+00:00",
   "models": [
     {
       "model_id": 0,
@@ -55,6 +55,9 @@
           "coefficient_error": 0.8784495722643998,
           "support_exact": false,
           "coefficient_reason": null,
+          "term_shares": [
+            0.9049716742975448
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -147,6 +150,11 @@
           "coefficient_error": 0.12168400845776903,
           "support_exact": false,
           "coefficient_reason": null,
+          "term_shares": [
+            0.4482484335181707,
+            0.5476934753585805,
+            0.00045035995744781423
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -239,6 +247,10 @@
           "coefficient_error": 0.12168612666523612,
           "support_exact": true,
           "coefficient_reason": null,
+          "term_shares": [
+            0.44824679865702827,
+            0.5476947322307623
+          ],
           "training_fit_residuals": [
             {
               "sample_id": 7,
@@ -712,10 +724,10 @@
   "active_evaluation_form": "strong",
   "truth_on_front": true,
   "selected_model_id": 2,
-  "selection_rule": "lowest training instability among models within 0.001 relative training fitness of the best; holdout never used",
-  "elapsed_seconds": 3.496166249999078,
-  "finished_at": "2026-11-14T21:43:14.341491+00:00",
-  "wall_seconds_including_imports": 3.8437203749926994,
+  "selection_rule": "significant: within 0.01 relative training fitness of the best, no term below 0.01 of the target, then lowest training fitness; holdout never used",
+  "elapsed_seconds": 4.395948874996975,
+  "finished_at": "2026-11-14T22:07:57.432082+00:00",
+  "wall_seconds_including_imports": 4.8874843749945285,
   "log_file": "projects/multisample/results/2026-11-13/before_after/current_runs/091_reaction_diffusion_discovery_fd_joint_samples_strong_base_noise0.01_seed4.log",
   "timeout_seconds": 90.0
 }
