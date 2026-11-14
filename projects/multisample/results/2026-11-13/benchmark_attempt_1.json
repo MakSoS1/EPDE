@@ -3,7 +3,7 @@
   "metadata": {
     "started_at": "2026-11-13T10:27:48.919858+00:00",
     "git_head": "8690035e90b234b34ed5a2fb0bb8e4a814dcbdf7",
-    "git_status": "M epde/cache/cache_refactored.py\n M epde/evaluators.py\n M epde/interface/interface.py\n M epde/interface/search_config.py\n M epde/operators/common/fill_prune.py\n M epde/operators/common/plain_fit.py\n M epde/operators/common/right_part_selection.py\n M epde/structure/domain.py\n?? docs/superpowers/\n?? epde/operators/common/multisample.py\n?? projects/multisample/README.md\n?? projects/multisample/benchmark.py\n?? tests/unit/test_multisample_api.py\n?? tests/unit/test_multisample_domain.py\n?? tests/unit/test_multisample_fill.py\n?? tests/unit/test_multisample_fit.py",
+    "git_status": "M epde/cache/cache_refactored.py\n M epde/evaluators.py\n M epde/interface/interface.py\n M epde/interface/search_config.py\n M epde/operators/common/fill_prune.py\n M epde/operators/common/plain_fit.py\n M epde/operators/common/right_part_selection.py\n M epde/structure/domain.py\n?? epde/operators/common/multisample.py\n?? projects/multisample/README.md\n?? projects/multisample/benchmark.py\n?? tests/unit/test_multisample_api.py\n?? tests/unit/test_multisample_domain.py\n?? tests/unit/test_multisample_fill.py\n?? tests/unit/test_multisample_fit.py",
     "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
     "working_tree_diff_sha256": "13fbdf7d4333a4733eadfa153e14e15a206851d76243fe00723e3006b4645d2d",
     "benchmark_sha256": "3ecb7e73f97c08c3bc7aab3e8596f7585342b56fb45bed8db892c3d79dc5d775",

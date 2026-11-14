@@ -227,8 +227,8 @@ Weak-form windows (0.1 s):
   trajectory 7, slot u: WindowPlan(j=9, q=(10,), m=(64,), s=(8,), cut=(0,), rows=(35,), score=0, kept=0.73)
   trajectory 19, slot u: WindowPlan(j=5, q=(6,), m=(64,), s=(8,), cut=(0,), rows=(47,), score=4.45e-31, kept=0.82)
 =============================== warnings summary ===============================
-../../../../opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14
-  /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+/usr/local/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14
+  /usr/local/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
   The CallSpec2 alias will be removed in pytest 10.
   Update imports to use CallSpec instead.
   See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed

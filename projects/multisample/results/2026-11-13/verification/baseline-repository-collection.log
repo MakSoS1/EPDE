@@ -92,7 +92,7 @@ ______________ ERROR collecting projects/pic/data/dp/fno_test.py _______________
 projects/pic/data/dp/fno_test.py:75: in <module>
     _data = np.load(DATA_PATH)
             ^^^^^^^^^^^^^^^^^^
-/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/numpy/lib/_npyio_impl.py:454: in load
+/usr/local/python/lib/python3.12/site-packages/numpy/lib/_npyio_impl.py:454: in load
     fid = stack.enter_context(open(os.fspath(file), "rb"))
                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 E   FileNotFoundError: [Errno 2] No such file or directory: './dp.npz'
@@ -100,7 +100,7 @@ ________ ERROR collecting projects/robot/epde_u/test_invariant_terms.py ________
 ImportError while importing test module '/workspace/scratch/7d7e1a7a20b3/EPDE-baseline/projects/robot/epde_u/test_invariant_terms.py'.
 Hint: make sure your test modules/packages have valid Python names.
 Traceback:
-/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+/usr/local/python/lib/python3.12/importlib/__init__.py:90: in import_module
     return _bootstrap._gcd_import(name[level:], package, level)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 projects/robot/epde_u/test_invariant_terms.py:29: in <module>
@@ -123,8 +123,8 @@ tests/unit/conftest.py:12: in pytest_addoption
     raise ValueError(f"option names {conflict} already added")
 E   ValueError: option names {'--path'} already added
 =============================== warnings summary ===============================
-../../../../opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14
-  /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+/usr/local/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14
+  /usr/local/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
   The CallSpec2 alias will be removed in pytest 10.
   Update imports to use CallSpec instead.
   See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
